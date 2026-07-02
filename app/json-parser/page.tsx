@@ -1,7 +1,13 @@
 "use client"
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowShrink02Icon, BracesIcon, TextIndentIcon } from "@hugeicons/core-free-icons"
+import {
+  ArrowShrink02Icon,
+  BracesIcon,
+  EyeIcon,
+  TextIcon,
+  TextIndentIcon,
+} from "@hugeicons/core-free-icons"
 import { useMemo, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
@@ -100,8 +106,14 @@ export default function JsonParserPage() {
       <Tabs defaultValue="viewer" className="flex-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
-            <TabsTrigger value="viewer">Viewer</TabsTrigger>
-            <TabsTrigger value="text">Text</TabsTrigger>
+            <TabsTrigger value="viewer">
+              <HugeiconsIcon icon={EyeIcon} aria-hidden />
+              Viewer
+            </TabsTrigger>
+            <TabsTrigger value="text">
+              <HugeiconsIcon icon={TextIcon} aria-hidden />
+              Text
+            </TabsTrigger>
           </TabsList>
           {raw.trim() && (
             <div className="flex items-center gap-2">
