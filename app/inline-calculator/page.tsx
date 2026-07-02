@@ -1,5 +1,6 @@
 "use client"
 
+import { Check, Copy } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,7 @@ a + 3 =`
 
 export default function InlineCalculatorPage() {
   const [text, setText] = useState("")
+  const [copiedLine, setCopiedLine] = useState<number | null>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
 
   function syncScroll(e: React.UIEvent<HTMLTextAreaElement>) {
@@ -28,8 +30,12 @@ export default function InlineCalculatorPage() {
     await navigator.clipboard.writeText(resolveText(text))
   }
 
-  async function copyValue(value: string) {
+  async function copyValue(value: string, line: number) {
     await navigator.clipboard.writeText(value)
+    setCopiedLine(line)
+    setTimeout(() => {
+      setCopiedLine((current) => (current === line ? null : current))
+    }, 1000)
   }
 
   function clear() {
@@ -85,10 +91,18 @@ export default function InlineCalculatorPage() {
                     role="button"
                     tabIndex={-1}
                     title="Click to copy"
-                    onClick={() => copyValue(result)}
-                    className="pointer-events-auto relative z-10 cursor-pointer text-primary hover:underline"
+                    onClick={() => copyValue(result, i)}
+                    className="group pointer-events-auto relative z-10 inline-flex cursor-pointer items-center gap-1 text-primary"
                   >
-                    {hasEquals ? ` ${result}` : ` = ${result}`}
+                    <span>{hasEquals ? ` ${result}` : ` = ${result}`}</span>
+                    {copiedLine === i ? (
+                      <Check aria-hidden className="size-3 shrink-0" />
+                    ) : (
+                      <Copy
+                        aria-hidden
+                        className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                      />
+                    )}
                   </span>
                 )}
                 {i < lines.length - 1 && "\n"}
