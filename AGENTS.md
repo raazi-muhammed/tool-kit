@@ -6,17 +6,27 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Tool page conventions
 
-Each tool lives under `app/<tool-name>/page.tsx`. Every tool page starts with a
-breadcrumb back to the home page — use the shared `PageBreadcrumb` component
-instead of writing `Breadcrumb`/`BreadcrumbItem`/etc. inline:
+Each tool lives under `app/<tool-name>/page.tsx`. Every tool page is wrapped in
+the shared `ToolPage` component instead of hand-rolling the breadcrumb and the
+Copy/Load sample/Clear button row — those three actions are common to every
+tool, so they live in the wrapper, not in each page:
 
 ```tsx
-import { PageBreadcrumb } from "@/components/page-breadcrumb"
+import { ToolPage } from "@/components/tool-page"
 
-<PageBreadcrumb page="Inline Calculator" />
+<ToolPage
+  page="Inline Calculator"
+  icon={Calculator01Icon}
+  onCopy={copy}
+  onLoadSample={loadSample}
+  onClear={clear}
+  actions={/* tool-specific buttons, e.g. Format/Minify, rendered left of Copy */}
+>
+  {/* tool content */}
+</ToolPage>
 ```
 
-See `components/page-breadcrumb.tsx`.
+See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
 
 ## Icons
 
@@ -37,3 +47,15 @@ rather than rendering it directly (no `<BracesIcon />`). Component props (e.g.
 
 `components.json` sets `"iconLibrary": "hugeicons"` so shadcn-generated components
 pull icons from the same set — don't change it back to `lucide`.
+
+Every `Button` gets a leading icon — don't ship a text-only action button.
+`Button`'s own styles auto-size an unclassed `<svg>` child (`size-3.5` at
+`size="sm"`, `size-4` at the default size), so just drop the icon in without a
+`className`:
+
+```tsx
+<Button size="sm" onClick={format}>
+  <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
+  Format
+</Button>
+```

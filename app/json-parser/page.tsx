@@ -1,9 +1,10 @@
 "use client"
 
-import { BracesIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowShrink02Icon, BracesIcon, TextIndentIcon } from "@hugeicons/core-free-icons"
 import { useMemo, useState } from "react"
 
-import { PageBreadcrumb } from "@/components/page-breadcrumb"
+import { ToolPage } from "@/components/tool-page"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -77,42 +78,42 @@ export default function JsonParserPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
-      <PageBreadcrumb page="JSON Parser" icon={BracesIcon} />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={format}>
-          Format
-        </Button>
-        <Button size="sm" variant="secondary" onClick={minify}>
-          Minify
-        </Button>
-        <Button size="sm" variant="secondary" onClick={copy}>
-          Copy
-        </Button>
-        <Button size="sm" variant="secondary" onClick={loadSample}>
-          Load sample
-        </Button>
-        <Button size="sm" variant="ghost" onClick={clear}>
-          Clear
-        </Button>
-        {raw.trim() && (
-          <div className="ml-auto flex items-center gap-2">
-            {!parsed.error && parsed.cleaned !== raw.trim() && (
-              <Badge variant="outline">Auto-cleaned</Badge>
-            )}
-            <Badge variant={parsed.error ? "destructive" : "secondary"}>
-              {parsed.error ? "Invalid JSON" : "Valid JSON"}
-            </Badge>
-          </div>
-        )}
-      </div>
-
+    <ToolPage
+      page="JSON Parser"
+      icon={BracesIcon}
+      onCopy={copy}
+      onLoadSample={loadSample}
+      onClear={clear}
+      actions={
+        <>
+          <Button size="sm" onClick={format}>
+            <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
+            Format
+          </Button>
+          <Button size="sm" variant="secondary" onClick={minify}>
+            <HugeiconsIcon icon={ArrowShrink02Icon} aria-hidden />
+            Minify
+          </Button>
+        </>
+      }
+    >
       <Tabs defaultValue="viewer" className="flex-1">
-        <TabsList>
-          <TabsTrigger value="viewer">Viewer</TabsTrigger>
-          <TabsTrigger value="text">Text</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <TabsList>
+            <TabsTrigger value="viewer">Viewer</TabsTrigger>
+            <TabsTrigger value="text">Text</TabsTrigger>
+          </TabsList>
+          {raw.trim() && (
+            <div className="flex items-center gap-2">
+              {!parsed.error && parsed.cleaned !== raw.trim() && (
+                <Badge variant="outline">Auto-cleaned</Badge>
+              )}
+              <Badge variant={parsed.error ? "destructive" : "secondary"}>
+                {parsed.error ? "Invalid JSON" : "Valid JSON"}
+              </Badge>
+            </div>
+          )}
+        </div>
 
         <TabsContent value="text">
           <Textarea
@@ -140,6 +141,6 @@ export default function JsonParserPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </ToolPage>
   )
 }
