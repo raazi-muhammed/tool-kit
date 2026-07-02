@@ -28,6 +28,10 @@ export default function InlineCalculatorPage() {
     await navigator.clipboard.writeText(resolveText(text))
   }
 
+  async function copyValue(value: string) {
+    await navigator.clipboard.writeText(value)
+  }
+
   function clear() {
     setText("")
   }
@@ -69,12 +73,21 @@ export default function InlineCalculatorPage() {
           className="pointer-events-none absolute inset-0 overflow-auto p-4 font-mono text-sm leading-6 break-words whitespace-pre-wrap"
         >
           {lines.map((line, i) => {
-            const { hasEquals, result } = annotations[i]
+            const { hasEquals, result, resolved } = annotations[i]
+            const isNote = !resolved && line.trim() !== ""
             return (
               <span key={i}>
-                <span>{line || "​"}</span>
+                <span className={isNote ? "text-muted-foreground" : undefined}>
+                  {line || "​"}
+                </span>
                 {result !== null && (
-                  <span className="text-muted-foreground">
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    title="Click to copy"
+                    onClick={() => copyValue(result)}
+                    className="pointer-events-auto relative z-10 cursor-pointer text-primary hover:underline"
+                  >
                     {hasEquals ? ` ${result}` : ` = ${result}`}
                   </span>
                 )}

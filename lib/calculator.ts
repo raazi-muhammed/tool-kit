@@ -116,6 +116,8 @@ export function formatResult(n: number): string {
 export type LineAnnotation = {
   hasEquals: boolean
   result: string | null
+  /** True once the line evaluates to a value, even if there's no suffix to show (e.g. "a = 3"). */
+  resolved: boolean
 }
 
 const ASSIGNMENT = /^\s*([A-Za-z_]\w*)\s*=\s*(.+)$/
@@ -137,21 +139,21 @@ export function annotateLines(text: string): LineAnnotation[] {
     if (assignment) {
       const [, name, rhsSource] = assignment
       const value = evaluateExpression(rhsSource, variables)
-      if (value === null) return { hasEquals: false, result: null }
+      if (value === null) return { hasEquals: false, result: null, resolved: false }
 
       variables[name] = value
       const formatted = formatResult(value)
       const isRedundant = rhsSource.trim() === formatted
-      return { hasEquals: false, result: isRedundant ? null : formatted }
+      return { hasEquals: false, result: isRedundant ? null : formatted, resolved: true }
     }
 
     const hasEquals = trimmed.endsWith("=")
     const exprSource = hasEquals ? trimmed.slice(0, -1) : trimmed
-    if (!exprSource.trim()) return { hasEquals, result: null }
+    if (!exprSource.trim()) return { hasEquals, result: null, resolved: false }
 
     const value = evaluateExpression(exprSource, variables)
-    if (value === null) return { hasEquals, result: null }
-    return { hasEquals, result: formatResult(value) }
+    if (value === null) return { hasEquals, result: null, resolved: false }
+    return { hasEquals, result: formatResult(value), resolved: true }
   })
 }
 
