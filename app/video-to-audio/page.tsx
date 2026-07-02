@@ -25,6 +25,13 @@ import {
 } from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   decodeAudioData,
   encodeWav,
   formatBytes,
@@ -222,7 +229,7 @@ export default function VideoToAudioPage() {
       }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
-      className={`w-full cursor-pointer transition-colors md:w-[calc(50%-0.5rem)] ${
+      className={`h-full w-full cursor-pointer transition-colors ${
         dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
       }`}
     >
@@ -237,20 +244,7 @@ export default function VideoToAudioPage() {
   )
 
   return (
-    <ToolPage
-      page="Video → Audio"
-      icon={AudioWave01Icon}
-      onClear={clear}
-      segments={{
-        value: format,
-        onValueChange: (value) => changeFormat(value as Format),
-        disabled: anyBusy,
-        options: [
-          { value: "mp3", label: "MP3", icon: MusicNote01Icon },
-          { value: "wav", label: "WAV", icon: AudioWave01Icon },
-        ],
-      }}
-    >
+    <ToolPage page="Video → Audio" icon={AudioWave01Icon} onClear={clear}>
       <div className="flex flex-1 flex-col gap-4">
         <input
           ref={inputRef}
@@ -336,8 +330,30 @@ export default function VideoToAudioPage() {
           )
         })}
 
-        {/* Half-width drop area — always available to add another file. */}
-        {dropzone}
+        {/* Drop area (always available to add more) with the output-format
+            picker right next to it. */}
+        <div className="grid items-stretch gap-4 md:grid-cols-2">
+          {dropzone}
+          <Select
+            value={format}
+            onValueChange={(value) => changeFormat(value as Format)}
+            disabled={anyBusy}
+          >
+            <SelectTrigger className="h-full! w-full" aria-label="Output format">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mp3">
+                <HugeiconsIcon icon={MusicNote01Icon} aria-hidden />
+                MP3
+              </SelectItem>
+              <SelectItem value="wav">
+                <HugeiconsIcon icon={AudioWave01Icon} aria-hidden />
+                WAV
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </ToolPage>
   )
