@@ -8,6 +8,14 @@ import type { ReactNode } from "react"
 
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+type Segments = {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string; icon: IconSvgElement }[]
+  disabled?: boolean
+}
 
 export function ToolPage({
   page,
@@ -15,6 +23,7 @@ export function ToolPage({
   onCopy,
   onLoadSample,
   onClear,
+  segments,
   actions,
   children,
 }: {
@@ -23,6 +32,7 @@ export function ToolPage({
   onCopy: () => void
   onLoadSample: () => void
   onClear: () => void
+  segments?: Segments
   actions?: ReactNode
   children: ReactNode
 }) {
@@ -39,6 +49,18 @@ export function ToolPage({
       <PageBreadcrumb page={page} icon={icon} />
 
       <div className="flex flex-wrap items-center gap-2">
+        {segments && (
+          <Tabs value={segments.value} onValueChange={segments.onValueChange}>
+            <TabsList>
+              {segments.options.map((option) => (
+                <TabsTrigger key={option.value} value={option.value} disabled={segments.disabled}>
+                  <HugeiconsIcon icon={option.icon} aria-hidden />
+                  {option.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
         {actions}
         <div className="ml-auto flex items-center gap-2">
           <Button size="sm" variant="secondary" onClick={handleCopy}>

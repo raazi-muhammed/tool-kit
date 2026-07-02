@@ -215,28 +215,15 @@ export default function VideoToAudioPage() {
       onCopy={copy}
       onLoadSample={loadSample}
       onClear={clear}
-      actions={
-        <div className="flex items-center gap-1 rounded-lg border p-0.5">
-          <Button
-            size="sm"
-            variant={format === "mp3" ? "default" : "ghost"}
-            onClick={() => changeFormat("mp3")}
-            disabled={busy}
-          >
-            <HugeiconsIcon icon={MusicNote01Icon} aria-hidden />
-            MP3
-          </Button>
-          <Button
-            size="sm"
-            variant={format === "wav" ? "default" : "ghost"}
-            onClick={() => changeFormat("wav")}
-            disabled={busy}
-          >
-            <HugeiconsIcon icon={AudioWave01Icon} aria-hidden />
-            WAV
-          </Button>
-        </div>
-      }
+      segments={{
+        value: format,
+        onValueChange: (value) => changeFormat(value as Format),
+        disabled: busy,
+        options: [
+          { value: "mp3", label: "MP3", icon: MusicNote01Icon },
+          { value: "wav", label: "WAV", icon: AudioWave01Icon },
+        ],
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         <input

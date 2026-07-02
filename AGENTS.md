@@ -26,6 +26,30 @@ import { ToolPage } from "@/components/tool-page"
 </ToolPage>
 ```
 
+For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
+`segments` prop instead of hand-rolling a button group — the wrapper renders it
+as a shadcn `Tabs` segmented control, matching the look used elsewhere (e.g. the
+JSON Parser's Viewer/Text tabs):
+
+```tsx
+<ToolPage
+  page="Video → Audio"
+  icon={AudioWave01Icon}
+  segments={{
+    value: format,
+    onValueChange: (value) => changeFormat(value as Format),
+    disabled: busy,
+    options: [
+      { value: "mp3", label: "MP3", icon: MusicNote01Icon },
+      { value: "wav", label: "WAV", icon: AudioWave01Icon },
+    ],
+  }}
+  onCopy={copy}
+  onLoadSample={loadSample}
+  onClear={clear}
+>
+```
+
 See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
 
 ## Icons
