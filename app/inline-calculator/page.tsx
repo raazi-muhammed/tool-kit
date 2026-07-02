@@ -1,9 +1,10 @@
 "use client"
 
-import { Check, Copy } from "lucide-react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Calculator01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 import { useMemo, useRef, useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { ToolPage } from "@/components/tool-page"
 import { annotateLines, resolveText } from "@/lib/calculator"
 
 const SAMPLE = `12 + 8 =
@@ -50,28 +51,13 @@ export default function InlineCalculatorPage() {
   const annotations = useMemo(() => annotateLines(text), [text])
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
-      <div>
-        <h1 className="text-lg font-medium">Inline Calculator</h1>
-        <p className="text-sm text-muted-foreground">
-          Type an expression like <code className="font-mono">1 + 1 =</code> and the result
-          appears inline as you type. Assign variables with{" "}
-          <code className="font-mono">a = 3</code> and reuse them on later lines.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="secondary" onClick={loadSample}>
-          Load sample
-        </Button>
-        <Button size="sm" variant="secondary" onClick={copy}>
-          Copy
-        </Button>
-        <Button size="sm" variant="ghost" onClick={clear}>
-          Clear
-        </Button>
-      </div>
-
+    <ToolPage
+      page="Inline Calculator"
+      icon={Calculator01Icon}
+      onCopy={copy}
+      onLoadSample={loadSample}
+      onClear={clear}
+    >
       <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-md border">
         <div
           ref={backdropRef}
@@ -96,9 +82,10 @@ export default function InlineCalculatorPage() {
                   >
                     <span>{hasEquals ? ` ${result}` : ` = ${result}`}</span>
                     {copiedLine === i ? (
-                      <Check aria-hidden className="size-3 shrink-0" />
+                      <HugeiconsIcon icon={Tick02Icon} aria-hidden className="size-3 shrink-0" />
                     ) : (
-                      <Copy
+                      <HugeiconsIcon
+                        icon={Copy01Icon}
                         aria-hidden
                         className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                       />
@@ -123,6 +110,6 @@ export default function InlineCalculatorPage() {
           className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent break-words whitespace-pre-wrap placeholder:text-muted-foreground selection:bg-primary/30 focus:outline-none"
         />
       </div>
-    </div>
+    </ToolPage>
   )
 }

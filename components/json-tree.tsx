@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronRight } from "lucide-react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ChevronRightIcon } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import type { JsonValue } from "@/lib/json"
@@ -66,7 +67,8 @@ function JsonNode({
         className="flex w-full items-start gap-1 rounded py-0.5 text-left hover:bg-accent"
         style={{ paddingLeft: depth * 16 }}
       >
-        <ChevronRight
+        <HugeiconsIcon
+          icon={ChevronRightIcon}
           className={cn("mt-0.5 size-3 shrink-0 transition-transform", open && "rotate-90")}
         />
         {label !== null && <span className="text-foreground/70">{label}:</span>}

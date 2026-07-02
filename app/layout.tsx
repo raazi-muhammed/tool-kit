@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Inter } from "next/font/google"
+import { Geist, Geist_Mono, Inter, Unbounded } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -11,6 +11,12 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+const fontDisplay = Unbounded({
+  subsets: ["latin"],
+  weight: ["700", "800"],
+  variable: "--font-display",
+})
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +26,13 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        inter.variable,
+        fontDisplay.variable
+      )}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>
