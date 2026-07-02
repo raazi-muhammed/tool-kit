@@ -1,6 +1,6 @@
 "use client"
 
-import { Braces } from "lucide-react"
+import { BracesIcon } from "@hugeicons/core-free-icons"
 import { useMemo, useState } from "react"
 
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
@@ -78,7 +78,7 @@ export default function JsonParserPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
-      <PageBreadcrumb page="JSON Parser" icon={Braces} />
+      <PageBreadcrumb page="JSON Parser" icon={BracesIcon} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={format}>

@@ -1,6 +1,7 @@
 "use client"
 
-import { Calculator, Check, Copy } from "lucide-react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Calculator01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 import { useMemo, useRef, useState } from "react"
 
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
@@ -52,7 +53,7 @@ export default function InlineCalculatorPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
-      <PageBreadcrumb page="Inline Calculator" icon={Calculator} />
+      <PageBreadcrumb page="Inline Calculator" icon={Calculator01Icon} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" onClick={loadSample}>
@@ -90,9 +91,10 @@ export default function InlineCalculatorPage() {
                   >
                     <span>{hasEquals ? ` ${result}` : ` = ${result}`}</span>
                     {copiedLine === i ? (
-                      <Check aria-hidden className="size-3 shrink-0" />
+                      <HugeiconsIcon icon={Tick02Icon} aria-hidden className="size-3 shrink-0" />
                     ) : (
-                      <Copy
+                      <HugeiconsIcon
+                        icon={Copy01Icon}
                         aria-hidden
                         className="size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                       />

@@ -17,3 +17,23 @@ import { PageBreadcrumb } from "@/components/page-breadcrumb"
 ```
 
 See `components/page-breadcrumb.tsx`.
+
+## Icons
+
+This project uses **Hugeicons**, not lucide-react. Never import from `lucide-react`.
+
+```tsx
+import { HugeiconsIcon } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
+import { BracesIcon } from "@hugeicons/core-free-icons"
+
+<HugeiconsIcon icon={BracesIcon} className="size-4" aria-hidden />
+```
+
+An icon is data (`IconSvgElement`), not a component — pass it via the `icon` prop
+rather than rendering it directly (no `<BracesIcon />`). Component props (e.g.
+`PageBreadcrumb`'s `icon`) should be typed `IconSvgElement`, and rendered with
+`<HugeiconsIcon icon={icon} ... />`, not treated as a component to instantiate.
+
+`components.json` sets `"iconLibrary": "hugeicons"` so shadcn-generated components
+pull icons from the same set — don't change it back to `lucide`.

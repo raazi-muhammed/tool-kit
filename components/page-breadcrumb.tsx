@@ -1,4 +1,5 @@
-import { type LucideIcon } from "lucide-react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
 import Link from "next/link"
 
 import {
@@ -10,7 +11,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 
-export function PageBreadcrumb({ page, icon: Icon }: { page: string; icon: LucideIcon }) {
+export function PageBreadcrumb({ page, icon }: { page: string; icon: IconSvgElement }) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -24,7 +25,7 @@ export function PageBreadcrumb({ page, icon: Icon }: { page: string; icon: Lucid
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbPage className="flex items-center gap-1.5">
-            <Icon className="size-3.5" aria-hidden />
+            <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
             {page}
           </BreadcrumbPage>
         </BreadcrumbItem>
