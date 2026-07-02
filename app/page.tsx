@@ -13,6 +13,11 @@ export default function Page() {
                 JSON Parser
               </Link>
             </li>
+            <li>
+              <Link href="/inline-calculator" className="underline underline-offset-4">
+                Inline Calculator
+              </Link>
+            </li>
           </ul>
         </div>
         <div className="font-mono text-xs text-muted-foreground">
