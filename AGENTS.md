@@ -26,29 +26,34 @@ import { ToolPage } from "@/components/tool-page"
 </ToolPage>
 ```
 
-For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
-`segments` prop instead of hand-rolling a button group — the wrapper renders it
-as a shadcn `Tabs` segmented control, matching the look used elsewhere (e.g. the
-JSON Parser's Viewer/Text tabs):
+Only `onClear` is required. `onCopy` and `onLoadSample` are optional — pass a
+handler to show that button, omit it to hide it (the Video → Audio tool passes
+neither).
+
+For a mutually-exclusive mode toggle, pass the `segments` prop instead of
+hand-rolling a button group — the wrapper renders it as a shadcn `Tabs`
+segmented control (the look used by the JSON Parser's Viewer/Text tabs):
 
 ```tsx
 <ToolPage
-  page="Video → Audio"
-  icon={AudioWave01Icon}
+  page="Base64"
+  icon={CodeIcon}
   segments={{
-    value: format,
-    onValueChange: (value) => changeFormat(value as Format),
+    value: mode,
+    onValueChange: (value) => setMode(value as Mode),
     disabled: busy,
     options: [
-      { value: "mp3", label: "MP3", icon: MusicNote01Icon },
-      { value: "wav", label: "WAV", icon: AudioWave01Icon },
+      { value: "encode", label: "Encode", icon: ArrowRight01Icon },
+      { value: "decode", label: "Decode", icon: ArrowLeft01Icon },
     ],
   }}
-  onCopy={copy}
-  onLoadSample={loadSample}
   onClear={clear}
 >
 ```
+
+For a compact picker placed next to the tool content instead of in the top
+toolbar, use a shadcn `Select` rather than `segments` — see the MP3/WAV format
+dropdown beside the drop area in `app/video-to-audio/page.tsx`.
 
 See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
 
@@ -112,7 +117,9 @@ it destructive. Compose it from `AttachmentMedia` (icon/thumbnail),
 </Attachment>
 ```
 
-shadcn ships **no** dropzone/file-drop component — only `attachment`. Build the
-drop area yourself (a dashed `Card` with `onDragOver`/`onDrop` + a hidden
-`<input type="file">`) and render the resulting files with `Attachment`. See
+shadcn ships **no** dropzone/file-drop component — only `attachment`. Reuse
+`Attachment` for the drop area too: an `Attachment` with `state="idle"` already
+renders the dashed border, so wire `onDragOver`/`onDrop`, `onClick`,
+`role="button"`, `tabIndex`, and a hidden `<input type="file">` onto it. This
+keeps the drop area and the file rows visually identical. See
 `app/video-to-audio/page.tsx`.
