@@ -1,6 +1,6 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
-import { BracesIcon, Calculator01Icon } from "@hugeicons/core-free-icons"
+import { AudioWave01Icon, BracesIcon, Calculator01Icon } from "@hugeicons/core-free-icons"
 import Link from "next/link"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -16,6 +16,12 @@ const TOOLS: { href: string; icon: IconSvgElement; name: string; description: st
     icon: Calculator01Icon,
     name: "Inline Calculator",
     description: "Evaluate math expressions inline as you type.",
+  },
+  {
+    href: "/video-to-audio",
+    icon: AudioWave01Icon,
+    name: "Video → Audio",
+    description: "Extract a video's audio track to a WAV file, in your browser.",
   },
 ]
 
