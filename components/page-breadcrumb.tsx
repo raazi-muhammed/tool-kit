@@ -1,4 +1,4 @@
-import { type LucideIcon, Wrench } from "lucide-react"
+import { type LucideIcon } from "lucide-react"
 import Link from "next/link"
 
 import {
@@ -16,8 +16,7 @@ export function PageBreadcrumb({ page, icon: Icon }: { page: string; icon: Lucid
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/" className="flex items-center gap-1.5">
-              <Wrench className="size-3.5" aria-hidden />
+            <Link href="/" className="flex items-center gap-1.5 font-[family-name:var(--font-display)]">
               Tool Kit
             </Link>
           </BreadcrumbLink>
