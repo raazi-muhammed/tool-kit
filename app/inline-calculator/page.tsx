@@ -1,0 +1,97 @@
+"use client"
+
+import { useRef, useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { annotateLine, resolveText } from "@/lib/calculator"
+
+const SAMPLE = `12 + 8 =
+150 / 3 =
+(4 + 2) * 5
+2 ^ 10 =
+notes and other non-math lines are left untouched
+100 - 37.5 =`
+
+export default function InlineCalculatorPage() {
+  const [text, setText] = useState("")
+  const backdropRef = useRef<HTMLDivElement>(null)
+
+  function syncScroll(e: React.UIEvent<HTMLTextAreaElement>) {
+    if (!backdropRef.current) return
+    backdropRef.current.scrollTop = e.currentTarget.scrollTop
+    backdropRef.current.scrollLeft = e.currentTarget.scrollLeft
+  }
+
+  async function copy() {
+    await navigator.clipboard.writeText(resolveText(text))
+  }
+
+  function clear() {
+    setText("")
+  }
+
+  function loadSample() {
+    setText(SAMPLE)
+  }
+
+  const lines = text.split("\n")
+
+  return (
+    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
+      <div>
+        <h1 className="text-lg font-medium">Inline Calculator</h1>
+        <p className="text-sm text-muted-foreground">
+          Type an expression like <code className="font-mono">1 + 1 =</code> and the result
+          appears inline as you type.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" onClick={loadSample}>
+          Load sample
+        </Button>
+        <Button size="sm" variant="secondary" onClick={copy}>
+          Copy
+        </Button>
+        <Button size="sm" variant="ghost" onClick={clear}>
+          Clear
+        </Button>
+      </div>
+
+      <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-md border">
+        <div
+          ref={backdropRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 overflow-auto p-4 font-mono text-sm leading-6 break-words whitespace-pre-wrap"
+        >
+          {lines.map((line, i) => {
+            const { hasEquals, result } = annotateLine(line)
+            return (
+              <span key={i}>
+                <span>{line || "​"}</span>
+                {result !== null && (
+                  <span className="text-muted-foreground">
+                    {hasEquals ? ` ${result}` : ` = ${result}`}
+                  </span>
+                )}
+                {i < lines.length - 1 && "\n"}
+              </span>
+            )
+          })}
+        </div>
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onScroll={syncScroll}
+          placeholder="1 + 1 ="
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          style={{ caretColor: "var(--foreground)" }}
+          className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent break-words whitespace-pre-wrap placeholder:text-muted-foreground selection:bg-primary/30 focus:outline-none"
+        />
+      </div>
+    </div>
+  )
+}
