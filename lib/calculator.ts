@@ -1,9 +1,13 @@
 /**
  * Minimal recursive-descent evaluator for arithmetic expressions:
- * + - * / % ^ (right-assoc power), parentheses, unary +/-, decimals.
+ * + - * / % ^ (right-assoc power), parentheses, unary +/-, decimals,
+ * and identifiers that resolve against a variables map.
  * No eval/Function - keeps user-typed text out of any JS execution path.
  */
-export function evaluateExpression(input: string): number | null {
+export function evaluateExpression(
+  input: string,
+  variables: Record<string, number> = {},
+): number | null {
   const s = input.trim()
   if (!s) return null
 
@@ -76,10 +80,19 @@ export function evaluateExpression(input: string): number | null {
       pos++
       return value
     }
-    const match = /^\d+(\.\d+)?/.exec(s.slice(pos))
-    if (!match) throw new Error("Expected number")
-    pos += match[0].length
-    return Number.parseFloat(match[0])
+
+    const identMatch = /^[A-Za-z_]\w*/.exec(s.slice(pos))
+    if (identMatch) {
+      const name = identMatch[0]
+      if (!(name in variables)) throw new Error(`Unknown variable: ${name}`)
+      pos += name.length
+      return variables[name]
+    }
+
+    const numMatch = /^\d+(\.\d+)?/.exec(s.slice(pos))
+    if (!numMatch) throw new Error("Expected number")
+    pos += numMatch[0].length
+    return Number.parseFloat(numMatch[0])
   }
 
   try {
@@ -105,27 +118,50 @@ export type LineAnnotation = {
   result: string | null
 }
 
+const ASSIGNMENT = /^\s*([A-Za-z_]\w*)\s*=\s*(.+)$/
+
 /**
+ * Walks the document top to bottom, one pass, so a variable assigned on an
+ * earlier line ("a = 3") is visible to expressions on later lines ("a + 3 =").
  * A line counts as an expression whether or not it ends with "=" - typing
  * the "=" just moves where the result is anchored, so the inline result
  * appears as soon as the expression is valid and doesn't jump around.
  */
-export function annotateLine(line: string): LineAnnotation {
-  const trimmed = line.trimEnd()
-  const hasEquals = trimmed.endsWith("=")
-  const exprSource = hasEquals ? trimmed.slice(0, -1) : trimmed
-  if (!exprSource.trim()) return { hasEquals, result: null }
+export function annotateLines(text: string): LineAnnotation[] {
+  const variables: Record<string, number> = {}
 
-  const value = evaluateExpression(exprSource)
-  if (value === null) return { hasEquals, result: null }
-  return { hasEquals, result: formatResult(value) }
+  return text.split("\n").map((line) => {
+    const trimmed = line.trimEnd()
+
+    const assignment = ASSIGNMENT.exec(trimmed)
+    if (assignment) {
+      const [, name, rhsSource] = assignment
+      const value = evaluateExpression(rhsSource, variables)
+      if (value === null) return { hasEquals: false, result: null }
+
+      variables[name] = value
+      const formatted = formatResult(value)
+      const isRedundant = rhsSource.trim() === formatted
+      return { hasEquals: false, result: isRedundant ? null : formatted }
+    }
+
+    const hasEquals = trimmed.endsWith("=")
+    const exprSource = hasEquals ? trimmed.slice(0, -1) : trimmed
+    if (!exprSource.trim()) return { hasEquals, result: null }
+
+    const value = evaluateExpression(exprSource, variables)
+    if (value === null) return { hasEquals, result: null }
+    return { hasEquals, result: formatResult(value) }
+  })
 }
 
 export function resolveText(source: string): string {
-  return source
-    .split("\n")
-    .map((line) => {
-      const { hasEquals, result } = annotateLine(line)
+  const lines = source.split("\n")
+  const annotations = annotateLines(source)
+
+  return lines
+    .map((line, i) => {
+      const { hasEquals, result } = annotations[i]
       if (result === null) return line
       return hasEquals ? `${line.trimEnd()} ${result}` : `${line.trimEnd()} = ${result}`
     })

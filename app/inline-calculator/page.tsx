@@ -1,16 +1,18 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { annotateLine, resolveText } from "@/lib/calculator"
+import { annotateLines, resolveText } from "@/lib/calculator"
 
 const SAMPLE = `12 + 8 =
 150 / 3 =
 (4 + 2) * 5
 2 ^ 10 =
 notes and other non-math lines are left untouched
-100 - 37.5 =`
+100 - 37.5 =
+a = 3
+a + 3 =`
 
 export default function InlineCalculatorPage() {
   const [text, setText] = useState("")
@@ -35,6 +37,7 @@ export default function InlineCalculatorPage() {
   }
 
   const lines = text.split("\n")
+  const annotations = useMemo(() => annotateLines(text), [text])
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
@@ -42,7 +45,8 @@ export default function InlineCalculatorPage() {
         <h1 className="text-lg font-medium">Inline Calculator</h1>
         <p className="text-sm text-muted-foreground">
           Type an expression like <code className="font-mono">1 + 1 =</code> and the result
-          appears inline as you type.
+          appears inline as you type. Assign variables with{" "}
+          <code className="font-mono">a = 3</code> and reuse them on later lines.
         </p>
       </div>
 
@@ -65,7 +69,7 @@ export default function InlineCalculatorPage() {
           className="pointer-events-none absolute inset-0 overflow-auto p-4 font-mono text-sm leading-6 break-words whitespace-pre-wrap"
         >
           {lines.map((line, i) => {
-            const { hasEquals, result } = annotateLine(line)
+            const { hasEquals, result } = annotations[i]
             return (
               <span key={i}>
                 <span>{line || "​"}</span>
