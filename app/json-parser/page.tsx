@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 
+import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -76,6 +77,8 @@ export default function JsonParserPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
+      <PageBreadcrumb page="JSON Parser" />
+
       <div>
         <h1 className="text-lg font-medium">JSON Parser</h1>
         <p className="text-sm text-muted-foreground">

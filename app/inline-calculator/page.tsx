@@ -3,6 +3,7 @@
 import { Check, Copy } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
+import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { annotateLines, resolveText } from "@/lib/calculator"
 
@@ -51,6 +52,8 @@ export default function InlineCalculatorPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
+      <PageBreadcrumb page="Inline Calculator" />
+
       <div>
         <h1 className="text-lg font-medium">Inline Calculator</h1>
         <p className="text-sm text-muted-foreground">
