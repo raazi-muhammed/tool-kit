@@ -46,6 +46,16 @@ export function mixToMono(buffer: AudioBuffer): Float32Array {
   return mono
 }
 
+/** Clamp Float32 samples to [-1, 1] and scale to 16-bit signed integers. */
+export function floatToInt16(samples: Float32Array): Int16Array {
+  const out = new Int16Array(samples.length)
+  for (let i = 0; i < samples.length; i++) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]))
+    out[i] = clamped * 32767
+  }
+  return out
+}
+
 /**
  * Encode mono Float32 samples as a 16-bit PCM mono WAV Blob by writing the
  * 44-byte RIFF/WAV header manually, then the samples clamped to [-1, 1] and
@@ -78,20 +88,20 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   view.setUint32(40, dataSize, true) // Subchunk2Size
 
   // --- PCM samples: clamp to [-1, 1], scale to Int16, little-endian ---
+  const pcm = floatToInt16(samples)
   let offset = 44
-  for (let i = 0; i < samples.length; i++) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]))
-    view.setInt16(offset, clamped * 32767, true)
+  for (let i = 0; i < pcm.length; i++) {
+    view.setInt16(offset, pcm[i], true)
     offset += 2
   }
 
   return new Blob([view], { type: "audio/wav" })
 }
 
-/** Swap a filename's extension for `.wav` (e.g. `clip.mp4` → `clip.wav`). */
-export function toWavFilename(name: string): string {
+/** Swap a filename's extension (e.g. `clip.mp4`, `"wav"` → `clip.wav`). */
+export function replaceExtension(name: string, ext: string): string {
   const base = name.replace(/\.[^./\\]+$/, "")
-  return `${base || "audio"}.wav`
+  return `${base || "audio"}.${ext}`
 }
 
 /** Human-readable byte size, e.g. 1536 → "1.5 KB". */

@@ -59,3 +59,36 @@ Every `Button` gets a leading icon — don't ship a text-only action button.
   Format
 </Button>
 ```
+
+## File attachments
+
+To display a picked file, an in-progress job, an error, or a produced output,
+use the shadcn **Attachment** component (`components/ui/attachment.tsx`, added via
+`npx shadcn@latest add attachment`) instead of hand-rolling a row/card. Drive its
+appearance with the `state` prop (`"idle" | "uploading" | "processing" | "error"
+| "done"`) — e.g. `state="processing"` shimmers the title, `state="error"` turns
+it destructive. Compose it from `AttachmentMedia` (icon/thumbnail),
+`AttachmentContent` (`AttachmentTitle` + `AttachmentDescription`), and
+`AttachmentActions` (`AttachmentAction` buttons):
+
+```tsx
+<Attachment state="done" className="w-full">
+  <AttachmentMedia>
+    <HugeiconsIcon icon={MusicNote01Icon} aria-hidden />
+  </AttachmentMedia>
+  <AttachmentContent>
+    <AttachmentTitle>clip.wav</AttachmentTitle>
+    <AttachmentDescription>WAV · 172 KB</AttachmentDescription>
+  </AttachmentContent>
+  <AttachmentActions>
+    <AttachmentAction aria-label="Remove clip.wav">
+      <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+    </AttachmentAction>
+  </AttachmentActions>
+</Attachment>
+```
+
+shadcn ships **no** dropzone/file-drop component — only `attachment`. Build the
+drop area yourself (a dashed `Card` with `onDragOver`/`onDrop` + a hidden
+`<input type="file">`) and render the resulting files with `Attachment`. See
+`app/video-to-audio/page.tsx`.
