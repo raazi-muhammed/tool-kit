@@ -29,8 +29,8 @@ export function ToolPage({
 }: {
   page: string
   icon: IconSvgElement
-  onCopy: () => void
-  onLoadSample: () => void
+  onCopy?: () => void
+  onLoadSample?: () => void
   onClear: () => void
   segments?: Segments
   actions?: ReactNode
@@ -39,7 +39,7 @@ export function ToolPage({
   const [copied, setCopied] = useState(false)
 
   function handleCopy() {
-    onCopy()
+    onCopy?.()
     setCopied(true)
     setTimeout(() => setCopied(false), 1000)
   }
@@ -63,14 +63,18 @@ export function ToolPage({
         )}
         {actions}
         <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="secondary" onClick={handleCopy}>
-            <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} aria-hidden />
-            Copy
-          </Button>
-          <Button size="sm" variant="secondary" onClick={onLoadSample}>
-            <HugeiconsIcon icon={SparklesIcon} aria-hidden />
-            Load sample
-          </Button>
+          {onCopy && (
+            <Button size="sm" variant="secondary" onClick={handleCopy}>
+              <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} aria-hidden />
+              Copy
+            </Button>
+          )}
+          {onLoadSample && (
+            <Button size="sm" variant="secondary" onClick={onLoadSample}>
+              <HugeiconsIcon icon={SparklesIcon} aria-hidden />
+              Load sample
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={onClear}>
             <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
             Clear
