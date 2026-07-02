@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy } from "lucide-react"
+import { Calculator, Check, Copy } from "lucide-react"
 import { useMemo, useRef, useState } from "react"
 
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
@@ -52,16 +52,7 @@ export default function InlineCalculatorPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
-      <PageBreadcrumb page="Inline Calculator" />
-
-      <div>
-        <h1 className="text-lg font-medium">Inline Calculator</h1>
-        <p className="text-sm text-muted-foreground">
-          Type an expression like <code className="font-mono">1 + 1 =</code> and the result
-          appears inline as you type. Assign variables with{" "}
-          <code className="font-mono">a = 3</code> and reuse them on later lines.
-        </p>
-      </div>
+      <PageBreadcrumb page="Inline Calculator" icon={Calculator} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" onClick={loadSample}>

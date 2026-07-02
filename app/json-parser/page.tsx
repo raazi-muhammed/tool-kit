@@ -1,5 +1,6 @@
 "use client"
 
+import { Braces } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
@@ -77,14 +78,7 @@ export default function JsonParserPage() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
-      <PageBreadcrumb page="JSON Parser" />
-
-      <div>
-        <h1 className="text-lg font-medium">JSON Parser</h1>
-        <p className="text-sm text-muted-foreground">
-          Paste JSON to validate, format, and explore it as a tree.
-        </p>
-      </div>
+      <PageBreadcrumb page="JSON Parser" icon={Braces} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={format}>

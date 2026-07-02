@@ -1,28 +1,50 @@
+import { Braces, Calculator, type LucideIcon, Wrench } from "lucide-react"
 import Link from "next/link"
+
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+
+const TOOLS: { href: string; icon: LucideIcon; name: string; description: string }[] = [
+  {
+    href: "/json-parser",
+    icon: Braces,
+    name: "JSON Parser",
+    description: "Validate, format, and explore JSON as a tree.",
+  },
+  {
+    href: "/inline-calculator",
+    icon: Calculator,
+    name: "Inline Calculator",
+    description: "Evaluate math expressions inline as you type.",
+  },
+]
 
 export default function Page() {
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">tool-kit</h1>
-          <p>A collection of small, focused dev tools.</p>
-          <ul className="mt-2 list-inside list-disc">
-            <li>
-              <Link href="/json-parser" className="underline underline-offset-4">
-                JSON Parser
-              </Link>
-            </li>
-            <li>
-              <Link href="/inline-calculator" className="underline underline-offset-4">
-                Inline Calculator
-              </Link>
-            </li>
-          </ul>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
+    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-8 p-6">
+      <div>
+        <h1 className="flex items-center gap-2 text-lg font-medium">
+          <Wrench className="size-4" aria-hidden />
+          Tool Kit
+        </h1>
+        <p className="text-sm text-muted-foreground">A collection of small, focused dev tools.</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {TOOLS.map(({ href, icon: Icon, name, description }) => (
+          <Link key={href} href={href}>
+            <Card className="relative h-full transition-colors hover:bg-accent/50">
+              <Icon
+                aria-hidden
+                className="pointer-events-none absolute -right-6 -bottom-6 size-32 rotate-12 text-foreground/5"
+              />
+              <CardHeader>
+                <Icon className="mb-2 size-5" aria-hidden />
+                <CardTitle>{name}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
+        ))}
       </div>
     </div>
   )
