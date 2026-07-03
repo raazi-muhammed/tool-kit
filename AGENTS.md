@@ -52,6 +52,34 @@ JSON Parser's Viewer/Text tabs):
 
 See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
 
+## Canvas rect selection
+
+For tools that let the user select a rectangular region on a canvas (crop,
+blur), use the shared `useRectSelection` hook (`hooks/use-rect-selection.ts`)
+instead of hand-rolling pointer handlers. It implements the full interaction:
+drag to draw, drag inside the selection to move it, drag its edges/corners to
+resize, clamped to the canvas, optionally locked to an aspect ratio, with
+hover cursors and a min-size discard for accidental clicks:
+
+```tsx
+const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
+  canvasRef: displayCanvasRef,
+  ratio: 16 / 9, // optional locked aspect (width / height); omit for free-form
+  render: (rect) => renderDisplay(rect), // repaint with the selection (null = none)
+})
+
+<canvas ref={displayCanvasRef} {...selectionHandlers} className="… cursor-crosshair touch-none select-none" />
+```
+
+The hook owns the selection state: read `pendingRect` to enable Apply-style
+buttons, and call `clearSelection()` after committing an edit (it repaints
+clean via `render(null)`). Inside `render`, draw the tool's own preview first,
+then finish with `drawSelectionRect(canvas, rect)` from `lib/canvas.ts` for
+the standard dashed border + grab handles. The underlying rect geometry
+(`rectFromPoints`, `rectFromPointsWithRatio`, `clampRect`, `hitEdges`,
+`resizeRect`, `pointInRect`) also lives in `lib/canvas.ts` — extend it there,
+not in a page. See `app/image-crop/page.tsx` and `app/image-blur/page.tsx`.
+
 ## Icons
 
 This project uses **Hugeicons**, not lucide-react. Never import from `lucide-react`.

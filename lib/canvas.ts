@@ -71,6 +71,152 @@ export function clampRect(rect: Rect, width: number, height: number): Rect {
   return { x, y, width: w, height: h }
 }
 
+export type Edges = {
+  left: boolean
+  right: boolean
+  top: boolean
+  bottom: boolean
+}
+
+/** Which edges of `rect` the point grabs, within `tol` (canvas px). */
+export function hitEdges(
+  x: number,
+  y: number,
+  rect: Rect,
+  tol: number
+): Edges | null {
+  if (
+    x < rect.x - tol ||
+    x > rect.x + rect.width + tol ||
+    y < rect.y - tol ||
+    y > rect.y + rect.height + tol
+  ) {
+    return null
+  }
+  const edges = {
+    left: Math.abs(x - rect.x) <= tol,
+    right: Math.abs(x - (rect.x + rect.width)) <= tol,
+    top: Math.abs(y - rect.y) <= tol,
+    bottom: Math.abs(y - (rect.y + rect.height)) <= tol,
+  }
+  return edges.left || edges.right || edges.top || edges.bottom ? edges : null
+}
+
+/** CSS cursor for hovering/dragging the given edge combination. */
+export function edgeCursor(edges: Edges): string {
+  const horizontal = edges.left || edges.right
+  const vertical = edges.top || edges.bottom
+  if (horizontal && vertical) {
+    return edges.left === edges.top ? "nwse-resize" : "nesw-resize"
+  }
+  return horizontal ? "ew-resize" : "ns-resize"
+}
+
+/**
+ * Resize `rect` by dragging the given edges to `point`, clamped to the
+ * `maxWidth` × `maxHeight` canvas. With a locked `ratio`, corner drags
+ * re-derive the rect from the opposite corner and edge drags keep the
+ * opposite edge fixed with the perpendicular axis centred.
+ */
+export function resizeRect(
+  edges: Edges,
+  rect: Rect,
+  point: { x: number; y: number },
+  ratio: number | null,
+  maxWidth: number,
+  maxHeight: number
+): Rect {
+  const horizontal = edges.left || edges.right
+  const vertical = edges.top || edges.bottom
+
+  if (ratio && horizontal && vertical) {
+    return rectFromPointsWithRatio(
+      edges.left ? rect.x + rect.width : rect.x,
+      edges.top ? rect.y + rect.height : rect.y,
+      point.x,
+      point.y,
+      ratio,
+      maxWidth,
+      maxHeight
+    )
+  }
+
+  if (ratio && horizontal) {
+    const anchorX = edges.left ? rect.x + rect.width : rect.x
+    const cy = rect.y + rect.height / 2
+    const desired = edges.left ? anchorX - point.x : point.x - anchorX
+    const max = Math.min(
+      edges.left ? anchorX : maxWidth - anchorX,
+      2 * Math.min(cy, maxHeight - cy) * ratio
+    )
+    const width = Math.max(1, Math.min(desired, max))
+    const height = width / ratio
+    return {
+      x: edges.left ? anchorX - width : anchorX,
+      y: cy - height / 2,
+      width,
+      height,
+    }
+  }
+  if (ratio) {
+    const anchorY = edges.top ? rect.y + rect.height : rect.y
+    const cx = rect.x + rect.width / 2
+    const desired = edges.top ? anchorY - point.y : point.y - anchorY
+    const max = Math.min(
+      edges.top ? anchorY : maxHeight - anchorY,
+      (2 * Math.min(cx, maxWidth - cx)) / ratio
+    )
+    const height = Math.max(1, Math.min(desired, max))
+    const width = height * ratio
+    return {
+      x: cx - width / 2,
+      y: edges.top ? anchorY - height : anchorY,
+      width,
+      height,
+    }
+  }
+
+  // Free resize: dragged edges follow the pointer, the rest stay put.
+  // rectFromPoints re-normalizes if the pointer crosses the opposite edge.
+  return clampRect(
+    rectFromPoints(
+      edges.left ? point.x : rect.x,
+      edges.top ? point.y : rect.y,
+      edges.right ? point.x : rect.x + rect.width,
+      edges.bottom ? point.y : rect.y + rect.height
+    ),
+    maxWidth,
+    maxHeight
+  )
+}
+
+/**
+ * Draw the standard selection chrome onto `canvas`: a dashed border plus
+ * grab handles at the corners and edge midpoints.
+ */
+export function drawSelectionRect(canvas: HTMLCanvasElement, rect: Rect) {
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return
+  ctx.save()
+  ctx.strokeStyle = "#3b82f6"
+  ctx.lineWidth = Math.max(1, canvas.width / 400)
+  ctx.setLineDash([ctx.lineWidth * 4, ctx.lineWidth * 3])
+  ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+
+  const handle = ctx.lineWidth * 4
+  const xs = [rect.x, rect.x + rect.width / 2, rect.x + rect.width]
+  const ys = [rect.y, rect.y + rect.height / 2, rect.y + rect.height]
+  ctx.setLineDash([])
+  ctx.fillStyle = "#3b82f6"
+  for (const hx of xs) {
+    for (const hy of ys) {
+      if (hx === xs[1] && hy === ys[1]) continue
+      ctx.fillRect(hx - handle / 2, hy - handle / 2, handle, handle)
+    }
+  }
+  ctx.restore()
+}
+
 let filterSupported: boolean | null = null
 
 /**

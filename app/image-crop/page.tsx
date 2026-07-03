@@ -25,13 +25,8 @@ import {
 } from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import {
-  clampRect,
-  pointInRect,
-  rectFromPoints,
-  rectFromPointsWithRatio,
-  type Rect,
-} from "@/lib/canvas"
+import { useRectSelection } from "@/hooks/use-rect-selection"
+import { drawSelectionRect, type Rect } from "@/lib/canvas"
 import { formatBytes, replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
@@ -45,36 +40,6 @@ const ASPECT_RATIOS: Record<Aspect, number | null> = {
   "4:3": 4 / 3,
   "16:9": 16 / 9,
   "9:16": 9 / 16,
-}
-
-type Edges = { left: boolean; right: boolean; top: boolean; bottom: boolean }
-
-/** Which edges of `rect` the point grabs, within `tol` (canvas px). */
-function hitEdges(x: number, y: number, rect: Rect, tol: number): Edges | null {
-  if (
-    x < rect.x - tol ||
-    x > rect.x + rect.width + tol ||
-    y < rect.y - tol ||
-    y > rect.y + rect.height + tol
-  ) {
-    return null
-  }
-  const edges = {
-    left: Math.abs(x - rect.x) <= tol,
-    right: Math.abs(x - (rect.x + rect.width)) <= tol,
-    top: Math.abs(y - rect.y) <= tol,
-    bottom: Math.abs(y - (rect.y + rect.height)) <= tol,
-  }
-  return edges.left || edges.right || edges.top || edges.bottom ? edges : null
-}
-
-function edgeCursor(edges: Edges): string {
-  const horizontal = edges.left || edges.right
-  const vertical = edges.top || edges.bottom
-  if (horizontal && vertical) {
-    return edges.left === edges.top ? "nwse-resize" : "nesw-resize"
-  }
-  return horizontal ? "ew-resize" : "ns-resize"
 }
 
 function isImageFile(file: File): boolean {
@@ -95,7 +60,6 @@ export default function ImageCropPage() {
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [pendingRect, setPendingRect] = useState<Rect | null>(null)
   const [aspect, setAspect] = useState<Aspect>("free")
   const [size, setSize] = useState({ width: 0, height: 0 })
   // Background fill for transparent PNGs; null keeps transparency. It's
@@ -108,35 +72,14 @@ export default function ImageCropPage() {
   // `displayCanvas` is what's on screen, including the selection preview.
   const imageCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
-  // A drag either draws a new selection ("select"), translates the pending
-  // one ("move", grabbed at an offset from the rect's origin), or drags one
-  // of its edges/corners ("resize").
-  const dragRef = useRef<
-    | { mode: "select"; startX: number; startY: number }
-    | { mode: "move"; grabX: number; grabY: number; rect: Rect }
-    | { mode: "resize"; edges: Edges; rect: Rect }
-    | null
-  >(null)
 
   const isPng = file?.type === "image/png"
 
-  function toCanvasPoint(e: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = displayCanvasRef.current
-    if (!canvas) return { x: 0, y: 0 }
-    const box = canvas.getBoundingClientRect()
-    return {
-      x: (e.clientX - box.left) * (canvas.width / box.width),
-      y: (e.clientY - box.top) * (canvas.height / box.height),
-    }
-  }
-
-  /** Edge grab tolerance: ~8 screen px, converted to canvas px. */
-  function hitTolerance(): number {
-    const canvas = displayCanvasRef.current
-    if (!canvas) return 8
-    const box = canvas.getBoundingClientRect()
-    return 8 * (canvas.width / box.width)
-  }
+  const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
+    canvasRef: displayCanvasRef,
+    ratio: ASPECT_RATIOS[aspect],
+    render: (rect) => renderDisplay(rect),
+  })
 
   function renderDisplay(rect?: Rect | null, color: string | null = bgColor) {
     const image = imageCanvasRef.current
@@ -160,31 +103,15 @@ export default function ImageCropPage() {
     ctx.drawImage(image, 0, 0)
 
     if (rect && rect.width > 0 && rect.height > 0) {
-      ctx.save()
       // Dim everything outside the selection.
+      ctx.save()
       ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
       ctx.beginPath()
       ctx.rect(0, 0, display.width, display.height)
       ctx.rect(rect.x, rect.y, rect.width, rect.height)
       ctx.fill("evenodd")
-      ctx.strokeStyle = "#3b82f6"
-      ctx.lineWidth = Math.max(1, display.width / 400)
-      ctx.setLineDash([ctx.lineWidth * 4, ctx.lineWidth * 3])
-      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
-
-      // Grab handles at the corners and edge midpoints.
-      const handle = ctx.lineWidth * 4
-      const xs = [rect.x, rect.x + rect.width / 2, rect.x + rect.width]
-      const ys = [rect.y, rect.y + rect.height / 2, rect.y + rect.height]
-      ctx.setLineDash([])
-      ctx.fillStyle = "#3b82f6"
-      for (const hx of xs) {
-        for (const hy of ys) {
-          if (hx === xs[1] && hy === ys[1]) continue
-          ctx.fillRect(hx - handle / 2, hy - handle / 2, handle, handle)
-        }
-      }
       ctx.restore()
+      drawSelectionRect(display, rect)
     }
   }
 
@@ -198,10 +125,10 @@ export default function ImageCropPage() {
   function reset() {
     setFile(null)
     setError(null)
-    setPendingRect(null)
     setBgColor(null)
     setSize({ width: 0, height: 0 })
     imageCanvasRef.current = null
+    clearSelection()
   }
 
   async function addFile(picked: File | null | undefined) {
@@ -227,9 +154,9 @@ export default function ImageCropPage() {
       // paints it once it exists.
       setFile(picked)
       setError(null)
-      setPendingRect(null)
       setBgColor(null)
       setSize({ width: image.width, height: image.height })
+      clearSelection()
     } catch (err) {
       reset()
       setError(
@@ -251,199 +178,6 @@ export default function ImageCropPage() {
     e.preventDefault()
     setDragging(false)
     addFile(e.dataTransfer.files?.[0])
-  }
-
-  // Drag tracking lives entirely in a ref — pointerdown/move/up can all fire
-  // before React flushes a state update, so state isn't reliable here.
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!imageCanvasRef.current) return
-    e.preventDefault()
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch {
-      // Untrusted/synthetic events have no active pointer to capture.
-    }
-    const point = toCanvasPoint(e)
-    const edges = pendingRect
-      ? hitEdges(point.x, point.y, pendingRect, hitTolerance())
-      : null
-    if (pendingRect && edges) {
-      dragRef.current = { mode: "resize", edges, rect: pendingRect }
-    } else if (pendingRect && pointInRect(point.x, point.y, pendingRect)) {
-      dragRef.current = {
-        mode: "move",
-        grabX: point.x - pendingRect.x,
-        grabY: point.y - pendingRect.y,
-        rect: pendingRect,
-      }
-    } else {
-      dragRef.current = { mode: "select", startX: point.x, startY: point.y }
-      setPendingRect(null)
-    }
-  }
-
-  function resizedRect(
-    edges: Edges,
-    rect: Rect,
-    point: { x: number; y: number },
-    image: HTMLCanvasElement
-  ): Rect {
-    const ratio = ASPECT_RATIOS[aspect]
-    const horizontal = edges.left || edges.right
-    const vertical = edges.top || edges.bottom
-
-    // Corner drag with a locked ratio: re-derive the rect from the opposite
-    // (fixed) corner toward the pointer, exactly like drawing a new one.
-    if (ratio && horizontal && vertical) {
-      return rectFromPointsWithRatio(
-        edges.left ? rect.x + rect.width : rect.x,
-        edges.top ? rect.y + rect.height : rect.y,
-        point.x,
-        point.y,
-        ratio,
-        image.width,
-        image.height
-      )
-    }
-
-    // Edge drag with a locked ratio: the opposite edge stays fixed and the
-    // perpendicular axis stays centred; cap the size so the rect fits.
-    if (ratio && horizontal) {
-      const anchorX = edges.left ? rect.x + rect.width : rect.x
-      const cy = rect.y + rect.height / 2
-      const desired = edges.left ? anchorX - point.x : point.x - anchorX
-      const max = Math.min(
-        edges.left ? anchorX : image.width - anchorX,
-        2 * Math.min(cy, image.height - cy) * ratio
-      )
-      const width = Math.max(1, Math.min(desired, max))
-      const height = width / ratio
-      return {
-        x: edges.left ? anchorX - width : anchorX,
-        y: cy - height / 2,
-        width,
-        height,
-      }
-    }
-    if (ratio) {
-      const anchorY = edges.top ? rect.y + rect.height : rect.y
-      const cx = rect.x + rect.width / 2
-      const desired = edges.top ? anchorY - point.y : point.y - anchorY
-      const max = Math.min(
-        edges.top ? anchorY : image.height - anchorY,
-        (2 * Math.min(cx, image.width - cx)) / ratio
-      )
-      const height = Math.max(1, Math.min(desired, max))
-      const width = height * ratio
-      return {
-        x: cx - width / 2,
-        y: edges.top ? anchorY - height : anchorY,
-        width,
-        height,
-      }
-    }
-
-    // Free resize: dragged edges follow the pointer, the rest stay put.
-    // rectFromPoints re-normalizes if the pointer crosses the opposite edge.
-    return clampRect(
-      rectFromPoints(
-        edges.left ? point.x : rect.x,
-        edges.top ? point.y : rect.y,
-        edges.right ? point.x : rect.x + rect.width,
-        edges.bottom ? point.y : rect.y + rect.height
-      ),
-      image.width,
-      image.height
-    )
-  }
-
-  function dragRect(e: React.PointerEvent<HTMLCanvasElement>): Rect | null {
-    const drag = dragRef.current
-    const image = imageCanvasRef.current
-    if (!drag || !image) return null
-    const point = toCanvasPoint(e)
-
-    if (drag.mode === "resize") {
-      return resizedRect(drag.edges, drag.rect, point, image)
-    }
-
-    if (drag.mode === "move") {
-      // Translate the grabbed rect, keeping it fully inside the image.
-      return {
-        x: Math.max(
-          0,
-          Math.min(point.x - drag.grabX, image.width - drag.rect.width)
-        ),
-        y: Math.max(
-          0,
-          Math.min(point.y - drag.grabY, image.height - drag.rect.height)
-        ),
-        width: drag.rect.width,
-        height: drag.rect.height,
-      }
-    }
-
-    const ratio = ASPECT_RATIOS[aspect]
-    if (ratio) {
-      return rectFromPointsWithRatio(
-        drag.startX,
-        drag.startY,
-        point.x,
-        point.y,
-        ratio,
-        image.width,
-        image.height
-      )
-    }
-    return clampRect(
-      rectFromPoints(drag.startX, drag.startY, point.x, point.y),
-      image.width,
-      image.height
-    )
-  }
-
-  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!dragRef.current) {
-      // Not dragging: just reflect what a drag here would do in the cursor.
-      const canvas = displayCanvasRef.current
-      if (canvas) {
-        const point = toCanvasPoint(e)
-        let cursor = "crosshair"
-        if (pendingRect) {
-          const edges = hitEdges(point.x, point.y, pendingRect, hitTolerance())
-          if (edges) cursor = edgeCursor(edges)
-          else if (pointInRect(point.x, point.y, pendingRect)) cursor = "move"
-        }
-        canvas.style.cursor = cursor
-      }
-      return
-    }
-    const rect = dragRect(e)
-    if (rect) renderDisplay(rect)
-  }
-
-  function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
-    const drag = dragRef.current
-    const rect = dragRect(e)
-    dragRef.current = null
-    if (!drag || !rect) return
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      // Capture may already be gone; nothing to clean up.
-    }
-    if (drag.mode === "select" && (rect.width < 2 || rect.height < 2)) {
-      setPendingRect(null)
-      renderDisplay()
-      return
-    }
-    setPendingRect(rect)
-    renderDisplay(rect)
-  }
-
-  function onPointerCancel() {
-    dragRef.current = null
-    renderDisplay(pendingRect)
   }
 
   function applyCrop() {
@@ -472,14 +206,8 @@ export default function ImageCropPage() {
       rect.height
     )
     imageCanvasRef.current = cropped
-    setPendingRect(null)
     setSize({ width: cropped.width, height: cropped.height })
-    renderDisplay()
-  }
-
-  function cancelSelection() {
-    setPendingRect(null)
-    renderDisplay()
+    clearSelection()
   }
 
   function onColorChange(color: string | null) {
@@ -491,8 +219,7 @@ export default function ImageCropPage() {
   // one, so drop it rather than silently distorting it.
   function onAspectChange(value: Aspect) {
     setAspect(value)
-    setPendingRect(null)
-    renderDisplay()
+    clearSelection()
   }
 
   async function download() {
@@ -560,10 +287,7 @@ export default function ImageCropPage() {
                 <div className="max-h-full rounded-md bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]">
                   <canvas
                     ref={displayCanvasRef}
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onPointerCancel={onPointerCancel}
+                    {...selectionHandlers}
                     className="block max-h-[calc(60vh-1rem)] max-w-full cursor-crosshair touch-none select-none"
                   />
                 </div>
@@ -608,7 +332,7 @@ export default function ImageCropPage() {
 
               <div className="ml-auto flex items-center gap-2">
                 {pendingRect && (
-                  <Button variant="ghost" onClick={cancelSelection}>
+                  <Button variant="ghost" onClick={clearSelection}>
                     <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
                     Cancel selection
                   </Button>
