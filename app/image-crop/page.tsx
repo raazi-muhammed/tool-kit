@@ -47,6 +47,36 @@ const ASPECT_RATIOS: Record<Aspect, number | null> = {
   "9:16": 9 / 16,
 }
 
+type Edges = { left: boolean; right: boolean; top: boolean; bottom: boolean }
+
+/** Which edges of `rect` the point grabs, within `tol` (canvas px). */
+function hitEdges(x: number, y: number, rect: Rect, tol: number): Edges | null {
+  if (
+    x < rect.x - tol ||
+    x > rect.x + rect.width + tol ||
+    y < rect.y - tol ||
+    y > rect.y + rect.height + tol
+  ) {
+    return null
+  }
+  const edges = {
+    left: Math.abs(x - rect.x) <= tol,
+    right: Math.abs(x - (rect.x + rect.width)) <= tol,
+    top: Math.abs(y - rect.y) <= tol,
+    bottom: Math.abs(y - (rect.y + rect.height)) <= tol,
+  }
+  return edges.left || edges.right || edges.top || edges.bottom ? edges : null
+}
+
+function edgeCursor(edges: Edges): string {
+  const horizontal = edges.left || edges.right
+  const vertical = edges.top || edges.bottom
+  if (horizontal && vertical) {
+    return edges.left === edges.top ? "nwse-resize" : "nesw-resize"
+  }
+  return horizontal ? "ew-resize" : "ns-resize"
+}
+
 function isImageFile(file: File): boolean {
   return file.type.startsWith("image/")
 }
@@ -78,11 +108,13 @@ export default function ImageCropPage() {
   // `displayCanvas` is what's on screen, including the selection preview.
   const imageCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
-  // A drag either draws a new selection ("select") or translates the pending
-  // one ("move", grabbed at an offset from the rect's origin).
+  // A drag either draws a new selection ("select"), translates the pending
+  // one ("move", grabbed at an offset from the rect's origin), or drags one
+  // of its edges/corners ("resize").
   const dragRef = useRef<
     | { mode: "select"; startX: number; startY: number }
     | { mode: "move"; grabX: number; grabY: number; rect: Rect }
+    | { mode: "resize"; edges: Edges; rect: Rect }
     | null
   >(null)
 
@@ -96,6 +128,14 @@ export default function ImageCropPage() {
       x: (e.clientX - box.left) * (canvas.width / box.width),
       y: (e.clientY - box.top) * (canvas.height / box.height),
     }
+  }
+
+  /** Edge grab tolerance: ~8 screen px, converted to canvas px. */
+  function hitTolerance(): number {
+    const canvas = displayCanvasRef.current
+    if (!canvas) return 8
+    const box = canvas.getBoundingClientRect()
+    return 8 * (canvas.width / box.width)
   }
 
   function renderDisplay(rect?: Rect | null, color: string | null = bgColor) {
@@ -131,6 +171,19 @@ export default function ImageCropPage() {
       ctx.lineWidth = Math.max(1, display.width / 400)
       ctx.setLineDash([ctx.lineWidth * 4, ctx.lineWidth * 3])
       ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+
+      // Grab handles at the corners and edge midpoints.
+      const handle = ctx.lineWidth * 4
+      const xs = [rect.x, rect.x + rect.width / 2, rect.x + rect.width]
+      const ys = [rect.y, rect.y + rect.height / 2, rect.y + rect.height]
+      ctx.setLineDash([])
+      ctx.fillStyle = "#3b82f6"
+      for (const hx of xs) {
+        for (const hy of ys) {
+          if (hx === xs[1] && hy === ys[1]) continue
+          ctx.fillRect(hx - handle / 2, hy - handle / 2, handle, handle)
+        }
+      }
       ctx.restore()
     }
   }
@@ -211,7 +264,12 @@ export default function ImageCropPage() {
       // Untrusted/synthetic events have no active pointer to capture.
     }
     const point = toCanvasPoint(e)
-    if (pendingRect && pointInRect(point.x, point.y, pendingRect)) {
+    const edges = pendingRect
+      ? hitEdges(point.x, point.y, pendingRect, hitTolerance())
+      : null
+    if (pendingRect && edges) {
+      dragRef.current = { mode: "resize", edges, rect: pendingRect }
+    } else if (pendingRect && pointInRect(point.x, point.y, pendingRect)) {
       dragRef.current = {
         mode: "move",
         grabX: point.x - pendingRect.x,
@@ -224,11 +282,90 @@ export default function ImageCropPage() {
     }
   }
 
+  function resizedRect(
+    edges: Edges,
+    rect: Rect,
+    point: { x: number; y: number },
+    image: HTMLCanvasElement
+  ): Rect {
+    const ratio = ASPECT_RATIOS[aspect]
+    const horizontal = edges.left || edges.right
+    const vertical = edges.top || edges.bottom
+
+    // Corner drag with a locked ratio: re-derive the rect from the opposite
+    // (fixed) corner toward the pointer, exactly like drawing a new one.
+    if (ratio && horizontal && vertical) {
+      return rectFromPointsWithRatio(
+        edges.left ? rect.x + rect.width : rect.x,
+        edges.top ? rect.y + rect.height : rect.y,
+        point.x,
+        point.y,
+        ratio,
+        image.width,
+        image.height
+      )
+    }
+
+    // Edge drag with a locked ratio: the opposite edge stays fixed and the
+    // perpendicular axis stays centred; cap the size so the rect fits.
+    if (ratio && horizontal) {
+      const anchorX = edges.left ? rect.x + rect.width : rect.x
+      const cy = rect.y + rect.height / 2
+      const desired = edges.left ? anchorX - point.x : point.x - anchorX
+      const max = Math.min(
+        edges.left ? anchorX : image.width - anchorX,
+        2 * Math.min(cy, image.height - cy) * ratio
+      )
+      const width = Math.max(1, Math.min(desired, max))
+      const height = width / ratio
+      return {
+        x: edges.left ? anchorX - width : anchorX,
+        y: cy - height / 2,
+        width,
+        height,
+      }
+    }
+    if (ratio) {
+      const anchorY = edges.top ? rect.y + rect.height : rect.y
+      const cx = rect.x + rect.width / 2
+      const desired = edges.top ? anchorY - point.y : point.y - anchorY
+      const max = Math.min(
+        edges.top ? anchorY : image.height - anchorY,
+        (2 * Math.min(cx, image.width - cx)) / ratio
+      )
+      const height = Math.max(1, Math.min(desired, max))
+      const width = height * ratio
+      return {
+        x: cx - width / 2,
+        y: edges.top ? anchorY - height : anchorY,
+        width,
+        height,
+      }
+    }
+
+    // Free resize: dragged edges follow the pointer, the rest stay put.
+    // rectFromPoints re-normalizes if the pointer crosses the opposite edge.
+    return clampRect(
+      rectFromPoints(
+        edges.left ? point.x : rect.x,
+        edges.top ? point.y : rect.y,
+        edges.right ? point.x : rect.x + rect.width,
+        edges.bottom ? point.y : rect.y + rect.height
+      ),
+      image.width,
+      image.height
+    )
+  }
+
   function dragRect(e: React.PointerEvent<HTMLCanvasElement>): Rect | null {
     const drag = dragRef.current
     const image = imageCanvasRef.current
     if (!drag || !image) return null
     const point = toCanvasPoint(e)
+
+    if (drag.mode === "resize") {
+      return resizedRect(drag.edges, drag.rect, point, image)
+    }
 
     if (drag.mode === "move") {
       // Translate the grabbed rect, keeping it fully inside the image.
@@ -271,10 +408,13 @@ export default function ImageCropPage() {
       const canvas = displayCanvasRef.current
       if (canvas) {
         const point = toCanvasPoint(e)
-        canvas.style.cursor =
-          pendingRect && pointInRect(point.x, point.y, pendingRect)
-            ? "move"
-            : "crosshair"
+        let cursor = "crosshair"
+        if (pendingRect) {
+          const edges = hitEdges(point.x, point.y, pendingRect, hitTolerance())
+          if (edges) cursor = edgeCursor(edges)
+          else if (pointInRect(point.x, point.y, pendingRect)) cursor = "move"
+        }
+        canvas.style.cursor = cursor
       }
       return
     }
@@ -432,7 +572,8 @@ export default function ImageCropPage() {
             <p className="text-sm text-muted-foreground">
               {file.name} · {size.width} × {size.height} ·{" "}
               {formatBytes(file.size)} · drag a rectangle to select the crop
-              area · drag inside the selection to move it
+              area · drag inside the selection to move it, or its edges to
+              resize
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
