@@ -52,6 +52,16 @@ export function rectFromPointsWithRatio(
   }
 }
 
+/** Whether the point (x, y) falls inside `rect` (edges inclusive). */
+export function pointInRect(x: number, y: number, rect: Rect): boolean {
+  return (
+    x >= rect.x &&
+    x <= rect.x + rect.width &&
+    y >= rect.y &&
+    y <= rect.y + rect.height
+  )
+}
+
 /** Clamp a rect so it stays fully inside a `width` × `height` canvas. */
 export function clampRect(rect: Rect, width: number, height: number): Rect {
   const x = Math.max(0, Math.min(rect.x, width))

@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   clampRect,
+  pointInRect,
   rectFromPoints,
   rectFromPointsWithRatio,
   type Rect,
@@ -77,7 +78,13 @@ export default function ImageCropPage() {
   // `displayCanvas` is what's on screen, including the selection preview.
   const imageCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null)
+  // A drag either draws a new selection ("select") or translates the pending
+  // one ("move", grabbed at an offset from the rect's origin).
+  const dragRef = useRef<
+    | { mode: "select"; startX: number; startY: number }
+    | { mode: "move"; grabX: number; grabY: number; rect: Rect }
+    | null
+  >(null)
 
   const isPng = file?.type === "image/png"
 
@@ -203,20 +210,47 @@ export default function ImageCropPage() {
     } catch {
       // Untrusted/synthetic events have no active pointer to capture.
     }
-    dragStartRef.current = toCanvasPoint(e)
-    setPendingRect(null)
+    const point = toCanvasPoint(e)
+    if (pendingRect && pointInRect(point.x, point.y, pendingRect)) {
+      dragRef.current = {
+        mode: "move",
+        grabX: point.x - pendingRect.x,
+        grabY: point.y - pendingRect.y,
+        rect: pendingRect,
+      }
+    } else {
+      dragRef.current = { mode: "select", startX: point.x, startY: point.y }
+      setPendingRect(null)
+    }
   }
 
   function dragRect(e: React.PointerEvent<HTMLCanvasElement>): Rect | null {
-    const start = dragStartRef.current
+    const drag = dragRef.current
     const image = imageCanvasRef.current
-    if (!start || !image) return null
+    if (!drag || !image) return null
     const point = toCanvasPoint(e)
+
+    if (drag.mode === "move") {
+      // Translate the grabbed rect, keeping it fully inside the image.
+      return {
+        x: Math.max(
+          0,
+          Math.min(point.x - drag.grabX, image.width - drag.rect.width)
+        ),
+        y: Math.max(
+          0,
+          Math.min(point.y - drag.grabY, image.height - drag.rect.height)
+        ),
+        width: drag.rect.width,
+        height: drag.rect.height,
+      }
+    }
+
     const ratio = ASPECT_RATIOS[aspect]
     if (ratio) {
       return rectFromPointsWithRatio(
-        start.x,
-        start.y,
+        drag.startX,
+        drag.startY,
         point.x,
         point.y,
         ratio,
@@ -225,27 +259,40 @@ export default function ImageCropPage() {
       )
     }
     return clampRect(
-      rectFromPoints(start.x, start.y, point.x, point.y),
+      rectFromPoints(drag.startX, drag.startY, point.x, point.y),
       image.width,
       image.height
     )
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (!dragRef.current) {
+      // Not dragging: just reflect what a drag here would do in the cursor.
+      const canvas = displayCanvasRef.current
+      if (canvas) {
+        const point = toCanvasPoint(e)
+        canvas.style.cursor =
+          pendingRect && pointInRect(point.x, point.y, pendingRect)
+            ? "move"
+            : "crosshair"
+      }
+      return
+    }
     const rect = dragRect(e)
     if (rect) renderDisplay(rect)
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    const drag = dragRef.current
     const rect = dragRect(e)
-    if (!rect) return
-    dragStartRef.current = null
+    dragRef.current = null
+    if (!drag || !rect) return
     try {
       e.currentTarget.releasePointerCapture(e.pointerId)
     } catch {
       // Capture may already be gone; nothing to clean up.
     }
-    if (rect.width < 2 || rect.height < 2) {
+    if (drag.mode === "select" && (rect.width < 2 || rect.height < 2)) {
       setPendingRect(null)
       renderDisplay()
       return
@@ -255,7 +302,7 @@ export default function ImageCropPage() {
   }
 
   function onPointerCancel() {
-    dragStartRef.current = null
+    dragRef.current = null
     renderDisplay(pendingRect)
   }
 
@@ -385,7 +432,7 @@ export default function ImageCropPage() {
             <p className="text-sm text-muted-foreground">
               {file.name} · {size.width} × {size.height} ·{" "}
               {formatBytes(file.size)} · drag a rectangle to select the crop
-              area
+              area · drag inside the selection to move it
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
