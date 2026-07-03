@@ -6,7 +6,10 @@ import {
   Cancel01Icon,
   CloudUploadIcon,
   Download04Icon,
+  FitToScreenIcon,
   GridViewIcon,
+  ZoomInAreaIcon,
+  ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
@@ -31,6 +34,15 @@ import {
 import { formatBytes, replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
+const MIN_ZOOM = 1
+const MAX_ZOOM = 8
+
+// Safari's trackpad pinch arrives as gesture* events, not ctrl+wheel.
+type SafariGestureEvent = Event & {
+  scale?: number
+  clientX?: number
+  clientY?: number
+}
 
 function isImageFile(file: File): boolean {
   return file.type.startsWith("image/")
@@ -61,6 +73,65 @@ export default function ImageBlurPage() {
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dragStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  // Zoom/pan is pure CSS transform on the canvas inside a clipped viewport —
+  // selection mapping is unaffected because getBoundingClientRect already
+  // reflects the transform. Kept in refs (not state) so wheel/pinch events
+  // don't re-render React on every tick; `zoomPct` mirrors it for the UI.
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const viewRef = useRef({ scale: 1, x: 0, y: 0 })
+  const fitSizeRef = useRef({ width: 0, height: 0 })
+  const [zoomPct, setZoomPct] = useState(100)
+
+  function applyView() {
+    const canvas = displayCanvasRef.current
+    const viewport = viewportRef.current
+    if (!canvas || !viewport) return
+    const view = viewRef.current
+    // Clamp so the image stays inside the viewport (centered when smaller).
+    const vw = viewport.clientWidth
+    const vh = viewport.clientHeight
+    const w = fitSizeRef.current.width * view.scale
+    const h = fitSizeRef.current.height * view.scale
+    view.x = w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, view.x))
+    view.y = h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, view.y))
+    canvas.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
+    setZoomPct(Math.round(view.scale * 100))
+  }
+
+  /** Size the canvas to fit the viewport (object-contain) and reset the view. */
+  function fitView() {
+    const canvas = displayCanvasRef.current
+    const viewport = viewportRef.current
+    const base = baseCanvasRef.current
+    if (!canvas || !viewport || !base) return
+    const fit = Math.min(
+      viewport.clientWidth / base.width,
+      viewport.clientHeight / base.height
+    )
+    fitSizeRef.current = { width: base.width * fit, height: base.height * fit }
+    canvas.style.width = `${fitSizeRef.current.width}px`
+    canvas.style.height = `${fitSizeRef.current.height}px`
+    viewRef.current = { scale: 1, x: 0, y: 0 }
+    applyView()
+  }
+
+  /** Zoom by `factor` keeping the viewport point (px, py) fixed. */
+  function zoomAt(px: number, py: number, factor: number) {
+    const view = viewRef.current
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.scale * factor))
+    const applied = next / view.scale
+    view.x = px - (px - view.x) * applied
+    view.y = py - (py - view.y) * applied
+    view.scale = next
+    applyView()
+  }
+
+  function zoomFromButton(factor: number) {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, factor)
+  }
 
   function toCanvasPoint(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = displayCanvasRef.current
@@ -108,10 +179,71 @@ export default function ImageBlurPage() {
     }
   }
 
-  // Paint the visible canvas after it mounts — it only exists in the DOM once
-  // a file has been picked, so drawing can't happen inside addFile itself.
+  // Paint + fit the visible canvas after it mounts — it only exists in the
+  // DOM once a file has been picked, so this can't happen in addFile itself.
+  // Also wires zoom/pan listeners natively: React registers wheel handlers as
+  // passive, which would make preventDefault (needed to stop page scroll and
+  // browser pinch-zoom) a no-op.
   useEffect(() => {
-    if (file) renderDisplay()
+    if (!file) return
+    renderDisplay()
+    fitView()
+
+    const viewport = viewportRef.current
+    if (!viewport) return
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      if (e.ctrlKey || e.metaKey) {
+        // Pinch on Chrome/Firefox trackpads, or ctrl/cmd + scroll wheel.
+        const box = viewport.getBoundingClientRect()
+        zoomAt(
+          e.clientX - box.left,
+          e.clientY - box.top,
+          Math.exp(-e.deltaY * 0.01)
+        )
+      } else {
+        const view = viewRef.current
+        view.x -= e.deltaX
+        view.y -= e.deltaY
+        applyView()
+      }
+    }
+
+    // Safari trackpad pinch fires gesture* events instead of ctrl+wheel.
+    let gestureStartScale = 1
+    const onGestureStart = (e: Event) => {
+      e.preventDefault()
+      gestureStartScale = viewRef.current.scale
+    }
+    const onGestureChange = (e: Event) => {
+      e.preventDefault()
+      const gesture = e as SafariGestureEvent
+      if (!gesture.scale) return
+      const box = viewport.getBoundingClientRect()
+      const target = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, gestureStartScale * gesture.scale)
+      )
+      zoomAt(
+        (gesture.clientX ?? box.left + box.width / 2) - box.left,
+        (gesture.clientY ?? box.top + box.height / 2) - box.top,
+        target / viewRef.current.scale
+      )
+    }
+
+    const onResize = () => fitView()
+
+    viewport.addEventListener("wheel", onWheel, { passive: false })
+    viewport.addEventListener("gesturestart", onGestureStart)
+    viewport.addEventListener("gesturechange", onGestureChange)
+    window.addEventListener("resize", onResize)
+    return () => {
+      viewport.removeEventListener("wheel", onWheel)
+      viewport.removeEventListener("gesturestart", onGestureStart)
+      viewport.removeEventListener("gesturechange", onGestureChange)
+      window.removeEventListener("resize", onResize)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file])
 
@@ -301,22 +433,59 @@ export default function ImageBlurPage() {
 
         {file ? (
           <div className="flex flex-col gap-4">
-            <Card className="items-center overflow-hidden p-2">
-              <canvas
-                ref={displayCanvasRef}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={onPointerUp}
-                onPointerCancel={onPointerCancel}
-                className="max-h-[70vh] max-w-full cursor-crosshair touch-none rounded-md select-none"
-              />
+            <Card className="overflow-hidden p-2">
+              <div
+                ref={viewportRef}
+                className="relative h-[60vh] w-full overflow-hidden rounded-md"
+              >
+                <canvas
+                  ref={displayCanvasRef}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                  onPointerCancel={onPointerCancel}
+                  className="absolute top-0 left-0 origin-top-left cursor-crosshair touch-none select-none"
+                />
+              </div>
             </Card>
             <p className="text-sm text-muted-foreground">
-              {file.name} · {formatBytes(file.size)} · drag a rectangle over the
-              image to select an area
+              {file.name} · {formatBytes(file.size)} · drag a rectangle to
+              select an area · scroll to move · pinch or ⌘-scroll to zoom
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => zoomFromButton(0.8)}
+                  disabled={zoomPct <= MIN_ZOOM * 100}
+                  aria-label="Zoom out"
+                >
+                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                </Button>
+                <span className="w-12 text-center text-sm text-muted-foreground">
+                  {zoomPct}%
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => zoomFromButton(1.25)}
+                  disabled={zoomPct >= MAX_ZOOM * 100}
+                  aria-label="Zoom in"
+                >
+                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={fitView}
+                  aria-label="Fit to screen"
+                >
+                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                </Button>
+              </div>
+
               <div className="flex flex-1 items-center gap-3">
                 <span className="text-sm text-muted-foreground">Blur</span>
                 <Slider
