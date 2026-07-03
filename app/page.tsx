@@ -2,14 +2,25 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
   AudioWave01Icon,
+  BlurIcon,
   BracesIcon,
   Calculator01Icon,
   Image01Icon,
 } from "@hugeicons/core-free-icons"
 import Link from "next/link"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
-const TOOLS: { href: string; icon: IconSvgElement; name: string; description: string }[] = [
+const TOOLS: {
+  href: string
+  icon: IconSvgElement
+  name: string
+  description: string
+}[] = [
   {
     href: "/json-parser",
     icon: BracesIcon,
@@ -26,13 +37,22 @@ const TOOLS: { href: string; icon: IconSvgElement; name: string; description: st
     href: "/video-to-audio",
     icon: AudioWave01Icon,
     name: "Video → Audio",
-    description: "Extract a video's audio track to a WAV file, in your browser.",
+    description:
+      "Extract a video's audio track to a WAV file, in your browser.",
   },
   {
     href: "/image-converter",
     icon: Image01Icon,
     name: "Image Converter",
-    description: "Convert images between PNG, JPEG, WebP, and BMP, entirely in your browser.",
+    description:
+      "Convert images between PNG, JPEG, WebP, and BMP, entirely in your browser.",
+  },
+  {
+    href: "/image-blur",
+    icon: BlurIcon,
+    name: "Image Blur",
+    description:
+      "Select a rectangle on an image and blur just that region, in your browser.",
   },
 ]
 
@@ -53,7 +73,11 @@ export default function Page() {
                 className="pointer-events-none absolute -right-6 -bottom-6 size-32 rotate-12 text-foreground/5"
               />
               <CardHeader>
-                <HugeiconsIcon icon={icon} className="mb-2 size-5" aria-hidden />
+                <HugeiconsIcon
+                  icon={icon}
+                  className="mb-2 size-5"
+                  aria-hidden
+                />
                 <CardTitle>{name}</CardTitle>
                 <CardDescription>{description}</CardDescription>
               </CardHeader>
