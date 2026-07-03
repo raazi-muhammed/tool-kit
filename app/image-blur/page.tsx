@@ -24,10 +24,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
+import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
   blurRegion,
-  clampRect,
-  rectFromPoints,
+  drawSelectionRect,
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
@@ -64,7 +64,6 @@ export default function ImageBlurPage() {
   const [blur, setBlur] = useState(20)
   const [mode, setMode] = useState<BlurMode>("gaussian")
   const [dragging, setDragging] = useState(false)
-  const [pendingRect, setPendingRect] = useState<Rect | null>(null)
   const [hasEdits, setHasEdits] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -72,7 +71,11 @@ export default function ImageBlurPage() {
   // `displayCanvas` is what's on screen, and also shows the live preview.
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
-  const dragStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
+    canvasRef: displayCanvasRef,
+    render: (rect) => renderDisplay(rect ?? undefined),
+  })
 
   // Zoom/pan is pure CSS transform on the canvas inside a clipped viewport —
   // selection mapping is unaffected because getBoundingClientRect already
@@ -133,18 +136,6 @@ export default function ImageBlurPage() {
     zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, factor)
   }
 
-  function toCanvasPoint(e: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = displayCanvasRef.current
-    if (!canvas) return { x: 0, y: 0 }
-    const box = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / box.width
-    const scaleY = canvas.height / box.height
-    return {
-      x: (e.clientX - box.left) * scaleX,
-      y: (e.clientY - box.top) * scaleY,
-    }
-  }
-
   function renderDisplay(
     rect?: Rect,
     blurPx: number = blur,
@@ -170,12 +161,7 @@ export default function ImageBlurPage() {
     }
 
     if (rect) {
-      ctx.save()
-      ctx.strokeStyle = "#3b82f6"
-      ctx.lineWidth = Math.max(1, display.width / 400)
-      ctx.setLineDash([ctx.lineWidth * 4, ctx.lineWidth * 3])
-      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
-      ctx.restore()
+      drawSelectionRect(display, rect)
     }
   }
 
@@ -251,9 +237,9 @@ export default function ImageBlurPage() {
     setFile(null)
     setError(null)
     setBlur(20)
-    setPendingRect(null)
     setHasEdits(false)
     baseCanvasRef.current = null
+    clearSelection()
   }
 
   async function addFile(picked: File | null | undefined) {
@@ -279,8 +265,8 @@ export default function ImageBlurPage() {
       // paints it once it exists.
       setFile(picked)
       setError(null)
-      setPendingRect(null)
       setHasEdits(false)
+      clearSelection()
     } catch (err) {
       reset()
       setError(
@@ -304,59 +290,6 @@ export default function ImageBlurPage() {
     addFile(e.dataTransfer.files?.[0])
   }
 
-  // Drag tracking lives entirely in a ref — pointerdown/move/up can all fire
-  // before React flushes a state update, so state isn't reliable here.
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!baseCanvasRef.current) return
-    e.preventDefault()
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch {
-      // Untrusted/synthetic events have no active pointer to capture.
-    }
-    dragStartRef.current = toCanvasPoint(e)
-    setPendingRect(null)
-  }
-
-  function dragRect(e: React.PointerEvent<HTMLCanvasElement>): Rect | null {
-    const start = dragStartRef.current
-    const base = baseCanvasRef.current
-    if (!start || !base) return null
-    const point = toCanvasPoint(e)
-    return clampRect(
-      rectFromPoints(start.x, start.y, point.x, point.y),
-      base.width,
-      base.height
-    )
-  }
-
-  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = dragRect(e)
-    if (rect) renderDisplay(rect)
-  }
-
-  function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = dragRect(e)
-    if (!rect) return
-    dragStartRef.current = null
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      // Capture may already be gone; nothing to clean up.
-    }
-    if (rect.width < 2 || rect.height < 2) {
-      renderDisplay()
-      return
-    }
-    setPendingRect(rect)
-    renderDisplay(rect)
-  }
-
-  function onPointerCancel() {
-    dragStartRef.current = null
-    renderDisplay()
-  }
-
   function applyBlur() {
     const base = baseCanvasRef.current
     if (!base || !pendingRect) return
@@ -366,14 +299,8 @@ export default function ImageBlurPage() {
     committed.height = base.height
     blurRegion(committed, base, pendingRect, blur, mode)
     baseCanvasRef.current = committed
-    setPendingRect(null)
     setHasEdits(true)
-    renderDisplay()
-  }
-
-  function cancelSelection() {
-    setPendingRect(null)
-    renderDisplay()
+    clearSelection()
   }
 
   async function download() {
@@ -440,17 +367,15 @@ export default function ImageBlurPage() {
               >
                 <canvas
                   ref={displayCanvasRef}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerCancel}
+                  {...selectionHandlers}
                   className="absolute top-0 left-0 origin-top-left cursor-crosshair touch-none select-none"
                 />
               </div>
             </Card>
             <p className="text-sm text-muted-foreground">
               {file.name} · {formatBytes(file.size)} · drag a rectangle to
-              select an area · scroll to move · pinch or ⌘-scroll to zoom
+              select an area · drag the selection or its edges to adjust it ·
+              scroll to move · pinch or ⌘-scroll to zoom
             </p>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -502,7 +427,7 @@ export default function ImageBlurPage() {
               </div>
 
               {pendingRect && (
-                <Button variant="ghost" onClick={cancelSelection}>
+                <Button variant="ghost" onClick={clearSelection}>
                   <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
                   Cancel selection
                 </Button>

@@ -6,6 +6,7 @@ import {
   BracesIcon,
   Calculator01Icon,
   Image01Icon,
+  ImageCropIcon,
 } from "@hugeicons/core-free-icons"
 import Link from "next/link"
 import {
@@ -53,6 +54,13 @@ const TOOLS: {
     name: "Image Blur",
     description:
       "Select a rectangle on an image and blur just that region, in your browser.",
+  },
+  {
+    href: "/image-crop",
+    icon: ImageCropIcon,
+    name: "Image Crop",
+    description:
+      "Crop images to a selection, and give transparent PNGs a background color.",
   },
 ]
 
