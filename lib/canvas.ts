@@ -15,6 +15,43 @@ export function rectFromPoints(
   }
 }
 
+/**
+ * Like `rectFromPoints`, but locked to `ratio` (width / height). The rect is
+ * anchored at the drag start (x0, y0), grows toward the current point, and is
+ * clamped to the `maxWidth` × `maxHeight` canvas without breaking the ratio.
+ */
+export function rectFromPointsWithRatio(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  ratio: number,
+  maxWidth: number,
+  maxHeight: number
+): Rect {
+  const dx = x1 - x0
+  const dy = y1 - y0
+  // Let the dominant drag axis drive the size, then cap it by the space
+  // available between the anchor and the canvas edge in the drag direction.
+  const availWidth = dx >= 0 ? maxWidth - x0 : x0
+  const availHeight = dy >= 0 ? maxHeight - y0 : y0
+  const width = Math.max(
+    0,
+    Math.min(
+      Math.max(Math.abs(dx), Math.abs(dy) * ratio),
+      availWidth,
+      availHeight * ratio
+    )
+  )
+  const height = width / ratio
+  return {
+    x: dx >= 0 ? x0 : x0 - width,
+    y: dy >= 0 ? y0 : y0 - height,
+    width,
+    height,
+  }
+}
+
 /** Clamp a rect so it stays fully inside a `width` × `height` canvas. */
 export function clampRect(rect: Rect, width: number, height: number): Rect {
   const x = Math.max(0, Math.min(rect.x, width))

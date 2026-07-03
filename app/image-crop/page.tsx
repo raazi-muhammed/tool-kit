@@ -2,11 +2,16 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  AspectRatioIcon,
   Cancel01Icon,
   CloudUploadIcon,
   CropIcon,
   Download04Icon,
   ImageCropIcon,
+  RectangularIcon,
+  SmartPhone01Icon,
+  SquareIcon,
+  Tv01Icon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
@@ -20,10 +25,26 @@ import {
 } from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { clampRect, rectFromPoints, type Rect } from "@/lib/canvas"
+import {
+  clampRect,
+  rectFromPoints,
+  rectFromPointsWithRatio,
+  type Rect,
+} from "@/lib/canvas"
 import { formatBytes, replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
+
+type Aspect = "free" | "1:1" | "4:3" | "16:9" | "9:16"
+
+// width / height for each locked aspect; free-form has no ratio.
+const ASPECT_RATIOS: Record<Aspect, number | null> = {
+  free: null,
+  "1:1": 1,
+  "4:3": 4 / 3,
+  "16:9": 16 / 9,
+  "9:16": 9 / 16,
+}
 
 function isImageFile(file: File): boolean {
   return file.type.startsWith("image/")
@@ -44,6 +65,7 @@ export default function ImageCropPage() {
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [pendingRect, setPendingRect] = useState<Rect | null>(null)
+  const [aspect, setAspect] = useState<Aspect>("free")
   const [size, setSize] = useState({ width: 0, height: 0 })
   // Background fill for transparent PNGs; null keeps transparency. It's
   // composited at render/export time (never baked into the image), so it
@@ -190,6 +212,18 @@ export default function ImageCropPage() {
     const image = imageCanvasRef.current
     if (!start || !image) return null
     const point = toCanvasPoint(e)
+    const ratio = ASPECT_RATIOS[aspect]
+    if (ratio) {
+      return rectFromPointsWithRatio(
+        start.x,
+        start.y,
+        point.x,
+        point.y,
+        ratio,
+        image.width,
+        image.height
+      )
+    }
     return clampRect(
       rectFromPoints(start.x, start.y, point.x, point.y),
       image.width,
@@ -266,6 +300,14 @@ export default function ImageCropPage() {
     renderDisplay(pendingRect, color)
   }
 
+  // A pending selection made under the old ratio no longer matches the new
+  // one, so drop it rather than silently distorting it.
+  function onAspectChange(value: Aspect) {
+    setAspect(value)
+    setPendingRect(null)
+    renderDisplay()
+  }
+
   async function download() {
     const image = imageCanvasRef.current
     if (!image || !file) return
@@ -297,7 +339,22 @@ export default function ImageCropPage() {
   }
 
   return (
-    <ToolPage page="Image Crop" icon={ImageCropIcon} onClear={reset}>
+    <ToolPage
+      page="Image Crop"
+      icon={ImageCropIcon}
+      segments={{
+        value: aspect,
+        onValueChange: (value) => onAspectChange(value as Aspect),
+        options: [
+          { value: "free", label: "Free", icon: AspectRatioIcon },
+          { value: "1:1", label: "1:1", icon: SquareIcon },
+          { value: "4:3", label: "4:3", icon: Tv01Icon },
+          { value: "16:9", label: "16:9", icon: RectangularIcon },
+          { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
+        ],
+      }}
+      onClear={reset}
+    >
       <div className="flex flex-1 flex-col gap-4">
         <input
           ref={inputRef}
