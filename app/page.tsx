@@ -11,7 +11,7 @@ import { TOOLS } from "@/lib/tools"
 
 export default function Page() {
   return (
-    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-8 p-6">
+    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="flex items-center gap-3 font-[family-name:var(--font-display)] text-xl font-bold">
           Tool Kit
