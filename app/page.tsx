@@ -7,6 +7,7 @@ import {
   Calculator01Icon,
   Image01Icon,
   ImageCropIcon,
+  Resize02Icon,
 } from "@hugeicons/core-free-icons"
 import Link from "next/link"
 import {
@@ -61,6 +62,12 @@ const TOOLS: {
     name: "Image Crop",
     description:
       "Crop images to a selection, and give transparent PNGs a background color.",
+  },
+  {
+    href: "/image-resize",
+    icon: Resize02Icon,
+    name: "Image Resize",
+    description: "Resize an image to any width and height, in your browser.",
   },
 ]
 
