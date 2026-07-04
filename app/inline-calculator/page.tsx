@@ -5,7 +5,15 @@ import { Calculator01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-i
 import { useMemo, useRef, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
-import { annotateLines, resolveText } from "@/lib/calculator"
+import { annotateLines, listVariableNames, resolveText } from "@/lib/calculator"
+
+function longestCommonPrefix(strings: string[]): string {
+  return strings.reduce((prefix, s) => {
+    let i = 0
+    while (i < prefix.length && i < s.length && prefix[i] === s[i]) i++
+    return prefix.slice(0, i)
+  })
+}
 
 const SAMPLE = `12 + 8 =
 150 / 3 =
@@ -19,12 +27,20 @@ a + 3 =`
 export default function InlineCalculatorPage() {
   const [text, setText] = useState("")
   const [copiedLine, setCopiedLine] = useState<number | null>(null)
+  // null caret means "range selected" - suppress the suggestion rather than guess an anchor.
+  const [caret, setCaret] = useState<number | null>(0)
   const backdropRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function syncScroll(e: React.UIEvent<HTMLTextAreaElement>) {
     if (!backdropRef.current) return
     backdropRef.current.scrollTop = e.currentTarget.scrollTop
     backdropRef.current.scrollLeft = e.currentTarget.scrollLeft
+  }
+
+  function updateCaret(e: React.SyntheticEvent<HTMLTextAreaElement>) {
+    const el = e.currentTarget
+    setCaret(el.selectionStart === el.selectionEnd ? el.selectionStart : null)
   }
 
   async function copy() {
@@ -50,6 +66,44 @@ export default function InlineCalculatorPage() {
   const lines = text.split("\n")
   const annotations = useMemo(() => annotateLines(text), [text])
 
+  const suggestion = useMemo(() => {
+    if (caret === null) return null
+    const before = text.slice(0, caret)
+    const lineIndex = before.split("\n").length - 1
+    const col = before.length - (before.lastIndexOf("\n") + 1)
+
+    const prefixMatch = /[A-Za-z_]\w*$/.exec(before)
+    if (!prefixMatch) return null
+    const prefix = prefixMatch[0]
+
+    const matches = listVariableNames(text, lineIndex).filter((candidate) =>
+      candidate.startsWith(prefix),
+    )
+    if (matches.length === 0) return null
+
+    // Fill in as far as every match agrees (shell-style completion) - e.g.
+    // "i_am_" against i_am_here/i_am_not fills nothing since they diverge
+    // immediately, but "i_am_h" fills the rest of i_am_here once it's the
+    // only match left.
+    const tail = longestCommonPrefix(matches).slice(prefix.length)
+    if (!tail) return null
+
+    return { line: lineIndex, col, tail }
+  }, [text, caret])
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== "Tab" || e.shiftKey || !suggestion || caret === null) return
+    e.preventDefault()
+
+    const newText = text.slice(0, caret) + suggestion.tail + text.slice(caret)
+    const newCaret = caret + suggestion.tail.length
+    setText(newText)
+    setCaret(newCaret)
+    requestAnimationFrame(() => {
+      textareaRef.current?.setSelectionRange(newCaret, newCaret)
+    })
+  }
+
   return (
     <ToolPage
       page="Inline Calculator"
@@ -70,7 +124,15 @@ export default function InlineCalculatorPage() {
             return (
               <span key={i}>
                 <span className={isNote ? "text-muted-foreground" : undefined}>
-                  {line || "​"}
+                  {suggestion && suggestion.line === i ? (
+                    <>
+                      {line.slice(0, suggestion.col)}
+                      <span className="text-muted-foreground/50">{suggestion.tail}</span>
+                      {line.slice(suggestion.col)}
+                    </>
+                  ) : (
+                    line || "​"
+                  )}
                 </span>
                 {result !== null && (
                   <span
@@ -99,8 +161,16 @@ export default function InlineCalculatorPage() {
         </div>
 
         <textarea
+          ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value)
+            updateCaret(e)
+          }}
+          onKeyDown={handleKeyDown}
+          onSelect={updateCaret}
+          onClick={updateCaret}
+          onKeyUp={updateCaret}
           onScroll={syncScroll}
           placeholder="1 + 1 ="
           spellCheck={false}
