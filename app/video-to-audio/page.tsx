@@ -14,6 +14,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
 import {
   Attachment,
@@ -66,8 +67,7 @@ const isBusy = (status: JobStatus) =>
 export default function VideoToAudioPage() {
   const [jobs, setJobs] = useState<Job[]>([])
   const [format, setFormat] = useState<Format>("mp3")
-  const [dragging, setDragging] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const dropzoneRef = useRef<DropzoneHandle>(null)
   const idRef = useRef(0)
 
   const anyBusy = jobs.some((job) => isBusy(job.status))
@@ -194,17 +194,6 @@ export default function VideoToAudioPage() {
     )
   }
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    addFiles(e.target.files)
-    e.target.value = "" // allow re-picking the same file
-  }
-
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    addFiles(e.dataTransfer.files)
-  }
-
   // --- ToolPage actions ---
   function clear() {
     setJobs((prev) => {
@@ -212,38 +201,6 @@ export default function VideoToAudioPage() {
       return []
     })
   }
-
-  const dropzone = (
-    <Attachment
-      state="idle"
-      role="button"
-      tabIndex={0}
-      onClick={() => inputRef.current?.click()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          inputRef.current?.click()
-        }
-      }}
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-      className={`h-full w-full cursor-pointer transition-colors ${
-        dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
-      }`}
-    >
-      <AttachmentMedia>
-        <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-      </AttachmentMedia>
-      <AttachmentContent>
-        <AttachmentTitle>Drag &amp; drop a video, or click to browse</AttachmentTitle>
-        <AttachmentDescription>{SUPPORTED_LABEL} · in-browser only</AttachmentDescription>
-      </AttachmentContent>
-    </Attachment>
-  )
 
   return (
     <ToolPage
@@ -258,18 +215,17 @@ export default function VideoToAudioPage() {
         ],
         disabled: anyBusy,
       }}
+      actions={
+        jobs.length > 0 && (
+          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
+            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+            Add file
+          </Button>
+        )
+      }
       onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          multiple
-          onChange={onPick}
-          className="hidden"
-        />
-
         {/* One row per file: source (left) and its output (right), side by side. */}
         {jobs.map((job) => {
           const resultIsMp3 = job.result?.name.endsWith(".mp3")
@@ -355,8 +311,18 @@ export default function VideoToAudioPage() {
           )
         })}
 
-        {/* Drop area, always available to add more files. */}
-        {dropzone}
+        {/* Drop area — hidden (but still mounted, for the header's Add file
+            button) once at least one file has been added. */}
+        <Dropzone
+          ref={dropzoneRef}
+          icon={CloudUploadIcon}
+          title="Drag and drop a video to upload"
+          description={`or, click to browse · ${SUPPORTED_LABEL} · in-browser only`}
+          accept={ACCEPTED}
+          multiple
+          hidden={jobs.length > 0}
+          onFiles={addFiles}
+        />
 
         <Button onClick={convert} disabled={anyBusy || !anyIdle} className="ml-auto">
           <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />

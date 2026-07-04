@@ -15,14 +15,8 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { Dropzone } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import {
-  Attachment,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useRectSelection } from "@/hooks/use-rect-selection"
@@ -59,14 +53,12 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 export default function ImageCropPage() {
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [dragging, setDragging] = useState(false)
   const [aspect, setAspect] = useState<Aspect>("free")
   // Background fill for transparent PNGs; null keeps transparency. It's
   // composited at render/export time (never baked into the image), so it
   // stays adjustable after cropping.
   const [bgColor, setBgColor] = useState<string | null>(null)
 
-  const inputRef = useRef<HTMLInputElement>(null)
   // `imageCanvas` holds the current image (cropped so far, alpha intact);
   // `displayCanvas` is what's on screen, including the selection preview.
   const imageCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -166,17 +158,6 @@ export default function ImageCropPage() {
     }
   }
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    addFile(e.target.files?.[0])
-    e.target.value = ""
-  }
-
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    addFile(e.dataTransfer.files?.[0])
-  }
-
   function applyCrop() {
     const image = imageCanvasRef.current
     if (!image || !pendingRect) return
@@ -266,14 +247,6 @@ export default function ImageCropPage() {
       onClear={reset}
     >
       <div className="flex flex-1 flex-col gap-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          onChange={onPick}
-          className="hidden"
-        />
-
         {file ? (
           <div className="flex flex-col gap-4">
             <Card className="overflow-hidden p-2">
@@ -338,40 +311,13 @@ export default function ImageCropPage() {
           </div>
         ) : (
           <>
-            <Attachment
-              state="idle"
-              role="button"
-              tabIndex={0}
-              onClick={() => inputRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  inputRef.current?.click()
-                }
-              }}
-              onDragOver={(e) => {
-                e.preventDefault()
-                setDragging(true)
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-              className={`w-full cursor-pointer transition-colors ${
-                dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
-              }`}
-            >
-              <AttachmentMedia>
-                <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-              </AttachmentMedia>
-              <AttachmentContent>
-                <AttachmentTitle>
-                  Drag &amp; drop an image, or click to browse
-                </AttachmentTitle>
-                <AttachmentDescription>
-                  Crop any image · set a background colour on PNGs ·
-                  in-browser only
-                </AttachmentDescription>
-              </AttachmentContent>
-            </Attachment>
+            <Dropzone
+              icon={CloudUploadIcon}
+              title="Drag and drop an image to upload"
+              description="or, click to browse · set a background colour on PNGs · in-browser only"
+              accept={ACCEPTED}
+              onFiles={(files) => addFile(files?.[0])}
+            />
             {error && <p className="text-sm text-destructive">{error}</p>}
           </>
         )}

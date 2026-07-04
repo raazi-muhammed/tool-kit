@@ -13,6 +13,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
 import {
   Attachment,
@@ -50,8 +51,7 @@ export default function PdfUnlockPage() {
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
+  const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const busy = status === "unlocking"
 
@@ -115,28 +115,21 @@ export default function PdfUnlockPage() {
     }
   }
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    addFile(e.target.files?.[0])
-    e.target.value = ""
-  }
-
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    addFile(e.dataTransfer.files?.[0])
-  }
-
   return (
-    <ToolPage page="PDF Unlock" icon={FileUnlockedIcon} onClear={reset}>
+    <ToolPage
+      page="PDF Unlock"
+      icon={FileUnlockedIcon}
+      actions={
+        file && (
+          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
+            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+            Add file
+          </Button>
+        )
+      }
+      onClear={reset}
+    >
       <div className="flex flex-1 flex-col gap-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          onChange={onPick}
-          className="hidden"
-        />
-
         {file && (
           <div className="grid items-stretch gap-4 md:grid-cols-2">
             <Attachment className="h-full w-full">
@@ -223,39 +216,17 @@ export default function PdfUnlockPage() {
           </div>
         )}
 
-        <Attachment
-          state="idle"
-          role="button"
-          tabIndex={0}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault()
-              inputRef.current?.click()
-            }
-          }}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragging(true)
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          className={`w-full cursor-pointer transition-colors ${
-            dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
-          }`}
-        >
-          <AttachmentMedia>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-          </AttachmentMedia>
-          <AttachmentContent>
-            <AttachmentTitle>
-              Drag &amp; drop a PDF, or click to browse
-            </AttachmentTitle>
-            <AttachmentDescription>
-              Remove the password from a PDF · in-browser only
-            </AttachmentDescription>
-          </AttachmentContent>
-        </Attachment>
+        {/* Drop area — hidden (but still mounted, for the header's Add file
+            button) once a PDF has been picked. */}
+        <Dropzone
+          ref={dropzoneRef}
+          icon={CloudUploadIcon}
+          title="Drag and drop a PDF to upload"
+          description="or, click to browse · remove the password from a PDF · in-browser only"
+          accept={ACCEPTED}
+          hidden={!!file}
+          onFiles={(files) => addFile(files?.[0])}
+        />
 
         {file && (
           <div className="flex flex-wrap items-end gap-3">

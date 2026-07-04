@@ -12,6 +12,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
 import {
   Attachment,
@@ -32,7 +33,19 @@ const SUPPORTED_LABEL = "JPG, PNG, WebP, GIF, BMP, SVG, ICO, AVIF, TIFF"
 
 type Format = "png" | "jpeg" | "webp" | "bmp"
 type Status = "idle" | "converting" | "done" | "error"
+type Dimensions = { width: number; height: number }
 type Result = { url: string; name: string; size: number }
+type Job = {
+  id: number
+  file: File
+  name: string
+  size: number
+  previewUrl: string
+  dimensions: Dimensions | null
+  status: Status
+  error: string | null
+  result: Result | null
+}
 
 const FORMAT_MIME: Record<Format, string> = {
   png: "image/png",
@@ -57,60 +70,48 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number):
 }
 
 export default function ImageConverterPage() {
-  const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null)
+  const [jobs, setJobs] = useState<Job[]>([])
   const [format, setFormat] = useState<Format>("png")
   const [quality, setQuality] = useState(92)
-  const [status, setStatus] = useState<Status>("idle")
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
+  const dropzoneRef = useRef<DropzoneHandle>(null)
+  const idRef = useRef(0)
 
-  const busy = status === "converting"
+  const anyBusy = jobs.some((job) => job.status === "converting")
 
-  function reset() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    if (result) URL.revokeObjectURL(result.url)
-    setFile(null)
-    setPreviewUrl(null)
-    setDimensions(null)
-    setStatus("idle")
-    setError(null)
-    setResult(null)
+  function updateJob(id: number, patch: Partial<Job>) {
+    setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, ...patch } : job)))
   }
 
-  function addFile(picked: File | null | undefined) {
-    if (!picked) return
-    if (!isImageFile(picked)) {
-      reset()
-      setError("This file doesn't look like a recognised image format.")
-      setStatus("error")
-      return
-    }
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    if (result) URL.revokeObjectURL(result.url)
-    const url = URL.createObjectURL(picked)
-    setFile(picked)
-    setPreviewUrl(url)
-    setDimensions(null)
-    setStatus("idle")
-    setError(null)
-    setResult(null)
+  function addFiles(fileList: FileList | null | undefined) {
+    const files = fileList ? Array.from(fileList) : []
+    if (!files.length) return
+    const created = files.map<Job>((file) => {
+      const valid = isImageFile(file)
+      return {
+        id: idRef.current++,
+        file,
+        name: file.name,
+        size: file.size,
+        previewUrl: valid ? URL.createObjectURL(file) : "",
+        dimensions: null,
+        status: valid ? "idle" : "error",
+        error: valid ? null : "This file doesn't look like a recognised image format.",
+        result: null,
+      }
+    })
+    setJobs((prev) => [...prev, ...created])
   }
 
-  async function convert() {
-    if (!file || !previewUrl) return
-
-    if (format === "webp" && !supportsWebp()) {
-      setStatus("error")
-      setError("Your browser does not support WebP output. Try Chrome or use PNG instead.")
+  async function convertJob(job: Job, fmt: Format, q: number) {
+    if (fmt === "webp" && !supportsWebp()) {
+      updateJob(job.id, {
+        status: "error",
+        error: "Your browser does not support WebP output. Try Chrome or use PNG instead.",
+      })
       return
     }
 
-    setStatus("converting")
-    setError(null)
+    updateJob(job.id, { status: "converting", error: null })
 
     try {
       const img = new Image()
@@ -118,7 +119,7 @@ export default function ImageConverterPage() {
         img.onload = () => resolve()
         img.onerror = () => reject(new Error("This file couldn't be decoded as an image."))
       })
-      img.src = previewUrl
+      img.src = job.previewUrl
       await loaded
 
       const canvas = document.createElement("canvas")
@@ -127,33 +128,62 @@ export default function ImageConverterPage() {
       const ctx = canvas.getContext("2d")
       if (!ctx) throw new Error("Canvas isn't supported in this browser.")
       ctx.drawImage(img, 0, 0)
-      setDimensions({ width: canvas.width, height: canvas.height })
 
       const blob =
-        format === "bmp"
+        fmt === "bmp"
           ? encodeBmp(ctx.getImageData(0, 0, canvas.width, canvas.height))
-          : await canvasToBlob(canvas, FORMAT_MIME[format], quality / 100)
+          : await canvasToBlob(canvas, FORMAT_MIME[fmt], q / 100)
 
-      if (result) URL.revokeObjectURL(result.url)
-      const url = URL.createObjectURL(blob)
-      const name = replaceExtension(file.name, format === "jpeg" ? "jpg" : format)
-      setResult({ url, name, size: blob.size })
-      setStatus("done")
+      const name = replaceExtension(job.name, fmt === "jpeg" ? "jpg" : fmt)
+      setJobs((prev) => {
+        if (!prev.some((j) => j.id === job.id)) return prev // job was removed mid-convert
+        const url = URL.createObjectURL(blob)
+        return prev.map((j) => {
+          if (j.id !== job.id) return j
+          if (j.result) URL.revokeObjectURL(j.result.url)
+          return {
+            ...j,
+            dimensions: { width: canvas.width, height: canvas.height },
+            status: "done",
+            error: null,
+            result: { url, name, size: blob.size },
+          }
+        })
+      })
     } catch (err) {
-      setStatus("error")
-      setError(err instanceof Error ? err.message : "Something went wrong while converting the image.")
+      updateJob(job.id, {
+        status: "error",
+        error: err instanceof Error ? err.message : "Something went wrong while converting the image.",
+      })
     }
   }
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    addFile(e.target.files?.[0])
-    e.target.value = ""
+  function convert() {
+    jobs.forEach((job) => {
+      if (job.status !== "converting") void convertJob(job, format, quality)
+    })
   }
 
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    addFile(e.dataTransfer.files?.[0])
+  function removeJob(id: number) {
+    setJobs((prev) =>
+      prev.filter((job) => {
+        if (job.id === id) {
+          if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+          if (job.result) URL.revokeObjectURL(job.result.url)
+        }
+        return job.id !== id
+      }),
+    )
+  }
+
+  function clear() {
+    setJobs((prev) => {
+      prev.forEach((job) => {
+        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+        if (job.result) URL.revokeObjectURL(job.result.url)
+      })
+      return []
+    })
   }
 
   return (
@@ -169,45 +199,49 @@ export default function ImageConverterPage() {
           { value: "webp", label: "WebP", icon: Image01Icon },
           { value: "bmp", label: "BMP", icon: Image01Icon },
         ],
-        disabled: busy,
+        disabled: anyBusy,
       }}
-      onClear={reset}
+      actions={
+        jobs.length > 0 && (
+          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
+            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+            Add file
+          </Button>
+        )
+      }
+      onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          onChange={onPick}
-          className="hidden"
-        />
-
-        {/* Source (left) and its output (right), side by side — only once a
-            file has been picked. */}
-        {file && (
-          <div className="grid items-stretch gap-4 md:grid-cols-2">
+        {/* One row per file: source (left) and its output (right), side by side. */}
+        {jobs.map((job) => (
+          <div key={job.id} className="grid items-stretch gap-4 md:grid-cols-2">
             <Attachment className="h-full w-full">
-              <AttachmentMedia variant="image">
-                {previewUrl && (
+              <AttachmentMedia variant={job.previewUrl ? "image" : "icon"}>
+                {job.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewUrl} alt={file.name} />
+                  <img src={job.previewUrl} alt={job.name} />
+                ) : (
+                  <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
                 )}
               </AttachmentMedia>
               <AttachmentContent>
-                <AttachmentTitle>{file.name}</AttachmentTitle>
+                <AttachmentTitle>{job.name}</AttachmentTitle>
                 <AttachmentDescription>
-                  {dimensions ? `${dimensions.width} × ${dimensions.height} · ` : ""}
-                  {formatBytes(file.size)}
+                  {job.dimensions ? `${job.dimensions.width} × ${job.dimensions.height} · ` : ""}
+                  {formatBytes(job.size)}
                 </AttachmentDescription>
               </AttachmentContent>
               <AttachmentActions>
-                <AttachmentAction aria-label={`Remove ${file.name}`} onClick={reset}>
+                <AttachmentAction
+                  aria-label={`Remove ${job.name}`}
+                  onClick={() => removeJob(job.id)}
+                >
                   <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
                 </AttachmentAction>
               </AttachmentActions>
             </Attachment>
 
-            {busy ? (
+            {job.status === "converting" ? (
               <Attachment state="processing" className="h-full w-full">
                 <AttachmentMedia>
                   <HugeiconsIcon icon={Loading03Icon} aria-hidden className="animate-spin" />
@@ -217,28 +251,30 @@ export default function ImageConverterPage() {
                   <AttachmentDescription>Working in your browser…</AttachmentDescription>
                 </AttachmentContent>
               </Attachment>
-            ) : status === "error" ? (
+            ) : job.status === "error" ? (
               <Attachment state="error" className="h-full w-full">
                 <AttachmentMedia>
                   <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
                 </AttachmentMedia>
                 <AttachmentContent>
                   <AttachmentTitle>Couldn&apos;t convert</AttachmentTitle>
-                  <AttachmentDescription className="whitespace-normal">{error}</AttachmentDescription>
+                  <AttachmentDescription className="whitespace-normal">
+                    {job.error}
+                  </AttachmentDescription>
                 </AttachmentContent>
               </Attachment>
-            ) : result ? (
+            ) : job.result ? (
               <Attachment state="done" className="h-full w-full">
                 <AttachmentMedia>
                   <HugeiconsIcon icon={Image01Icon} aria-hidden />
                 </AttachmentMedia>
                 <AttachmentContent>
-                  <AttachmentTitle>{result.name}</AttachmentTitle>
-                  <AttachmentDescription>{formatBytes(result.size)}</AttachmentDescription>
+                  <AttachmentTitle>{job.result.name}</AttachmentTitle>
+                  <AttachmentDescription>{formatBytes(job.result.size)}</AttachmentDescription>
                 </AttachmentContent>
                 <AttachmentActions>
                   <Button asChild>
-                    <a href={result.url} download={result.name}>
+                    <a href={job.result.url} download={job.result.name}>
                       <HugeiconsIcon icon={Download04Icon} aria-hidden />
                       Download
                     </a>
@@ -257,41 +293,23 @@ export default function ImageConverterPage() {
               </Attachment>
             )}
           </div>
-        )}
+        ))}
 
-        {/* Drop area, always available to replace the image. */}
-        <Attachment
-          state="idle"
-          role="button"
-          tabIndex={0}
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault()
-              inputRef.current?.click()
-            }
-          }}
-          onDragOver={(e) => {
-            e.preventDefault()
-            setDragging(true)
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          className={`h-full w-full cursor-pointer transition-colors ${
-            dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
-          }`}
-        >
-          <AttachmentMedia>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-          </AttachmentMedia>
-          <AttachmentContent>
-            <AttachmentTitle>Drag &amp; drop an image, or click to browse</AttachmentTitle>
-            <AttachmentDescription>{SUPPORTED_LABEL} · in-browser only</AttachmentDescription>
-          </AttachmentContent>
-        </Attachment>
+        {/* Drop area — hidden (but still mounted, for the header's Add file
+            button) once at least one file has been added. */}
+        <Dropzone
+          ref={dropzoneRef}
+          icon={CloudUploadIcon}
+          title="Drag and drop an image to upload"
+          description={`or, click to browse · ${SUPPORTED_LABEL} · in-browser only`}
+          accept={ACCEPTED}
+          multiple
+          hidden={jobs.length > 0}
+          onFiles={addFiles}
+        />
 
         {/* Quality (JPEG/WebP only) and the explicit Convert trigger. */}
-        {file && (
+        {jobs.length > 0 && (
           <div className="flex items-center gap-4">
             {(format === "jpeg" || format === "webp") && (
               <div className="flex flex-1 items-center gap-3">
@@ -302,13 +320,13 @@ export default function ImageConverterPage() {
                   min={0}
                   max={100}
                   step={1}
-                  disabled={busy}
+                  disabled={anyBusy}
                   className="max-w-48"
                 />
                 <span className="w-8 text-right text-sm text-muted-foreground">{quality}</span>
               </div>
             )}
-            <Button onClick={convert} disabled={busy} className="ml-auto">
+            <Button onClick={convert} disabled={anyBusy} className="ml-auto">
               <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
               Convert
             </Button>
