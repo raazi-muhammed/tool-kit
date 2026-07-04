@@ -1,4 +1,4 @@
-// MP3 encoding for the Video → Audio tool.
+// MP3 encoding for the Video to Audio tool.
 //
 // Uses the pure-JS lamejs encoder (bundled at build time) so encoding still
 // runs entirely client-side — no backend, no FFmpeg.wasm, no SharedArrayBuffer.

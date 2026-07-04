@@ -244,7 +244,7 @@ export default function VideoToAudioPage() {
   )
 
   return (
-    <ToolPage page="Video → Audio" icon={AudioWave01Icon} onClear={clear}>
+    <ToolPage page="Video to Audio" icon={AudioWave01Icon} onClear={clear}>
       <div className="flex flex-1 flex-col gap-4">
         <input
           ref={inputRef}

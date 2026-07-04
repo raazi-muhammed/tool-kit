@@ -1,4 +1,4 @@
-// Pure-JS WAV encoding for the Video → Audio tool.
+// Pure-JS WAV encoding for the Video to Audio tool.
 //
 // No FFmpeg.wasm, no SharedArrayBuffer, no external libraries — just the Web
 // Audio API for decoding (in the page) and the helpers below for turning the
@@ -98,13 +98,13 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   return new Blob([view], { type: "audio/wav" })
 }
 
-/** Swap a filename's extension (e.g. `clip.mp4`, `"wav"` → `clip.wav`). */
+/** Swap a filename's extension (e.g. `clip.mp4`, `"wav"` -> `clip.wav`). */
 export function replaceExtension(name: string, ext: string): string {
   const base = name.replace(/\.[^./\\]+$/, "")
   return `${base || "audio"}.${ext}`
 }
 
-/** Human-readable byte size, e.g. 1536 → "1.5 KB". */
+/** Human-readable byte size, e.g. 1536 -> "1.5 KB". */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   const units = ["KB", "MB", "GB"]

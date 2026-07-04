@@ -33,7 +33,7 @@ JSON Parser's Viewer/Text tabs):
 
 ```tsx
 <ToolPage
-  page="Video → Audio"
+  page="Video to Audio"
   icon={AudioWave01Icon}
   segments={{
     value: format,
@@ -51,6 +51,13 @@ JSON Parser's Viewer/Text tabs):
 ```
 
 See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
+
+## Copy
+
+Never use the `→` arrow character in tool names, page copy, or code comments
+(e.g. write "Video to Audio", not "Video → Audio"). Use "to" in prose, or
+`->` in code comments where an arrow is genuinely useful (e.g. describing a
+before/after transform).
 
 ## Canvas rect selection
 
@@ -79,6 +86,31 @@ the standard dashed border + grab handles. The underlying rect geometry
 (`rectFromPoints`, `rectFromPointsWithRatio`, `clampRect`, `hitEdges`,
 `resizeRect`, `pointInRect`) also lives in `lib/canvas.ts` — extend it there,
 not in a page. See `app/image-crop/page.tsx` and `app/image-blur/page.tsx`.
+
+## Command menu (⌘K search)
+
+The app has a global Cmd+K / Ctrl+K search for jumping between tools, built on
+the shadcn **Command** component (`components/ui/command.tsx`, added via
+`npx shadcn@latest add command` — this also pulled in `dialog.tsx` and
+`input-group.tsx`). The tool list it searches is the single source of truth
+in `lib/tools.ts` (`TOOLS: Tool[]`) — the homepage grid in `app/page.tsx`
+reads from the same array, so a new tool only needs to be added there once.
+
+`components/command-menu.tsx` exports a `CommandMenuProvider` (mounted once
+in `app/layout.tsx`, wrapping `children`) that owns the open state, binds the
+global keydown listener, and renders the `CommandDialog`, plus a
+`CommandMenuTrigger` button that any page can render to open it:
+
+```tsx
+import { CommandMenuTrigger } from "@/components/command-menu"
+
+<CommandMenuTrigger />
+```
+
+`PageBreadcrumb` already renders a `CommandMenuTrigger`, so every tool page
+gets it for free — don't add another one on individual tool pages. When
+adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
+`app/page.tsx`) so it shows up in both the grid and the command menu.
 
 ## Icons
 
