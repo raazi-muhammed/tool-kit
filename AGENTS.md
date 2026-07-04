@@ -112,6 +112,18 @@ gets it for free — don't add another one on individual tool pages. When
 adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
 `app/page.tsx`) so it shows up in both the grid and the command menu.
 
+## Button styling
+
+`components/ui/button.tsx` gives the `default` and `secondary` variants a
+tactile look: a faint white gradient overlay (`bg-linear-to-b from-white/8
+to-transparent` / `from-white/5`), an inset ring highlight, `shadow-sm`, and
+brightness-based hover/active feedback instead of a flat opacity fade. Keep
+that contrast subtle — this has already been tuned down once after looking
+too glossy — and don't set a background/gradient class on individual `Button`
+usages; adjust the shared variants instead so every button stays consistent.
+`outline` just gets a faint `shadow-xs`; `ghost`, `destructive`, and `link`
+stay flat on purpose.
+
 ## Icons
 
 This project uses **Hugeicons**, not lucide-react. Never import from `lucide-react`.
