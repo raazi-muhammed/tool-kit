@@ -92,6 +92,11 @@ the standard dashed border + grab handles. The underlying rect geometry
 `resizeRect`, `pointInRect`) also lives in `lib/canvas.ts` — extend it there,
 not in a page. See `app/image-crop/page.tsx` and `app/image-blur/page.tsx`.
 
+Don't add a muted caption paragraph below the preview restating the file name,
+size, or dimensions — the preview already shows the file, so that text is
+redundant. This applies to any tool that renders a live preview of the picked
+file (canvas, `<img>`, etc.), not just canvas-selection tools.
+
 ## Command menu (⌘K search)
 
 The app has a global Cmd+K / Ctrl+K search for jumping between tools, built on
