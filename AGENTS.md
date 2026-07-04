@@ -52,6 +52,11 @@ JSON Parser's Viewer/Text tabs):
 
 See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
 
+For an output-format picker specifically (MP3/WAV, PNG/JPEG/WebP/BMP, etc.),
+use `segments` in the header as shown above — don't hand-roll it as a `Select`
+placed next to the dropzone. See `app/video-to-audio/page.tsx` and
+`app/image-converter/page.tsx`.
+
 ## Copy
 
 Never use the `→` arrow character in tool names, page copy, or code comments
