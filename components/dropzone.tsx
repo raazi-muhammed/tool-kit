@@ -65,6 +65,7 @@ function DropzoneImpl(
       {!hidden && (
         <Attachment
           state="idle"
+          size="lg"
           orientation="dropzone"
           role="button"
           tabIndex={0}

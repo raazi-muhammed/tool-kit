@@ -14,11 +14,15 @@ const attachmentVariants = cva(
           "gap-2 text-sm has-data-[slot=attachment-content]:px-2.5 has-data-[slot=attachment-content]:py-2 has-data-[slot=attachment-media]:p-2",
         sm: "gap-2.5 text-xs has-data-[slot=attachment-content]:px-2 has-data-[slot=attachment-content]:py-1.5 has-data-[slot=attachment-media]:p-1.5",
         xs: "gap-1.5 rounded-lg text-xs has-data-[slot=attachment-content]:px-1.5 has-data-[slot=attachment-content]:py-1 has-data-[slot=attachment-media]:p-1",
+        // No has-data-conditional padding here (unlike the sizes above) — the
+        // dropzone orientation sets its own padding directly, and that would
+        // otherwise lose to the has-data selector's higher specificity.
+        lg: "gap-4 text-sm",
       },
       orientation: {
         horizontal: "min-w-40 items-center",
         vertical: "w-24 flex-col has-data-[slot=attachment-content]:w-30",
-        dropzone: "w-full flex-col items-center gap-4 px-8 py-28 text-center",
+        dropzone: "w-full flex-col items-center px-8 py-36 text-center",
       },
     },
   }
