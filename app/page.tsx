@@ -5,6 +5,7 @@ import {
   BlurIcon,
   BracesIcon,
   Calculator01Icon,
+  FileUnlockedIcon,
   Image01Icon,
   ImageCropIcon,
   Resize02Icon,
@@ -68,6 +69,13 @@ const TOOLS: {
     icon: Resize02Icon,
     name: "Image Resize",
     description: "Resize an image to any width and height, in your browser.",
+  },
+  {
+    href: "/pdf-unlock",
+    icon: FileUnlockedIcon,
+    name: "PDF Unlock",
+    description:
+      "Remove a PDF's password and download an unlocked copy, in your browser.",
   },
 ]
 
