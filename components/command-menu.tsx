@@ -82,7 +82,10 @@ export function CommandMenuTrigger() {
   }
 
   return (
-    <Button variant="outline" onClick={() => context.setOpen(true)}>
+    <Button
+      variant="secondary"
+      onClick={() => context.setOpen(true)}
+    >
       <HugeiconsIcon icon={SearchIcon} aria-hidden />
       Search
       <kbd className="ml-1 rounded border bg-muted px-1 py-0.5 font-sans text-[10px] leading-none text-muted-foreground">
