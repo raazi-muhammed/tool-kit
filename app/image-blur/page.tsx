@@ -13,14 +13,8 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { Dropzone } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import {
-  Attachment,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
@@ -63,10 +57,8 @@ export default function ImageBlurPage() {
   const [error, setError] = useState<string | null>(null)
   const [blur, setBlur] = useState(20)
   const [mode, setMode] = useState<BlurMode>("gaussian")
-  const [dragging, setDragging] = useState(false)
   const [hasEdits, setHasEdits] = useState(false)
 
-  const inputRef = useRef<HTMLInputElement>(null)
   // `baseCanvas` is the committed ground truth (applied blurs only).
   // `displayCanvas` is what's on screen, and also shows the live preview.
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -279,17 +271,6 @@ export default function ImageBlurPage() {
     }
   }
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    addFile(e.target.files?.[0])
-    e.target.value = ""
-  }
-
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    addFile(e.dataTransfer.files?.[0])
-  }
-
   function applyBlur() {
     const base = baseCanvasRef.current
     if (!base || !pendingRect) return
@@ -350,14 +331,6 @@ export default function ImageBlurPage() {
       onClear={reset}
     >
       <div className="flex flex-1 flex-col gap-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPTED}
-          onChange={onPick}
-          className="hidden"
-        />
-
         {file ? (
           <div className="flex flex-col gap-4">
             <Card className="overflow-hidden p-2">
@@ -438,39 +411,13 @@ export default function ImageBlurPage() {
           </div>
         ) : (
           <>
-            <Attachment
-              state="idle"
-              role="button"
-              tabIndex={0}
-              onClick={() => inputRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  inputRef.current?.click()
-                }
-              }}
-              onDragOver={(e) => {
-                e.preventDefault()
-                setDragging(true)
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={onDrop}
-              className={`w-full cursor-pointer transition-colors ${
-                dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
-              }`}
-            >
-              <AttachmentMedia>
-                <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-              </AttachmentMedia>
-              <AttachmentContent>
-                <AttachmentTitle>
-                  Drag &amp; drop an image, or click to browse
-                </AttachmentTitle>
-                <AttachmentDescription>
-                  Blur any region · in-browser only
-                </AttachmentDescription>
-              </AttachmentContent>
-            </Attachment>
+            <Dropzone
+              icon={CloudUploadIcon}
+              title="Drag and drop an image to upload"
+              description="or, click to browse · blur any region · in-browser only"
+              accept={ACCEPTED}
+              onFiles={(files) => addFile(files?.[0])}
+            />
             {error && <p className="text-sm text-destructive">{error}</p>}
           </>
         )}

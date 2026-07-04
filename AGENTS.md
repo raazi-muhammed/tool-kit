@@ -201,7 +201,70 @@ it destructive. Compose it from `AttachmentMedia` (icon/thumbnail),
 </Attachment>
 ```
 
-shadcn ships **no** dropzone/file-drop component — only `attachment`. Build the
-drop area yourself (a dashed `Card` with `onDragOver`/`onDrop` + a hidden
-`<input type="file">`) and render the resulting files with `Attachment`. See
-`app/video-to-audio/page.tsx`.
+shadcn ships **no** dropzone/file-drop component — only `attachment`. Don't
+hand-roll the hidden `<input type="file">` plus `onDragOver`/`onDrop`/click
+handlers on a page; use the shared `Dropzone` component
+(`components/dropzone.tsx`) instead, which wraps `Attachment` with
+`orientation="dropzone"`:
+
+```tsx
+import { Dropzone } from "@/components/dropzone"
+
+<Dropzone
+  icon={CloudUploadIcon}
+  title="Drag and drop an image to upload"
+  description="or, click to browse · resize to any resolution · in-browser only"
+  accept="image/*"
+  onFiles={(files) => addFile(files?.[0])} // FileList from either a pick or a drop
+/>
+```
+
+Pass `multiple` for tools that queue several files at once (`onFiles` still
+receives the raw `FileList`; use `Array.from(fileList)` to iterate — see
+`app/image-converter/page.tsx`).
+
+For tools that keep the dropzone around after a file's been picked so the
+header's "Add file" button can still open the same picker (see the `actions`
+example above), don't unmount `Dropzone` — its hidden `<input>` needs to stay
+mounted for the ref to work. Instead render it unconditionally and pass
+`hidden` to hide just the card, and reach it via a `DropzoneHandle` ref:
+
+```tsx
+const dropzoneRef = useRef<DropzoneHandle>(null)
+
+<ToolPage
+  actions={file && (
+    <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
+      <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+      Add file
+    </Button>
+  )}
+  ...
+>
+  <Dropzone ref={dropzoneRef} hidden={!!file} ... />
+```
+
+See `app/image-resize/page.tsx` and `app/video-to-audio/page.tsx`.
+
+## Overriding component default styles
+
+A few shared components bake in a conditional utility (`has-data-[slot=...]:`,
+`dark:...`) that ends up with **higher CSS specificity** than a plain utility
+passed in via `className` — so overriding it by passing a bigger/different
+plain value (e.g. bumping a `py-*`) silently does nothing, no matter the
+value, because the conditional rule still wins in the browser. Don't reach
+for `!important` to force it; add a variant/size that omits the competing
+conditional class instead, so there's nothing left to lose the specificity
+fight against:
+
+- `Attachment`'s `size="lg"` has no `has-data-[slot=attachment-content]:px-*
+  py-*` (unlike `default`/`sm`/`xs`), because the `dropzone` orientation sets
+  its own explicit padding — `Dropzone` always passes `size="lg"` together
+  with `orientation="dropzone"`.
+- `Textarea`'s `variant="flat"` drops `border-input` and `dark:bg-input/30`
+  entirely, so a panel like the JSON Parser's Text tab can carry the same flat
+  `bg-card/40` background as a plain `Card` instead of a translucent
+  input-tinted overlay layered on top of it. Use `variant="default"` (the
+  default) for anything that should still look like a normal form input.
+
+See `components/ui/attachment.tsx` and `components/ui/textarea.tsx`.
