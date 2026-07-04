@@ -3,6 +3,7 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
+  ArrowDataTransferHorizontalIcon,
   Cancel01Icon,
   CloudUploadIcon,
   Download04Icon,
@@ -22,13 +23,6 @@ import {
   AttachmentTitle,
 } from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { formatBytes, replaceExtension } from "@/lib/wav"
@@ -163,7 +157,22 @@ export default function ImageConverterPage() {
   }
 
   return (
-    <ToolPage page="Image Converter" icon={Image01Icon} onClear={reset}>
+    <ToolPage
+      page="Image Converter"
+      icon={Image01Icon}
+      segments={{
+        value: format,
+        onValueChange: (value) => setFormat(value as Format),
+        options: [
+          { value: "png", label: "PNG", icon: Image01Icon },
+          { value: "jpeg", label: "JPEG", icon: Image01Icon },
+          { value: "webp", label: "WebP", icon: Image01Icon },
+          { value: "bmp", label: "BMP", icon: Image01Icon },
+        ],
+        disabled: busy,
+      }}
+      onClear={reset}
+    >
       <div className="flex flex-1 flex-col gap-4">
         <input
           ref={inputRef}
@@ -250,51 +259,36 @@ export default function ImageConverterPage() {
           </div>
         )}
 
-        {/* Drop area (always available to replace the image) with the
-            output-format picker right next to it. */}
-        <div className="grid items-stretch gap-4 md:grid-cols-2">
-          <Attachment
-            state="idle"
-            role="button"
-            tabIndex={0}
-            onClick={() => inputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault()
-                inputRef.current?.click()
-              }
-            }}
-            onDragOver={(e) => {
+        {/* Drop area, always available to replace the image. */}
+        <Attachment
+          state="idle"
+          role="button"
+          tabIndex={0}
+          onClick={() => inputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
               e.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            className={`h-full w-full cursor-pointer transition-colors ${
-              dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
-            }`}
-          >
-            <AttachmentMedia>
-              <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            </AttachmentMedia>
-            <AttachmentContent>
-              <AttachmentTitle>Drag &amp; drop an image, or click to browse</AttachmentTitle>
-              <AttachmentDescription>{SUPPORTED_LABEL} · in-browser only</AttachmentDescription>
-            </AttachmentContent>
-          </Attachment>
-
-          <Select value={format} onValueChange={(value) => setFormat(value as Format)} disabled={busy}>
-            <SelectTrigger className="h-full! w-full" aria-label="Output format">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="png">PNG</SelectItem>
-              <SelectItem value="jpeg">JPEG</SelectItem>
-              <SelectItem value="webp">WebP</SelectItem>
-              <SelectItem value="bmp">BMP</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              inputRef.current?.click()
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          className={`h-full w-full cursor-pointer transition-colors ${
+            dragging ? "border-primary bg-accent/50" : "hover:bg-muted/50"
+          }`}
+        >
+          <AttachmentMedia>
+            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>Drag &amp; drop an image, or click to browse</AttachmentTitle>
+            <AttachmentDescription>{SUPPORTED_LABEL} · in-browser only</AttachmentDescription>
+          </AttachmentContent>
+        </Attachment>
 
         {/* Quality (JPEG/WebP only) and the explicit Convert trigger. */}
         {file && (
@@ -315,6 +309,7 @@ export default function ImageConverterPage() {
               </div>
             )}
             <Button onClick={convert} disabled={busy} className="ml-auto">
+              <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
               Convert
             </Button>
           </div>
