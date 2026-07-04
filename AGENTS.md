@@ -145,16 +145,23 @@ rather than rendering it directly (no `<BracesIcon />`). Component props (e.g.
 pull icons from the same set — don't change it back to `lucide`.
 
 Every `Button` gets a leading icon — don't ship a text-only action button.
-`Button`'s own styles auto-size an unclassed `<svg>` child (`size-3.5` at
-`size="sm"`, `size-4` at the default size), so just drop the icon in without a
-`className`:
+`Button`'s own styles auto-size an unclassed `<svg>` child (`size-4` at the
+default size), so just drop the icon in without a `className`:
 
 ```tsx
-<Button size="sm" onClick={format}>
+<Button onClick={format}>
   <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
   Format
 </Button>
 ```
+
+Use the default `size` for every `Button` — don't pass `size="sm"`/`"xs"`. The
+default size carries the gradient/shadow treatment (see "Button styling"
+below) at a scale that reads well everywhere in the app, from the ToolPage
+Copy/Load sample/Clear row down to icon-only toolbar buttons (e.g. the zoom
+controls in `app/image-blur/page.tsx`). The smaller sizes still exist for
+places that aren't a `Button` at all — e.g. `TabsTrigger` sizing — but don't
+reach for them on a `Button`.
 
 ## File attachments
 

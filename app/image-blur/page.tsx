@@ -381,7 +381,6 @@ export default function ImageBlurPage() {
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-1">
                 <Button
-                  size="sm"
                   variant="ghost"
                   onClick={() => zoomFromButton(0.8)}
                   disabled={zoomPct <= MIN_ZOOM * 100}
@@ -393,7 +392,6 @@ export default function ImageBlurPage() {
                   {zoomPct}%
                 </span>
                 <Button
-                  size="sm"
                   variant="ghost"
                   onClick={() => zoomFromButton(1.25)}
                   disabled={zoomPct >= MAX_ZOOM * 100}
@@ -401,12 +399,7 @@ export default function ImageBlurPage() {
                 >
                   <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={fitView}
-                  aria-label="Fit to screen"
-                >
+                <Button variant="ghost" onClick={fitView} aria-label="Fit to screen">
                   <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
                 </Button>
               </div>

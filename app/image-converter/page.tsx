@@ -228,7 +228,7 @@ export default function ImageConverterPage() {
                   <AttachmentDescription>{formatBytes(result.size)}</AttachmentDescription>
                 </AttachmentContent>
                 <AttachmentActions>
-                  <Button asChild size="sm">
+                  <Button asChild>
                     <a href={result.url} download={result.name}>
                       <HugeiconsIcon icon={Download04Icon} aria-hidden />
                       Download

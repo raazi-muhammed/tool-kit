@@ -92,11 +92,11 @@ export default function JsonParserPage() {
       onClear={clear}
       actions={
         <>
-          <Button size="sm" onClick={format}>
+          <Button onClick={format}>
             <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
             Format
           </Button>
-          <Button size="sm" variant="secondary" onClick={minify}>
+          <Button variant="secondary" onClick={minify}>
             <HugeiconsIcon icon={ArrowShrink02Icon} aria-hidden />
             Minify
           </Button>

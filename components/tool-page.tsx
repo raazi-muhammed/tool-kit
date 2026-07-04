@@ -64,18 +64,18 @@ export function ToolPage({
         {actions}
         <div className="ml-auto flex items-center gap-2">
           {onCopy && (
-            <Button size="sm" variant="secondary" onClick={handleCopy}>
+            <Button variant="secondary" onClick={handleCopy}>
               <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} aria-hidden />
               Copy
             </Button>
           )}
           {onLoadSample && (
-            <Button size="sm" variant="secondary" onClick={onLoadSample}>
+            <Button variant="secondary" onClick={onLoadSample}>
               <HugeiconsIcon icon={SparklesIcon} aria-hidden />
               Load sample
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={onClear}>
+          <Button variant="ghost" onClick={onClear}>
             <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
             Clear
           </Button>

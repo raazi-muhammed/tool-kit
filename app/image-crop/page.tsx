@@ -314,11 +314,7 @@ export default function ImageCropPage() {
                     className="size-8 cursor-pointer rounded-md border bg-transparent p-1"
                   />
                   {bgColor ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onColorChange(null)}
-                    >
+                    <Button variant="ghost" onClick={() => onColorChange(null)}>
                       <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
                       Transparent
                     </Button>

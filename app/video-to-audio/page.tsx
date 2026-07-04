@@ -317,7 +317,7 @@ export default function VideoToAudioPage() {
                     </AttachmentDescription>
                   </AttachmentContent>
                   <AttachmentActions>
-                    <Button asChild size="sm">
+                    <Button asChild>
                       <a href={job.result.url} download={job.result.name}>
                         <HugeiconsIcon icon={Download04Icon} aria-hidden />
                         Download
