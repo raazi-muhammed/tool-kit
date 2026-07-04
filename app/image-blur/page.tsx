@@ -31,7 +31,7 @@ import {
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
-import { formatBytes, replaceExtension } from "@/lib/wav"
+import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
 const MIN_ZOOM = 1
@@ -372,11 +372,6 @@ export default function ImageBlurPage() {
                 />
               </div>
             </Card>
-            <p className="text-sm text-muted-foreground">
-              {file.name} · {formatBytes(file.size)} · drag a rectangle to
-              select an area · drag the selection or its edges to adjust it ·
-              scroll to move · pinch or ⌘-scroll to zoom
-            </p>
 
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-1">
