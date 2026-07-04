@@ -103,16 +103,16 @@ export default function JsonParserPage() {
         </>
       }
     >
-      <Tabs defaultValue="viewer" className="flex-1">
+      <Tabs defaultValue="text" className="flex-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
-            <TabsTrigger value="viewer">
-              <HugeiconsIcon icon={EyeIcon} aria-hidden />
-              Viewer
-            </TabsTrigger>
             <TabsTrigger value="text">
               <HugeiconsIcon icon={TextIcon} aria-hidden />
               Text
+            </TabsTrigger>
+            <TabsTrigger value="viewer">
+              <HugeiconsIcon icon={EyeIcon} aria-hidden />
+              Viewer
             </TabsTrigger>
           </TabsList>
           {raw.trim() && (
