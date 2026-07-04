@@ -92,27 +92,27 @@ export default function JsonParserPage() {
       onClear={clear}
       actions={
         <>
-          <Button size="sm" onClick={format}>
+          <Button onClick={format}>
             <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
             Format
           </Button>
-          <Button size="sm" variant="secondary" onClick={minify}>
+          <Button variant="secondary" onClick={minify}>
             <HugeiconsIcon icon={ArrowShrink02Icon} aria-hidden />
             Minify
           </Button>
         </>
       }
     >
-      <Tabs defaultValue="viewer" className="flex-1">
+      <Tabs defaultValue="text" className="flex-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TabsList>
-            <TabsTrigger value="viewer">
-              <HugeiconsIcon icon={EyeIcon} aria-hidden />
-              Viewer
-            </TabsTrigger>
             <TabsTrigger value="text">
               <HugeiconsIcon icon={TextIcon} aria-hidden />
               Text
+            </TabsTrigger>
+            <TabsTrigger value="viewer">
+              <HugeiconsIcon icon={EyeIcon} aria-hidden />
+              Viewer
             </TabsTrigger>
           </TabsList>
           {raw.trim() && (
@@ -127,18 +127,18 @@ export default function JsonParserPage() {
           )}
         </div>
 
-        <TabsContent value="text">
+        <TabsContent value="text" className="flex flex-col">
           <Textarea
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             placeholder="Paste the JSON code here (your code is not saved anywhere)"
-            className="min-h-[420px] font-mono text-xs"
+            className="min-h-[420px] flex-1 font-mono text-xs"
             spellCheck={false}
           />
         </TabsContent>
 
-        <TabsContent value="viewer">
-          <Card className="min-h-[420px] p-4">
+        <TabsContent value="viewer" className="flex flex-col">
+          <Card className="min-h-[420px] flex-1 p-4">
             {parsed.error ? (
               <p className="text-sm text-destructive">{parsed.error}</p>
             ) : parsed.data === undefined ? (
@@ -146,7 +146,7 @@ export default function JsonParserPage() {
                 Paste JSON in the Text tab to see it here.
               </p>
             ) : (
-              <ScrollArea className="h-[400px]">
+              <ScrollArea className="flex-1">
                 <JsonTree data={parsed.data} />
               </ScrollArea>
             )}

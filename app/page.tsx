@@ -1,15 +1,4 @@
 import { HugeiconsIcon } from "@hugeicons/react"
-import type { IconSvgElement } from "@hugeicons/react"
-import {
-  AudioWave01Icon,
-  BlurIcon,
-  BracesIcon,
-  Calculator01Icon,
-  FileUnlockedIcon,
-  Image01Icon,
-  ImageCropIcon,
-  Resize02Icon,
-} from "@hugeicons/core-free-icons"
 import Link from "next/link"
 import {
   Card,
@@ -17,74 +6,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-
-const TOOLS: {
-  href: string
-  icon: IconSvgElement
-  name: string
-  description: string
-}[] = [
-  {
-    href: "/json-parser",
-    icon: BracesIcon,
-    name: "JSON Parser",
-    description: "Validate, format, and explore JSON as a tree.",
-  },
-  {
-    href: "/inline-calculator",
-    icon: Calculator01Icon,
-    name: "Inline Calculator",
-    description: "Evaluate math expressions inline as you type.",
-  },
-  {
-    href: "/video-to-audio",
-    icon: AudioWave01Icon,
-    name: "Video → Audio",
-    description:
-      "Extract a video's audio track to a WAV file, in your browser.",
-  },
-  {
-    href: "/image-converter",
-    icon: Image01Icon,
-    name: "Image Converter",
-    description:
-      "Convert images between PNG, JPEG, WebP, and BMP, entirely in your browser.",
-  },
-  {
-    href: "/image-blur",
-    icon: BlurIcon,
-    name: "Image Blur",
-    description:
-      "Select a rectangle on an image and blur just that region, in your browser.",
-  },
-  {
-    href: "/image-crop",
-    icon: ImageCropIcon,
-    name: "Image Crop",
-    description:
-      "Crop images to a selection, and give transparent PNGs a background color.",
-  },
-  {
-    href: "/image-resize",
-    icon: Resize02Icon,
-    name: "Image Resize",
-    description: "Resize an image to any width and height, in your browser.",
-  },
-  {
-    href: "/pdf-unlock",
-    icon: FileUnlockedIcon,
-    name: "PDF Unlock",
-    description:
-      "Remove a PDF's password and download an unlocked copy, in your browser.",
-  },
-]
+import { CommandMenuTrigger } from "@/components/command-menu"
+import { TOOLS } from "@/lib/tools"
 
 export default function Page() {
   return (
-    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-8 p-6">
-      <h1 className="flex items-center gap-3 font-[family-name:var(--font-display)] text-xl font-bold">
-        Tool Kit
-      </h1>
+    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="flex items-center gap-3 font-[family-name:var(--font-display)] text-xl font-bold">
+          Tool Kit
+        </h1>
+        <CommandMenuTrigger />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TOOLS.map(({ href, icon, name, description }) => (

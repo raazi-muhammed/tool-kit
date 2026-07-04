@@ -123,6 +123,27 @@ export type LineAnnotation = {
 const ASSIGNMENT = /^\s*([A-Za-z_]\w*)\s*=\s*(.+)$/
 
 /**
+ * Names assigned on lines before `beforeLine` (default: the whole document),
+ * in first-assigned order - mirrors the top-down visibility rule in
+ * `annotateLines`, so tab-complete only offers variables already in scope.
+ */
+export function listVariableNames(text: string, beforeLine?: number): string[] {
+  const lines = text.split("\n")
+  const limit = beforeLine ?? lines.length
+
+  const names: string[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < limit && i < lines.length; i++) {
+    const assignment = ASSIGNMENT.exec(lines[i].trimEnd())
+    if (assignment && !seen.has(assignment[1])) {
+      seen.add(assignment[1])
+      names.push(assignment[1])
+    }
+  }
+  return names
+}
+
+/**
  * Walks the document top to bottom, one pass, so a variable assigned on an
  * earlier line ("a = 3") is visible to expressions on later lines ("a + 3 =").
  * A line counts as an expression whether or not it ends with "=" - typing

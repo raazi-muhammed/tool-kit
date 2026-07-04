@@ -33,7 +33,7 @@ JSON Parser's Viewer/Text tabs):
 
 ```tsx
 <ToolPage
-  page="Video → Audio"
+  page="Video to Audio"
   icon={AudioWave01Icon}
   segments={{
     value: format,
@@ -51,6 +51,18 @@ JSON Parser's Viewer/Text tabs):
 ```
 
 See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
+
+For an output-format picker specifically (MP3/WAV, PNG/JPEG/WebP/BMP, etc.),
+use `segments` in the header as shown above — don't hand-roll it as a `Select`
+placed next to the dropzone. See `app/video-to-audio/page.tsx` and
+`app/image-converter/page.tsx`.
+
+## Copy
+
+Never use the `→` arrow character in tool names, page copy, or code comments
+(e.g. write "Video to Audio", not "Video → Audio"). Use "to" in prose, or
+`->` in code comments where an arrow is genuinely useful (e.g. describing a
+before/after transform).
 
 ## Canvas rect selection
 
@@ -80,6 +92,48 @@ the standard dashed border + grab handles. The underlying rect geometry
 `resizeRect`, `pointInRect`) also lives in `lib/canvas.ts` — extend it there,
 not in a page. See `app/image-crop/page.tsx` and `app/image-blur/page.tsx`.
 
+Don't add a muted caption paragraph below the preview restating the file name,
+size, or dimensions — the preview already shows the file, so that text is
+redundant. This applies to any tool that renders a live preview of the picked
+file (canvas, `<img>`, etc.), not just canvas-selection tools.
+
+## Command menu (⌘K search)
+
+The app has a global Cmd+K / Ctrl+K search for jumping between tools, built on
+the shadcn **Command** component (`components/ui/command.tsx`, added via
+`npx shadcn@latest add command` — this also pulled in `dialog.tsx` and
+`input-group.tsx`). The tool list it searches is the single source of truth
+in `lib/tools.ts` (`TOOLS: Tool[]`) — the homepage grid in `app/page.tsx`
+reads from the same array, so a new tool only needs to be added there once.
+
+`components/command-menu.tsx` exports a `CommandMenuProvider` (mounted once
+in `app/layout.tsx`, wrapping `children`) that owns the open state, binds the
+global keydown listener, and renders the `CommandDialog`, plus a
+`CommandMenuTrigger` button that any page can render to open it:
+
+```tsx
+import { CommandMenuTrigger } from "@/components/command-menu"
+
+<CommandMenuTrigger />
+```
+
+`PageBreadcrumb` already renders a `CommandMenuTrigger`, so every tool page
+gets it for free — don't add another one on individual tool pages. When
+adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
+`app/page.tsx`) so it shows up in both the grid and the command menu.
+
+## Button styling
+
+`components/ui/button.tsx` gives the `default` and `secondary` variants a
+tactile look: a faint white gradient overlay (`bg-linear-to-b from-white/8
+to-transparent` / `from-white/5`), an inset ring highlight, `shadow-sm`, and
+brightness-based hover/active feedback instead of a flat opacity fade. Keep
+that contrast subtle — this has already been tuned down once after looking
+too glossy — and don't set a background/gradient class on individual `Button`
+usages; adjust the shared variants instead so every button stays consistent.
+`outline` just gets a faint `shadow-xs`; `ghost`, `destructive`, and `link`
+stay flat on purpose.
+
 ## Icons
 
 This project uses **Hugeicons**, not lucide-react. Never import from `lucide-react`.
@@ -101,16 +155,23 @@ rather than rendering it directly (no `<BracesIcon />`). Component props (e.g.
 pull icons from the same set — don't change it back to `lucide`.
 
 Every `Button` gets a leading icon — don't ship a text-only action button.
-`Button`'s own styles auto-size an unclassed `<svg>` child (`size-3.5` at
-`size="sm"`, `size-4` at the default size), so just drop the icon in without a
-`className`:
+`Button`'s own styles auto-size an unclassed `<svg>` child (`size-4` at the
+default size), so just drop the icon in without a `className`:
 
 ```tsx
-<Button size="sm" onClick={format}>
+<Button onClick={format}>
   <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
   Format
 </Button>
 ```
+
+Use the default `size` for every `Button` — don't pass `size="sm"`/`"xs"`. The
+default size carries the gradient/shadow treatment (see "Button styling"
+below) at a scale that reads well everywhere in the app, from the ToolPage
+Copy/Load sample/Clear row down to icon-only toolbar buttons (e.g. the zoom
+controls in `app/image-blur/page.tsx`). The smaller sizes still exist for
+places that aren't a `Button` at all — e.g. `TabsTrigger` sizing — but don't
+reach for them on a `Button`.
 
 ## File attachments
 

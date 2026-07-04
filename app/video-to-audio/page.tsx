@@ -3,6 +3,7 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
+  ArrowDataTransferHorizontalIcon,
   AudioWave01Icon,
   Cancel01Icon,
   CloudUploadIcon,
@@ -25,13 +26,6 @@ import {
 } from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   decodeAudioData,
   encodeWav,
   formatBytes,
@@ -46,11 +40,12 @@ const SUPPORTED_LABEL = "MP4, MOV, MKV, AVI, WebM"
 const MP3_KBPS = 192
 
 type Format = "wav" | "mp3"
-type JobStatus = "reading" | "decoding" | "encoding" | "done" | "error"
+type JobStatus = "idle" | "reading" | "decoding" | "encoding" | "done" | "error"
 type Source = { samples: Float32Array; sampleRate: number; baseName: string }
 type Result = { url: string; name: string; size: number; meta: string }
 type Job = {
   id: number
+  file: File
   name: string
   size: number
   status: JobStatus
@@ -76,6 +71,7 @@ export default function VideoToAudioPage() {
   const idRef = useRef(0)
 
   const anyBusy = jobs.some((job) => isBusy(job.status))
+  const anyIdle = jobs.some((job) => job.status === "idle")
 
   function updateJob(id: number, patch: Partial<Job>) {
     setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, ...patch } : job)))
@@ -161,18 +157,24 @@ export default function VideoToAudioPage() {
   function addFiles(fileList: FileList | null | undefined) {
     const files = fileList ? Array.from(fileList) : []
     if (!files.length) return
-    const fmt = format
     const created = files.map<Job>((file) => ({
       id: idRef.current++,
+      file,
       name: file.name,
       size: file.size,
-      status: "reading",
+      status: "idle",
       error: null,
       source: null,
       result: null,
     }))
     setJobs((prev) => [...prev, ...created])
-    created.forEach((job, i) => void convertJob(job.id, files[i], fmt))
+  }
+
+  function convert() {
+    const fmt = format
+    jobs.forEach((job) => {
+      if (job.status === "idle") void convertJob(job.id, job.file, fmt)
+    })
   }
 
   function changeFormat(next: Format) {
@@ -244,7 +246,20 @@ export default function VideoToAudioPage() {
   )
 
   return (
-    <ToolPage page="Video → Audio" icon={AudioWave01Icon} onClear={clear}>
+    <ToolPage
+      page="Video to Audio"
+      icon={AudioWave01Icon}
+      segments={{
+        value: format,
+        onValueChange: (value) => changeFormat(value as Format),
+        options: [
+          { value: "mp3", label: "MP3", icon: MusicNote01Icon },
+          { value: "wav", label: "WAV", icon: AudioWave01Icon },
+        ],
+        disabled: anyBusy,
+      }}
+      onClear={clear}
+    >
       <div className="flex flex-1 flex-col gap-4">
         <input
           ref={inputRef}
@@ -317,7 +332,7 @@ export default function VideoToAudioPage() {
                     </AttachmentDescription>
                   </AttachmentContent>
                   <AttachmentActions>
-                    <Button asChild size="sm">
+                    <Button asChild>
                       <a href={job.result.url} download={job.result.name}>
                         <HugeiconsIcon icon={Download04Icon} aria-hidden />
                         Download
@@ -325,35 +340,28 @@ export default function VideoToAudioPage() {
                     </Button>
                   </AttachmentActions>
                 </Attachment>
-              ) : null}
+              ) : (
+                <Attachment state="idle" className="h-full w-full">
+                  <AttachmentMedia>
+                    <HugeiconsIcon icon={AudioWave01Icon} aria-hidden />
+                  </AttachmentMedia>
+                  <AttachmentContent>
+                    <AttachmentTitle>Ready to convert</AttachmentTitle>
+                    <AttachmentDescription>Pick a format and hit Convert</AttachmentDescription>
+                  </AttachmentContent>
+                </Attachment>
+              )}
             </div>
           )
         })}
 
-        {/* Drop area (always available to add more) with the output-format
-            picker right next to it. */}
-        <div className="grid items-stretch gap-4 md:grid-cols-2">
-          {dropzone}
-          <Select
-            value={format}
-            onValueChange={(value) => changeFormat(value as Format)}
-            disabled={anyBusy}
-          >
-            <SelectTrigger className="h-full! w-full" aria-label="Output format">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mp3">
-                <HugeiconsIcon icon={MusicNote01Icon} aria-hidden />
-                MP3
-              </SelectItem>
-              <SelectItem value="wav">
-                <HugeiconsIcon icon={AudioWave01Icon} aria-hidden />
-                WAV
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Drop area, always available to add more files. */}
+        {dropzone}
+
+        <Button onClick={convert} disabled={anyBusy || !anyIdle} className="ml-auto">
+          <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
+          Convert
+        </Button>
       </div>
     </ToolPage>
   )

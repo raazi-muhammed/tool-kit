@@ -10,26 +10,30 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { CommandMenuTrigger } from "@/components/command-menu"
 
 export function PageBreadcrumb({ page, icon }: { page: string; icon: IconSvgElement }) {
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link href="/" className="flex items-center gap-1.5 font-[family-name:var(--font-display)]">
-              Tool Kit
-            </Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage className="flex items-center gap-1.5">
-            <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
-            {page}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+    <div className="flex items-center justify-between gap-2">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/" className="flex items-center gap-1.5 font-[family-name:var(--font-display)]">
+                Tool Kit
+              </Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="flex items-center gap-1.5">
+              <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
+              {page}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <CommandMenuTrigger />
+    </div>
   )
 }

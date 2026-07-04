@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, type Rect } from "@/lib/canvas"
-import { formatBytes, replaceExtension } from "@/lib/wav"
+import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
 
@@ -61,7 +61,6 @@ export default function ImageCropPage() {
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [aspect, setAspect] = useState<Aspect>("free")
-  const [size, setSize] = useState({ width: 0, height: 0 })
   // Background fill for transparent PNGs; null keeps transparency. It's
   // composited at render/export time (never baked into the image), so it
   // stays adjustable after cropping.
@@ -126,7 +125,6 @@ export default function ImageCropPage() {
     setFile(null)
     setError(null)
     setBgColor(null)
-    setSize({ width: 0, height: 0 })
     imageCanvasRef.current = null
     clearSelection()
   }
@@ -155,7 +153,6 @@ export default function ImageCropPage() {
       setFile(picked)
       setError(null)
       setBgColor(null)
-      setSize({ width: image.width, height: image.height })
       clearSelection()
     } catch (err) {
       reset()
@@ -206,7 +203,6 @@ export default function ImageCropPage() {
       rect.height
     )
     imageCanvasRef.current = cropped
-    setSize({ width: cropped.width, height: cropped.height })
     clearSelection()
   }
 
@@ -293,12 +289,6 @@ export default function ImageCropPage() {
                 </div>
               </div>
             </Card>
-            <p className="text-sm text-muted-foreground">
-              {file.name} · {size.width} × {size.height} ·{" "}
-              {formatBytes(file.size)} · drag a rectangle to select the crop
-              area · drag inside the selection to move it, or its edges to
-              resize
-            </p>
 
             <div className="flex flex-wrap items-center gap-4">
               {isPng && (
@@ -314,11 +304,7 @@ export default function ImageCropPage() {
                     className="size-8 cursor-pointer rounded-md border bg-transparent p-1"
                   />
                   {bgColor ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => onColorChange(null)}
-                    >
+                    <Button variant="ghost" onClick={() => onColorChange(null)}>
                       <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
                       Transparent
                     </Button>
