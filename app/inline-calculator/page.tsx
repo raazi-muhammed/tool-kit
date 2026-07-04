@@ -112,7 +112,7 @@ export default function InlineCalculatorPage() {
       onLoadSample={loadSample}
       onClear={clear}
     >
-      <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-md border">
+      <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-md border bg-card/40">
         <div
           ref={backdropRef}
           aria-hidden

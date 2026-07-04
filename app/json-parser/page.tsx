@@ -132,13 +132,14 @@ export default function JsonParserPage() {
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             placeholder="Paste the JSON code here (your code is not saved anywhere)"
-            className="min-h-[420px] flex-1 font-mono text-xs"
+            variant="flat"
+            className="min-h-[420px] flex-1 rounded-lg border border-border bg-card/40 p-4 font-mono text-xs"
             spellCheck={false}
           />
         </TabsContent>
 
         <TabsContent value="viewer" className="flex flex-col">
-          <Card className="min-h-[420px] flex-1 p-4">
+          <Card className="min-h-[420px] flex-1 rounded-lg border bg-card/40 p-4 ring-0">
             {parsed.error ? (
               <p className="text-sm text-destructive">{parsed.error}</p>
             ) : parsed.data === undefined ? (

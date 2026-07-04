@@ -245,3 +245,26 @@ const dropzoneRef = useRef<DropzoneHandle>(null)
 ```
 
 See `app/image-resize/page.tsx` and `app/video-to-audio/page.tsx`.
+
+## Overriding component default styles
+
+A few shared components bake in a conditional utility (`has-data-[slot=...]:`,
+`dark:...`) that ends up with **higher CSS specificity** than a plain utility
+passed in via `className` — so overriding it by passing a bigger/different
+plain value (e.g. bumping a `py-*`) silently does nothing, no matter the
+value, because the conditional rule still wins in the browser. Don't reach
+for `!important` to force it; add a variant/size that omits the competing
+conditional class instead, so there's nothing left to lose the specificity
+fight against:
+
+- `Attachment`'s `size="lg"` has no `has-data-[slot=attachment-content]:px-*
+  py-*` (unlike `default`/`sm`/`xs`), because the `dropzone` orientation sets
+  its own explicit padding — `Dropzone` always passes `size="lg"` together
+  with `orientation="dropzone"`.
+- `Textarea`'s `variant="flat"` drops `border-input` and `dark:bg-input/30`
+  entirely, so a panel like the JSON Parser's Text tab can carry the same flat
+  `bg-card/40` background as a plain `Card` instead of a translucent
+  input-tinted overlay layered on top of it. Use `variant="default"` (the
+  default) for anything that should still look like a normal form input.
+
+See `components/ui/attachment.tsx` and `components/ui/textarea.tsx`.

@@ -22,7 +22,7 @@ const attachmentVariants = cva(
       orientation: {
         horizontal: "min-w-40 items-center",
         vertical: "w-24 flex-col has-data-[slot=attachment-content]:w-30",
-        dropzone: "w-full flex-col items-center px-8 py-36 text-center",
+        dropzone: "w-full flex-col items-center bg-card/40 px-8 py-36 text-center",
       },
     },
   }
