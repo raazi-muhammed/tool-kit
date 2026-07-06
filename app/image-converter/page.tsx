@@ -4,28 +4,37 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
+  ArrowDown01Icon,
   CloudUploadIcon,
   Download04Icon,
   Image01Icon,
+  Loading03Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
-import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
+import { Card } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Slider } from "@/components/ui/slider"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { downloadFile, downloadStagger } from "@/lib/download"
-import { formatBytes, replaceExtension } from "@/lib/wav"
+import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
 const SUPPORTED_LABEL = "JPG, PNG, WebP, GIF, BMP, SVG, ICO, AVIF, TIFF"
 
 type Format = "png" | "jpeg" | "webp" | "bmp"
 type Status = "idle" | "converting" | "done" | "error"
-type Dimensions = { width: number; height: number }
 type Result = { url: string; name: string; size: number }
 type Job = {
   id: number
@@ -33,7 +42,6 @@ type Job = {
   name: string
   size: number
   previewUrl: string
-  dimensions: Dimensions | null
   status: Status
   error: string | null
   result: Result | null
@@ -64,31 +72,50 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number):
 }
 
 export default function ImageConverterPage() {
-  const { jobs, setJobs, addFiles, updateJob, removeJob, clear } = useJobQueue<Job>({
-    createJob: (file, id) => {
-      const valid = isImageFile(file)
-      return {
-        id,
-        file,
-        name: file.name,
-        size: file.size,
-        previewUrl: valid ? URL.createObjectURL(file) : "",
-        dimensions: null,
-        status: valid ? "idle" : "error",
-        error: valid ? null : "This file doesn't look like a recognised image format.",
-        result: null,
-      }
-    },
-    cleanupJob: (job) => {
-      if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-      if (job.result) URL.revokeObjectURL(job.result.url)
-    },
-  })
+  const { jobs, setJobs, addFiles: addFilesToQueue, updateJob, removeJob, clear: clearQueue } =
+    useJobQueue<Job>({
+      createJob: (file, id) => {
+        const valid = isImageFile(file)
+        return {
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          previewUrl: valid ? URL.createObjectURL(file) : "",
+          status: valid ? "idle" : "error",
+          error: valid ? null : "This file doesn't look like a recognised image format.",
+          result: null,
+        }
+      },
+      cleanupJob: (job) => {
+        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+        if (job.result) URL.revokeObjectURL(job.result.url)
+      },
+    })
+  const [activeId, setActiveId] = useState<number | null>(null)
   const [format, setFormat] = useState<Format>("png")
   const [quality, setQuality] = useState(92)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
+  const activeJob = jobs.find((job) => job.id === activeId) ?? null
   const anyBusy = jobs.some((job) => job.status === "converting")
+
+  function addFiles(fileList: FileList | null | undefined) {
+    const created = addFilesToQueue(fileList)
+    if (created.length) setActiveId((prev) => prev ?? created[0].id)
+  }
+
+  function removeAndReselect(id: number) {
+    removeJob(id)
+    if (activeId !== id) return
+    const remaining = jobs.filter((job) => job.id !== id)
+    setActiveId(remaining.length ? remaining[0].id : null)
+  }
+
+  function clear() {
+    clearQueue()
+    setActiveId(null)
+  }
 
   async function convertJob(job: Job, fmt: Format, q: number) {
     if (fmt === "webp" && !supportsWebp()) {
@@ -131,7 +158,6 @@ export default function ImageConverterPage() {
           if (j.result) URL.revokeObjectURL(j.result.url)
           return {
             ...j,
-            dimensions: { width: canvas.width, height: canvas.height },
             status: "done",
             error: null,
             result: { url, name, size: blob.size },
@@ -150,6 +176,10 @@ export default function ImageConverterPage() {
     jobs.forEach((job) => {
       if (job.status !== "converting") void convertJob(job, format, quality)
     })
+  }
+
+  function downloadActive() {
+    if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
   }
 
   async function downloadAll() {
@@ -186,42 +216,71 @@ export default function ImageConverterPage() {
       onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        {/* One row per file: source (left) and its output (right), side by side. */}
-        {jobs.map((job) => (
-          <BatchJobRow
-            key={job.id}
-            name={job.name}
-            onRemove={() => removeJob(job.id)}
-            sourceIcon={AlertCircleIcon}
-            sourceImageUrl={job.previewUrl || undefined}
-            sourceDescription={
-              <>
-                {job.dimensions ? `${job.dimensions.width} × ${job.dimensions.height} · ` : ""}
-                {formatBytes(job.size)}
-              </>
-            }
-            status={
-              job.status === "converting"
-                ? { state: "processing", title: "Converting…" }
-                : job.status === "error"
-                  ? { state: "error", title: "Couldn't convert", description: job.error }
-                  : job.result
-                    ? {
-                        state: "done",
-                        icon: Image01Icon,
-                        title: job.result.name,
-                        description: formatBytes(job.result.size),
-                        download: { url: job.result.url, name: job.result.name },
-                      }
-                    : {
-                        state: "idle",
-                        icon: Image01Icon,
-                        title: "Ready to convert",
-                        description: "Pick a format and hit Convert",
-                      }
-            }
-          />
-        ))}
+        {activeJob && (
+          <div className="flex flex-col gap-4">
+            <JobStrip
+              jobs={jobs}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onRemove={removeAndReselect}
+            />
+
+            {/* Original (left) and converted (right) preview, side by side. */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <span className="text-sm text-muted-foreground">Original</span>
+                <Card className="overflow-hidden p-2">
+                  <div className="flex h-[60vh] items-center justify-center overflow-hidden rounded-md bg-muted/20">
+                    {activeJob.previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={activeJob.previewUrl}
+                        alt={activeJob.name}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 px-6 text-center text-muted-foreground">
+                        <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
+                        <p className="text-sm">{activeJob.error}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm text-muted-foreground">Converted</span>
+                <Card className="overflow-hidden p-2">
+                  <div className="flex h-[60vh] items-center justify-center overflow-hidden rounded-md bg-muted/20">
+                    {activeJob.status === "converting" ? (
+                      <HugeiconsIcon
+                        icon={Loading03Icon}
+                        className="size-8 animate-spin text-muted-foreground"
+                        aria-hidden
+                      />
+                    ) : activeJob.status === "error" ? (
+                      <div className="flex flex-col items-center gap-2 px-6 text-center text-destructive">
+                        <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
+                        <p className="text-sm">{activeJob.error}</p>
+                      </div>
+                    ) : activeJob.result ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={activeJob.result.url}
+                        alt={activeJob.result.name}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Pick a format and hit Convert
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
             button) once at least one file has been added. */}
@@ -236,7 +295,7 @@ export default function ImageConverterPage() {
           onFiles={addFiles}
         />
 
-        {/* Quality (JPEG/WebP only) and the explicit Convert trigger. */}
+        {/* Quality (JPEG/WebP only), download, and the explicit Convert trigger. */}
         {jobs.length > 0 && (
           <div className="flex items-center gap-4">
             {(format === "jpeg" || format === "webp") && (
@@ -255,12 +314,38 @@ export default function ImageConverterPage() {
               </div>
             )}
             <div className="ml-auto flex items-center gap-2">
-              {jobs.some((job) => job.result) && (
-                <Button variant="outline" onClick={downloadAll}>
+              <ButtonGroup>
+                <Button
+                  variant="secondary"
+                  onClick={downloadActive}
+                  disabled={!activeJob?.result}
+                >
                   <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download all
+                  Download
                 </Button>
-              )}
+                {jobs.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        aria-label="More download options"
+                      >
+                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={downloadAll}
+                        disabled={!jobs.some((job) => job.result)}
+                      >
+                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                        Download all
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </ButtonGroup>
               <Button onClick={convert} disabled={anyBusy}>
                 <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
                 Convert
