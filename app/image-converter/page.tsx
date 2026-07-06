@@ -5,6 +5,7 @@ import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
   ArrowDown01Icon,
+  Cancel01Icon,
   CloudUploadIcon,
   Download04Icon,
   Image01Icon,
@@ -32,6 +33,11 @@ import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
 const SUPPORTED_LABEL = "JPG, PNG, WebP, GIF, BMP, SVG, ICO, AVIF, TIFF"
+
+// Checkerboard behind the previews so PNG transparency (and the effect of
+// the background colour) is visible.
+const CHECKERBOARD =
+  "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
 
 type Format = "png" | "jpeg" | "webp" | "bmp"
 type Status = "idle" | "converting" | "done" | "error"
@@ -95,10 +101,14 @@ export default function ImageConverterPage() {
   const [activeId, setActiveId] = useState<number | null>(null)
   const [format, setFormat] = useState<Format>("png")
   const [quality, setQuality] = useState(92)
+  // Fill for transparent PNGs; null keeps transparency (where the target
+  // format supports it — JPEG/BMP fall back to the browser's own default).
+  const [bgColor, setBgColor] = useState<string | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const activeJob = jobs.find((job) => job.id === activeId) ?? null
   const anyBusy = jobs.some((job) => job.status === "converting")
+  const anyPng = jobs.some((job) => job.file.type === "image/png")
 
   function addFiles(fileList: FileList | null | undefined) {
     const created = addFilesToQueue(fileList)
@@ -117,7 +127,7 @@ export default function ImageConverterPage() {
     setActiveId(null)
   }
 
-  async function convertJob(job: Job, fmt: Format, q: number) {
+  async function convertJob(job: Job, fmt: Format, q: number, bg: string | null) {
     if (fmt === "webp" && !supportsWebp()) {
       updateJob(job.id, {
         status: "error",
@@ -142,6 +152,10 @@ export default function ImageConverterPage() {
       canvas.height = img.naturalHeight
       const ctx = canvas.getContext("2d")
       if (!ctx) throw new Error("Canvas isn't supported in this browser.")
+      if (bg) {
+        ctx.fillStyle = bg
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+      }
       ctx.drawImage(img, 0, 0)
 
       const blob =
@@ -174,7 +188,7 @@ export default function ImageConverterPage() {
 
   function convert() {
     jobs.forEach((job) => {
-      if (job.status !== "converting") void convertJob(job, format, quality)
+      if (job.status !== "converting") void convertJob(job, format, quality, bgColor)
     })
   }
 
@@ -230,7 +244,9 @@ export default function ImageConverterPage() {
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Original</span>
                 <Card className="overflow-hidden p-2">
-                  <div className="flex h-[60vh] items-center justify-center overflow-hidden rounded-md bg-muted/20">
+                  <div
+                    className={`flex h-[60vh] items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
+                  >
                     {activeJob.previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -251,7 +267,9 @@ export default function ImageConverterPage() {
               <div className="flex flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Converted</span>
                 <Card className="overflow-hidden p-2">
-                  <div className="flex h-[60vh] items-center justify-center overflow-hidden rounded-md bg-muted/20">
+                  <div
+                    className={`flex h-[60vh] items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
+                  >
                     {activeJob.status === "converting" ? (
                       <HugeiconsIcon
                         icon={Loading03Icon}
@@ -295,9 +313,30 @@ export default function ImageConverterPage() {
           onFiles={addFiles}
         />
 
-        {/* Quality (JPEG/WebP only), download, and the explicit Convert trigger. */}
+        {/* Background colour (PNG sources only), quality (JPEG/WebP only),
+            download, and the explicit Convert trigger. */}
         {jobs.length > 0 && (
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {anyPng && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Background</span>
+                <input
+                  type="color"
+                  value={bgColor ?? "#ffffff"}
+                  onChange={(e) => setBgColor(e.target.value)}
+                  aria-label="Background color"
+                  className="size-8 cursor-pointer rounded-md border bg-transparent p-1"
+                />
+                {bgColor ? (
+                  <Button variant="ghost" onClick={() => setBgColor(null)}>
+                    <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+                    Transparent
+                  </Button>
+                ) : (
+                  <span className="text-sm text-muted-foreground">transparent</span>
+                )}
+              </div>
+            )}
             {(format === "jpeg" || format === "webp") && (
               <div className="flex flex-1 items-center gap-3">
                 <span className="text-sm text-muted-foreground">Quality</span>
