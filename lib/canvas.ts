@@ -344,6 +344,27 @@ function pixelateCanvas(
   return out
 }
 
+/**
+ * Rotate `source` by a multiple of 90 degrees (clockwise) onto a new canvas,
+ * swapping width/height for 90/270 so the output isn't stretched.
+ */
+export function rotateCanvas(
+  source: HTMLCanvasElement,
+  degrees: number
+): HTMLCanvasElement {
+  const normalized = ((degrees % 360) + 360) % 360
+  const swapped = normalized === 90 || normalized === 270
+  const out = document.createElement("canvas")
+  out.width = swapped ? source.height : source.width
+  out.height = swapped ? source.width : source.height
+  const ctx = out.getContext("2d")
+  if (!ctx) return out
+  ctx.translate(out.width / 2, out.height / 2)
+  ctx.rotate((normalized * Math.PI) / 180)
+  ctx.drawImage(source, -source.width / 2, -source.height / 2)
+  return out
+}
+
 export type BlurMode = "gaussian" | "pixelate"
 
 /**
