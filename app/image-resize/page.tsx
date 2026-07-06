@@ -3,29 +3,20 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
-  Cancel01Icon,
   CloudUploadIcon,
-  Download04Icon,
   Image01Icon,
   LinkIcon,
-  Loading03Icon,
   Resize02Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentActions,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useJobQueue } from "@/hooks/use-job-queue"
+import { isImageFile, loadImage } from "@/lib/image-file"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
@@ -39,19 +30,16 @@ type Result = {
   height: number
 }
 type Dimensions = { width: number; height: number }
-
-function isImageFile(file: File): boolean {
-  return file.type.startsWith("image/")
-}
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () =>
-      reject(new Error("This file couldn't be decoded as an image."))
-    img.src = url
-  })
+type Job = {
+  id: number
+  file: File
+  name: string
+  size: number
+  previewUrl: string
+  original: Dimensions | null
+  status: Status
+  error: string | null
+  result: Result | null
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, mime: string): Promise<Blob> {
@@ -65,71 +53,68 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string): Promise<Blob> {
 }
 
 export default function ImageResizePage() {
-  const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [original, setOriginal] = useState<Dimensions | null>(null)
+  const { jobs, setJobs, addFiles: addFilesToQueue, updateJob, removeJob, clear: clearQueue } =
+    useJobQueue<Job>({
+      createJob: (file, id) => {
+        const valid = isImageFile(file)
+        return {
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          previewUrl: valid ? URL.createObjectURL(file) : "",
+          original: null,
+          status: valid ? "idle" : "error",
+          error: valid ? null : "This file doesn't look like an image.",
+          result: null,
+        }
+      },
+      cleanupJob: (job) => {
+        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+        if (job.result) URL.revokeObjectURL(job.result.url)
+      },
+    })
   const [width, setWidth] = useState("")
   const [height, setHeight] = useState("")
   const [lockAspect, setLockAspect] = useState(true)
-  const [status, setStatus] = useState<Status>("idle")
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const busy = status === "resizing"
+  const anyBusy = jobs.some((job) => job.status === "resizing")
+  // The target width/height apply to every queued image; the aspect lock is
+  // derived from the first image added, purely as a convenient reference.
+  const referenceOriginal = jobs[0]?.original ?? null
 
-  function reset() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    if (result) URL.revokeObjectURL(result.url)
-    setFile(null)
-    setPreviewUrl(null)
-    setOriginal(null)
-    setWidth("")
-    setHeight("")
-    setStatus("idle")
-    setError(null)
-    setResult(null)
-  }
-
-  async function addFile(picked: File | null | undefined) {
-    if (!picked) return
-    if (!isImageFile(picked)) {
-      reset()
-      setError("This file doesn't look like an image.")
-      setStatus("error")
-      return
-    }
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    if (result) URL.revokeObjectURL(result.url)
-    const url = URL.createObjectURL(picked)
-    try {
-      const img = await loadImage(url)
-      setFile(picked)
-      setPreviewUrl(url)
-      setOriginal({ width: img.naturalWidth, height: img.naturalHeight })
-      setWidth(String(img.naturalWidth))
-      setHeight(String(img.naturalHeight))
-      setStatus("idle")
-      setError(null)
-      setResult(null)
-    } catch (err) {
-      reset()
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while loading the image."
-      )
-      setStatus("error")
-    }
+  function addFiles(fileList: FileList | null | undefined) {
+    const created = addFilesToQueue(fileList)
+    created.forEach((job) => {
+      if (job.status === "error") return
+      loadImage(job.previewUrl)
+        .then((img) => {
+          const original = { width: img.naturalWidth, height: img.naturalHeight }
+          updateJob(job.id, { original })
+          setWidth((w) => w || String(original.width))
+          setHeight((h) => h || String(original.height))
+        })
+        .catch(() => {
+          updateJob(job.id, {
+            status: "error",
+            error: "This file couldn't be decoded as an image.",
+          })
+        })
+    })
   }
 
   function onWidthChange(value: string) {
     setWidth(value)
     const parsed = Number(value)
-    if (lockAspect && original && parsed > 0) {
+    if (lockAspect && referenceOriginal && parsed > 0) {
       setHeight(
         String(
-          Math.max(1, Math.round(parsed * (original.height / original.width)))
+          Math.max(
+            1,
+            Math.round(parsed * (referenceOriginal.height / referenceOriginal.width))
+          )
         )
       )
     }
@@ -138,10 +123,13 @@ export default function ImageResizePage() {
   function onHeightChange(value: string) {
     setHeight(value)
     const parsed = Number(value)
-    if (lockAspect && original && parsed > 0) {
+    if (lockAspect && referenceOriginal && parsed > 0) {
       setWidth(
         String(
-          Math.max(1, Math.round(parsed * (original.width / original.height)))
+          Math.max(
+            1,
+            Math.round(parsed * (referenceOriginal.width / referenceOriginal.height))
+          )
         )
       )
     }
@@ -149,15 +137,17 @@ export default function ImageResizePage() {
 
   function toggleLockAspect() {
     // Re-derive height from the current width so re-locking snaps back to
-    // the original ratio instead of carrying over a distorted size.
-    if (!lockAspect && original) {
+    // the reference ratio instead of carrying over a distorted size.
+    if (!lockAspect && referenceOriginal) {
       const parsedWidth = Number(width)
       if (parsedWidth > 0) {
         setHeight(
           String(
             Math.max(
               1,
-              Math.round(parsedWidth * (original.height / original.width))
+              Math.round(
+                parsedWidth * (referenceOriginal.height / referenceOriginal.width)
+              )
             )
           )
         )
@@ -166,21 +156,11 @@ export default function ImageResizePage() {
     setLockAspect(!lockAspect)
   }
 
-  async function resize() {
-    if (!file || !previewUrl) return
-    const targetWidth = Math.round(Number(width))
-    const targetHeight = Math.round(Number(height))
-    if (!targetWidth || !targetHeight || targetWidth < 1 || targetHeight < 1) {
-      setStatus("error")
-      setError("Enter a width and height of at least 1 pixel.")
-      return
-    }
-
-    setStatus("resizing")
-    setError(null)
+  async function resizeJob(job: Job, targetWidth: number, targetHeight: number) {
+    updateJob(job.id, { status: "resizing", error: null })
 
     try {
-      const img = await loadImage(previewUrl)
+      const img = await loadImage(job.previewUrl)
       const canvas = document.createElement("canvas")
       canvas.width = targetWidth
       canvas.height = targetHeight
@@ -191,27 +171,54 @@ export default function ImageResizePage() {
       ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
 
       const mime =
-        file.type && file.type.startsWith("image/") ? file.type : "image/png"
+        job.file.type && job.file.type.startsWith("image/")
+          ? job.file.type
+          : "image/png"
       const blob = await canvasToBlob(canvas, mime)
 
-      if (result) URL.revokeObjectURL(result.url)
-      const url = URL.createObjectURL(blob)
-      setResult({
-        url,
-        name: file.name,
-        size: blob.size,
-        width: targetWidth,
-        height: targetHeight,
+      setJobs((prev) => {
+        if (!prev.some((j) => j.id === job.id)) return prev
+        const url = URL.createObjectURL(blob)
+        return prev.map((j) => {
+          if (j.id !== job.id) return j
+          if (j.result) URL.revokeObjectURL(j.result.url)
+          return {
+            ...j,
+            status: "done",
+            error: null,
+            result: { url, name: j.name, size: blob.size, width: targetWidth, height: targetHeight },
+          }
+        })
       })
-      setStatus("done")
     } catch (err) {
-      setStatus("error")
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while resizing the image."
-      )
+      updateJob(job.id, {
+        status: "error",
+        error:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong while resizing the image.",
+      })
     }
+  }
+
+  function resize() {
+    const targetWidth = Math.round(Number(width))
+    const targetHeight = Math.round(Number(height))
+    if (!targetWidth || !targetHeight || targetWidth < 1 || targetHeight < 1) {
+      setFormError("Enter a width and height of at least 1 pixel.")
+      return
+    }
+    setFormError(null)
+    jobs.forEach((job) => {
+      if (job.status !== "resizing" && job.original) void resizeJob(job, targetWidth, targetHeight)
+    })
+  }
+
+  function clear() {
+    clearQueue()
+    setWidth("")
+    setHeight("")
+    setFormError(null)
   }
 
   return (
@@ -219,123 +226,68 @@ export default function ImageResizePage() {
       page="Image Resize"
       icon={Resize02Icon}
       actions={
-        file && (
+        jobs.length > 0 && (
           <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
             <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
             Add file
           </Button>
         )
       }
-      onClear={reset}
+      onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        {/* Source (left) and its output (right), side by side — only once a
-            file has been picked. */}
-        {file && (
-          <div className="grid items-stretch gap-4 md:grid-cols-2">
-            <Attachment className="h-full w-full">
-              <AttachmentMedia variant="image">
-                {previewUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewUrl} alt={file.name} />
-                )}
-              </AttachmentMedia>
-              <AttachmentContent>
-                <AttachmentTitle>{file.name}</AttachmentTitle>
-                <AttachmentDescription>
-                  {original ? `${original.width} × ${original.height} · ` : ""}
-                  {formatBytes(file.size)}
-                </AttachmentDescription>
-              </AttachmentContent>
-              <AttachmentActions>
-                <AttachmentAction
-                  aria-label={`Remove ${file.name}`}
-                  onClick={reset}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                </AttachmentAction>
-              </AttachmentActions>
-            </Attachment>
-
-            {busy ? (
-              <Attachment state="processing" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon
-                    icon={Loading03Icon}
-                    aria-hidden
-                    className="animate-spin"
-                  />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Resizing…</AttachmentTitle>
-                  <AttachmentDescription>
-                    Working in your browser…
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            ) : status === "error" ? (
-              <Attachment state="error" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Couldn&apos;t resize</AttachmentTitle>
-                  <AttachmentDescription className="whitespace-normal">
-                    {error}
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            ) : result ? (
-              <Attachment state="done" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={Image01Icon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>{result.name}</AttachmentTitle>
-                  <AttachmentDescription>
-                    {result.width} × {result.height} ·{" "}
-                    {formatBytes(result.size)}
-                  </AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <Button asChild>
-                    <a href={result.url} download={result.name}>
-                      <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                      Download
-                    </a>
-                  </Button>
-                </AttachmentActions>
-              </Attachment>
-            ) : (
-              <Attachment state="idle" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={Image01Icon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Ready to resize</AttachmentTitle>
-                  <AttachmentDescription>
-                    Set a width and height, then hit Resize
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            )}
-          </div>
-        )}
+        {/* One row per file: source (left) and its output (right), side by side. */}
+        {jobs.map((job) => (
+          <BatchJobRow
+            key={job.id}
+            name={job.name}
+            onRemove={() => removeJob(job.id)}
+            sourceIcon={AlertCircleIcon}
+            sourceImageUrl={job.previewUrl || undefined}
+            sourceDescription={
+              <>
+                {job.original ? `${job.original.width} × ${job.original.height} · ` : ""}
+                {formatBytes(job.size)}
+              </>
+            }
+            status={
+              job.status === "resizing"
+                ? { state: "processing", title: "Resizing…" }
+                : job.status === "error"
+                  ? { state: "error", title: "Couldn't resize", description: job.error }
+                  : job.result
+                    ? {
+                        state: "done",
+                        icon: Image01Icon,
+                        title: job.result.name,
+                        description: `${job.result.width} × ${job.result.height} · ${formatBytes(job.result.size)}`,
+                        download: { url: job.result.url, name: job.result.name },
+                      }
+                    : {
+                        state: "idle",
+                        icon: Image01Icon,
+                        title: "Ready to resize",
+                        description: "Set a width and height, then hit Resize",
+                      }
+            }
+          />
+        ))}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
-            button) once an image has been picked. */}
+            button) once at least one file has been added. */}
         <Dropzone
           ref={dropzoneRef}
           icon={CloudUploadIcon}
-          title="Drag and drop an image to upload"
+          title="Drag and drop images to upload"
           description="or, click to browse · resize to any resolution · in-browser only"
           accept={ACCEPTED}
-          hidden={!!file}
-          onFiles={(files) => addFile(files?.[0])}
+          multiple
+          hidden={jobs.length > 0}
+          onFiles={addFiles}
         />
 
         {/* Width/height, aspect-ratio lock, and the explicit Resize trigger. */}
-        {file && (
+        {jobs.length > 0 && (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
               <span className="text-sm text-muted-foreground">Width</span>
@@ -344,7 +296,7 @@ export default function ImageResizePage() {
                 min={1}
                 value={width}
                 onChange={(e) => onWidthChange(e.target.value)}
-                disabled={busy}
+                disabled={anyBusy}
                 className="w-28"
               />
             </div>
@@ -357,7 +309,7 @@ export default function ImageResizePage() {
               }
               title={lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio"}
               onClick={toggleLockAspect}
-              disabled={busy}
+              disabled={anyBusy}
             >
               <HugeiconsIcon icon={LinkIcon} aria-hidden />
             </Button>
@@ -368,18 +320,18 @@ export default function ImageResizePage() {
                 min={1}
                 value={height}
                 onChange={(e) => onHeightChange(e.target.value)}
-                disabled={busy}
+                disabled={anyBusy}
                 className="w-28"
               />
             </div>
-            <Button onClick={resize} disabled={busy} className="ml-auto">
+            <Button onClick={resize} disabled={anyBusy} className="ml-auto">
               <HugeiconsIcon icon={Resize02Icon} aria-hidden />
               Resize
             </Button>
           </div>
         )}
 
-        {!file && error && <p className="text-sm text-destructive">{error}</p>}
+        {formError && <p className="text-sm text-destructive">{formError}</p>}
       </div>
     </ToolPage>
   )

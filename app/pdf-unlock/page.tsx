@@ -2,36 +2,31 @@
 
 import { PDFDocument } from "@cantoo/pdf-lib"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  AlertCircleIcon,
-  Cancel01Icon,
-  CloudUploadIcon,
-  Download04Icon,
-  FileUnlockedIcon,
-  Loading03Icon,
-  Pdf02Icon,
-} from "@hugeicons/core-free-icons"
+import { CloudUploadIcon, FileUnlockedIcon, Pdf02Icon } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentActions,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useJobQueue } from "@/hooks/use-job-queue"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "application/pdf,.pdf"
 
 type Status = "idle" | "unlocking" | "done" | "error"
 type Result = { url: string; name: string; size: number }
+type Job = {
+  id: number
+  file: File
+  name: string
+  size: number
+  validFile: boolean
+  status: Status
+  error: string | null
+  result: Result | null
+}
 
 function isPdfFile(file: File): boolean {
   return (
@@ -46,73 +41,83 @@ function unlockedName(name: string): string {
 }
 
 export default function PdfUnlockPage() {
-  const [file, setFile] = useState<File | null>(null)
+  const { jobs, setJobs, addFiles, updateJob, removeJob, clear: clearQueue } = useJobQueue<Job>({
+    createJob: (file, id) => {
+      const valid = isPdfFile(file)
+      return {
+        id,
+        file,
+        name: file.name,
+        size: file.size,
+        validFile: valid,
+        status: valid ? "idle" : "error",
+        error: valid ? null : "This file doesn't look like a PDF.",
+        result: null,
+      }
+    },
+    cleanupJob: (job) => {
+      if (job.result) URL.revokeObjectURL(job.result.url)
+    },
+  })
   const [password, setPassword] = useState("")
-  const [status, setStatus] = useState<Status>("idle")
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const busy = status === "unlocking"
+  const anyBusy = jobs.some((job) => job.status === "unlocking")
 
-  function reset() {
-    if (result) URL.revokeObjectURL(result.url)
-    setFile(null)
-    setPassword("")
-    setStatus("idle")
-    setError(null)
-    setResult(null)
-  }
-
-  function addFile(picked: File | null | undefined) {
-    if (!picked) return
-    if (!isPdfFile(picked)) {
-      reset()
-      setError("This file doesn't look like a PDF.")
-      setStatus("error")
-      return
-    }
-    if (result) URL.revokeObjectURL(result.url)
-    setFile(picked)
-    setPassword("")
-    setStatus("idle")
-    setError(null)
-    setResult(null)
-  }
-
-  async function unlock() {
-    if (!file) return
-    if (!password) {
-      setStatus("error")
-      setError("Enter the PDF's password.")
-      return
-    }
-
-    setStatus("unlocking")
-    setError(null)
+  async function unlockJob(job: Job, pwd: string) {
+    updateJob(job.id, { status: "unlocking", error: null })
 
     try {
-      const bytes = await file.arrayBuffer()
-      const doc = await PDFDocument.load(bytes, { password })
+      const bytes = await job.file.arrayBuffer()
+      const doc = await PDFDocument.load(bytes, { password: pwd })
       const unlockedBytes = await doc.save()
       const blob = new Blob([unlockedBytes as BlobPart], {
         type: "application/pdf",
       })
 
-      if (result) URL.revokeObjectURL(result.url)
-      const url = URL.createObjectURL(blob)
-      setResult({ url, name: unlockedName(file.name), size: blob.size })
-      setStatus("done")
+      setJobs((prev) => {
+        if (!prev.some((j) => j.id === job.id)) return prev
+        const url = URL.createObjectURL(blob)
+        return prev.map((j) => {
+          if (j.id !== job.id) return j
+          if (j.result) URL.revokeObjectURL(j.result.url)
+          return {
+            ...j,
+            status: "done",
+            error: null,
+            result: { url, name: unlockedName(j.name), size: blob.size },
+          }
+        })
+      })
     } catch (err) {
-      setStatus("error")
-      setError(
-        err instanceof Error && err.message === "Password incorrect"
-          ? "That password doesn't unlock this PDF."
-          : err instanceof Error
-            ? err.message
-            : "Something went wrong while unlocking the PDF."
-      )
+      updateJob(job.id, {
+        status: "error",
+        error:
+          err instanceof Error && err.message === "Password incorrect"
+            ? "That password doesn't unlock this PDF."
+            : err instanceof Error
+              ? err.message
+              : "Something went wrong while unlocking the PDF.",
+      })
     }
+  }
+
+  function unlock() {
+    if (!password) {
+      setFormError("Enter the PDF's password.")
+      return
+    }
+    setFormError(null)
+    jobs.forEach((job) => {
+      if (job.validFile && job.status !== "unlocking") void unlockJob(job, password)
+    })
+  }
+
+  function clear() {
+    clearQueue()
+    setPassword("")
+    setFormError(null)
   }
 
   return (
@@ -120,115 +125,60 @@ export default function PdfUnlockPage() {
       page="PDF Unlock"
       icon={FileUnlockedIcon}
       actions={
-        file && (
+        jobs.length > 0 && (
           <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
             <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
             Add file
           </Button>
         )
       }
-      onClear={reset}
+      onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        {file && (
-          <div className="grid items-stretch gap-4 md:grid-cols-2">
-            <Attachment className="h-full w-full">
-              <AttachmentMedia>
-                <HugeiconsIcon icon={Pdf02Icon} aria-hidden />
-              </AttachmentMedia>
-              <AttachmentContent>
-                <AttachmentTitle>{file.name}</AttachmentTitle>
-                <AttachmentDescription>
-                  {formatBytes(file.size)}
-                </AttachmentDescription>
-              </AttachmentContent>
-              <AttachmentActions>
-                <AttachmentAction
-                  aria-label={`Remove ${file.name}`}
-                  onClick={reset}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                </AttachmentAction>
-              </AttachmentActions>
-            </Attachment>
-
-            {busy ? (
-              <Attachment state="processing" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon
-                    icon={Loading03Icon}
-                    aria-hidden
-                    className="animate-spin"
-                  />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Unlocking…</AttachmentTitle>
-                  <AttachmentDescription>
-                    Working in your browser…
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            ) : status === "error" ? (
-              <Attachment state="error" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Couldn&apos;t unlock</AttachmentTitle>
-                  <AttachmentDescription className="whitespace-normal">
-                    {error}
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            ) : result ? (
-              <Attachment state="done" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={FileUnlockedIcon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>{result.name}</AttachmentTitle>
-                  <AttachmentDescription>
-                    {formatBytes(result.size)}
-                  </AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <Button asChild>
-                    <a href={result.url} download={result.name}>
-                      <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                      Download
-                    </a>
-                  </Button>
-                </AttachmentActions>
-              </Attachment>
-            ) : (
-              <Attachment state="idle" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={FileUnlockedIcon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Ready to unlock</AttachmentTitle>
-                  <AttachmentDescription>
-                    Enter the password, then hit Unlock
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            )}
-          </div>
-        )}
+        {jobs.map((job) => (
+          <BatchJobRow
+            key={job.id}
+            name={job.name}
+            onRemove={() => removeJob(job.id)}
+            sourceIcon={Pdf02Icon}
+            sourceDescription={formatBytes(job.size)}
+            status={
+              job.status === "unlocking"
+                ? { state: "processing", title: "Unlocking…" }
+                : job.status === "error"
+                  ? { state: "error", title: "Couldn't unlock", description: job.error }
+                  : job.result
+                    ? {
+                        state: "done",
+                        icon: FileUnlockedIcon,
+                        title: job.result.name,
+                        description: formatBytes(job.result.size),
+                        download: { url: job.result.url, name: job.result.name },
+                      }
+                    : {
+                        state: "idle",
+                        icon: FileUnlockedIcon,
+                        title: "Ready to unlock",
+                        description: "Enter the password, then hit Unlock",
+                      }
+            }
+          />
+        ))}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
-            button) once a PDF has been picked. */}
+            button) once at least one file has been added. */}
         <Dropzone
           ref={dropzoneRef}
           icon={CloudUploadIcon}
-          title="Drag and drop a PDF to upload"
+          title="Drag and drop PDFs to upload"
           description="or, click to browse · remove the password from a PDF · in-browser only"
           accept={ACCEPTED}
-          hidden={!!file}
-          onFiles={(files) => addFile(files?.[0])}
+          multiple
+          hidden={jobs.length > 0}
+          onFiles={addFiles}
         />
 
-        {file && (
+        {jobs.length > 0 && (
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex flex-col gap-1.5">
               <span className="text-sm text-muted-foreground">Password</span>
@@ -236,7 +186,7 @@ export default function PdfUnlockPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={busy}
+                disabled={anyBusy}
                 autoComplete="off"
                 className="w-56"
                 onKeyDown={(e) => {
@@ -244,14 +194,14 @@ export default function PdfUnlockPage() {
                 }}
               />
             </div>
-            <Button onClick={unlock} disabled={busy} className="ml-auto">
+            <Button onClick={unlock} disabled={anyBusy} className="ml-auto">
               <HugeiconsIcon icon={FileUnlockedIcon} aria-hidden />
               Unlock
             </Button>
           </div>
         )}
 
-        {!file && error && <p className="text-sm text-destructive">{error}</p>}
+        {formError && <p className="text-sm text-destructive">{formError}</p>}
       </div>
     </ToolPage>
   )
