@@ -2,30 +2,19 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
   AudioWave01Icon,
-  Cancel01Icon,
   CloudUploadIcon,
-  Download04Icon,
-  Loading03Icon,
   MusicNote01Icon,
   Video01Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentActions,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
+import { useJobQueue } from "@/hooks/use-job-queue"
 import {
   decodeAudioData,
   encodeWav,
@@ -65,17 +54,26 @@ const isBusy = (status: JobStatus) =>
   status === "reading" || status === "decoding" || status === "encoding"
 
 export default function VideoToAudioPage() {
-  const [jobs, setJobs] = useState<Job[]>([])
+  const { jobs, setJobs, addFiles, updateJob, removeJob, clear } = useJobQueue<Job>({
+    createJob: (file, id) => ({
+      id,
+      file,
+      name: file.name,
+      size: file.size,
+      status: "idle",
+      error: null,
+      source: null,
+      result: null,
+    }),
+    cleanupJob: (job) => {
+      if (job.result) URL.revokeObjectURL(job.result.url)
+    },
+  })
   const [format, setFormat] = useState<Format>("mp3")
   const dropzoneRef = useRef<DropzoneHandle>(null)
-  const idRef = useRef(0)
 
   const anyBusy = jobs.some((job) => isBusy(job.status))
   const anyIdle = jobs.some((job) => job.status === "idle")
-
-  function updateJob(id: number, patch: Partial<Job>) {
-    setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, ...patch } : job)))
-  }
 
   // Encode a job's already-decoded audio into the chosen format. Deferred so the
   // "Encoding…" spinner paints before a (potentially heavy) MP3 encode runs.
@@ -154,22 +152,6 @@ export default function VideoToAudioPage() {
     }
   }
 
-  function addFiles(fileList: FileList | null | undefined) {
-    const files = fileList ? Array.from(fileList) : []
-    if (!files.length) return
-    const created = files.map<Job>((file) => ({
-      id: idRef.current++,
-      file,
-      name: file.name,
-      size: file.size,
-      status: "idle",
-      error: null,
-      source: null,
-      result: null,
-    }))
-    setJobs((prev) => [...prev, ...created])
-  }
-
   function convert() {
     const fmt = format
     jobs.forEach((job) => {
@@ -182,23 +164,6 @@ export default function VideoToAudioPage() {
     setFormat(next)
     jobs.forEach((job) => {
       if (job.source) encodeJob(job.id, job.source, next)
-    })
-  }
-
-  function removeJob(id: number) {
-    setJobs((prev) =>
-      prev.filter((job) => {
-        if (job.id === id && job.result) URL.revokeObjectURL(job.result.url)
-        return job.id !== id
-      }),
-    )
-  }
-
-  // --- ToolPage actions ---
-  function clear() {
-    setJobs((prev) => {
-      prev.forEach((job) => job.result && URL.revokeObjectURL(job.result.url))
-      return []
     })
   }
 
@@ -230,84 +195,33 @@ export default function VideoToAudioPage() {
         {jobs.map((job) => {
           const resultIsMp3 = job.result?.name.endsWith(".mp3")
           return (
-            <div key={job.id} className="grid items-stretch gap-4 md:grid-cols-2">
-              <Attachment className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={Video01Icon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>{job.name}</AttachmentTitle>
-                  <AttachmentDescription>{formatBytes(job.size)}</AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <AttachmentAction
-                    aria-label={`Remove ${job.name}`}
-                    onClick={() => removeJob(job.id)}
-                  >
-                    <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                  </AttachmentAction>
-                </AttachmentActions>
-              </Attachment>
-
-              {isBusy(job.status) ? (
-                <Attachment state="processing" className="h-full w-full">
-                  <AttachmentMedia>
-                    <HugeiconsIcon icon={Loading03Icon} aria-hidden className="animate-spin" />
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle>
-                      {STATUS_LABEL[job.status as keyof typeof STATUS_LABEL]}
-                    </AttachmentTitle>
-                    <AttachmentDescription>Working in your browser…</AttachmentDescription>
-                  </AttachmentContent>
-                </Attachment>
-              ) : job.status === "error" ? (
-                <Attachment state="error" className="h-full w-full">
-                  <AttachmentMedia>
-                    <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle>Couldn&apos;t convert</AttachmentTitle>
-                    <AttachmentDescription className="whitespace-normal">
-                      {job.error}
-                    </AttachmentDescription>
-                  </AttachmentContent>
-                </Attachment>
-              ) : job.result ? (
-                <Attachment state="done" className="h-full w-full">
-                  <AttachmentMedia>
-                    <HugeiconsIcon
-                      icon={resultIsMp3 ? MusicNote01Icon : AudioWave01Icon}
-                      aria-hidden
-                    />
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle>{job.result.name}</AttachmentTitle>
-                    <AttachmentDescription>
-                      {job.result.meta} · {formatBytes(job.result.size)}
-                    </AttachmentDescription>
-                  </AttachmentContent>
-                  <AttachmentActions>
-                    <Button asChild>
-                      <a href={job.result.url} download={job.result.name}>
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download
-                      </a>
-                    </Button>
-                  </AttachmentActions>
-                </Attachment>
-              ) : (
-                <Attachment state="idle" className="h-full w-full">
-                  <AttachmentMedia>
-                    <HugeiconsIcon icon={AudioWave01Icon} aria-hidden />
-                  </AttachmentMedia>
-                  <AttachmentContent>
-                    <AttachmentTitle>Ready to convert</AttachmentTitle>
-                    <AttachmentDescription>Pick a format and hit Convert</AttachmentDescription>
-                  </AttachmentContent>
-                </Attachment>
-              )}
-            </div>
+            <BatchJobRow
+              key={job.id}
+              name={job.name}
+              onRemove={() => removeJob(job.id)}
+              sourceIcon={Video01Icon}
+              sourceDescription={formatBytes(job.size)}
+              status={
+                isBusy(job.status)
+                  ? { state: "processing", title: STATUS_LABEL[job.status as keyof typeof STATUS_LABEL] }
+                  : job.status === "error"
+                    ? { state: "error", title: "Couldn't convert", description: job.error }
+                    : job.result
+                      ? {
+                          state: "done",
+                          icon: resultIsMp3 ? MusicNote01Icon : AudioWave01Icon,
+                          title: job.result.name,
+                          description: `${job.result.meta} · ${formatBytes(job.result.size)}`,
+                          download: { url: job.result.url, name: job.result.name },
+                        }
+                      : {
+                          state: "idle",
+                          icon: AudioWave01Icon,
+                          title: "Ready to convert",
+                          description: "Pick a format and hit Convert",
+                        }
+              }
+            />
           )
         })}
 

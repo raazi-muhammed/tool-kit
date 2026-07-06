@@ -4,27 +4,17 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
-  Cancel01Icon,
   CloudUploadIcon,
-  Download04Icon,
   Image01Icon,
-  Loading03Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentActions,
-  AttachmentContent,
-  AttachmentDescription,
-  AttachmentMedia,
-  AttachmentTitle,
-} from "@/components/ui/attachment"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
+import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { formatBytes, replaceExtension } from "@/lib/wav"
 
@@ -54,6 +44,8 @@ const FORMAT_MIME: Record<Format, string> = {
   bmp: "image/bmp",
 }
 
+// Broader than the shared isImageFile — this tool also accepts container
+// formats (TIFF, ICO, …) that browsers don't always report a MIME type for.
 function isImageFile(file: File): boolean {
   if (file.type.startsWith("image/")) return true
   return /\.(jpe?g|png|webp|gif|bmp|svg|ico|avif|tiff?)$/i.test(file.name)
@@ -70,25 +62,11 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number):
 }
 
 export default function ImageConverterPage() {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [format, setFormat] = useState<Format>("png")
-  const [quality, setQuality] = useState(92)
-  const dropzoneRef = useRef<DropzoneHandle>(null)
-  const idRef = useRef(0)
-
-  const anyBusy = jobs.some((job) => job.status === "converting")
-
-  function updateJob(id: number, patch: Partial<Job>) {
-    setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, ...patch } : job)))
-  }
-
-  function addFiles(fileList: FileList | null | undefined) {
-    const files = fileList ? Array.from(fileList) : []
-    if (!files.length) return
-    const created = files.map<Job>((file) => {
+  const { jobs, setJobs, addFiles, updateJob, removeJob, clear } = useJobQueue<Job>({
+    createJob: (file, id) => {
       const valid = isImageFile(file)
       return {
-        id: idRef.current++,
+        id,
         file,
         name: file.name,
         size: file.size,
@@ -98,9 +76,17 @@ export default function ImageConverterPage() {
         error: valid ? null : "This file doesn't look like a recognised image format.",
         result: null,
       }
-    })
-    setJobs((prev) => [...prev, ...created])
-  }
+    },
+    cleanupJob: (job) => {
+      if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+      if (job.result) URL.revokeObjectURL(job.result.url)
+    },
+  })
+  const [format, setFormat] = useState<Format>("png")
+  const [quality, setQuality] = useState(92)
+  const dropzoneRef = useRef<DropzoneHandle>(null)
+
+  const anyBusy = jobs.some((job) => job.status === "converting")
 
   async function convertJob(job: Job, fmt: Format, q: number) {
     if (fmt === "webp" && !supportsWebp()) {
@@ -164,28 +150,6 @@ export default function ImageConverterPage() {
     })
   }
 
-  function removeJob(id: number) {
-    setJobs((prev) =>
-      prev.filter((job) => {
-        if (job.id === id) {
-          if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-          if (job.result) URL.revokeObjectURL(job.result.url)
-        }
-        return job.id !== id
-      }),
-    )
-  }
-
-  function clear() {
-    setJobs((prev) => {
-      prev.forEach((job) => {
-        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-        if (job.result) URL.revokeObjectURL(job.result.url)
-      })
-      return []
-    })
-  }
-
   return (
     <ToolPage
       page="Image Converter"
@@ -214,85 +178,39 @@ export default function ImageConverterPage() {
       <div className="flex flex-1 flex-col gap-4">
         {/* One row per file: source (left) and its output (right), side by side. */}
         {jobs.map((job) => (
-          <div key={job.id} className="grid items-stretch gap-4 md:grid-cols-2">
-            <Attachment className="h-full w-full">
-              <AttachmentMedia variant={job.previewUrl ? "image" : "icon"}>
-                {job.previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={job.previewUrl} alt={job.name} />
-                ) : (
-                  <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
-                )}
-              </AttachmentMedia>
-              <AttachmentContent>
-                <AttachmentTitle>{job.name}</AttachmentTitle>
-                <AttachmentDescription>
-                  {job.dimensions ? `${job.dimensions.width} × ${job.dimensions.height} · ` : ""}
-                  {formatBytes(job.size)}
-                </AttachmentDescription>
-              </AttachmentContent>
-              <AttachmentActions>
-                <AttachmentAction
-                  aria-label={`Remove ${job.name}`}
-                  onClick={() => removeJob(job.id)}
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                </AttachmentAction>
-              </AttachmentActions>
-            </Attachment>
-
-            {job.status === "converting" ? (
-              <Attachment state="processing" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={Loading03Icon} aria-hidden className="animate-spin" />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Converting…</AttachmentTitle>
-                  <AttachmentDescription>Working in your browser…</AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            ) : job.status === "error" ? (
-              <Attachment state="error" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={AlertCircleIcon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Couldn&apos;t convert</AttachmentTitle>
-                  <AttachmentDescription className="whitespace-normal">
-                    {job.error}
-                  </AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            ) : job.result ? (
-              <Attachment state="done" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={Image01Icon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>{job.result.name}</AttachmentTitle>
-                  <AttachmentDescription>{formatBytes(job.result.size)}</AttachmentDescription>
-                </AttachmentContent>
-                <AttachmentActions>
-                  <Button asChild>
-                    <a href={job.result.url} download={job.result.name}>
-                      <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                      Download
-                    </a>
-                  </Button>
-                </AttachmentActions>
-              </Attachment>
-            ) : (
-              <Attachment state="idle" className="h-full w-full">
-                <AttachmentMedia>
-                  <HugeiconsIcon icon={Image01Icon} aria-hidden />
-                </AttachmentMedia>
-                <AttachmentContent>
-                  <AttachmentTitle>Ready to convert</AttachmentTitle>
-                  <AttachmentDescription>Pick a format and hit Convert</AttachmentDescription>
-                </AttachmentContent>
-              </Attachment>
-            )}
-          </div>
+          <BatchJobRow
+            key={job.id}
+            name={job.name}
+            onRemove={() => removeJob(job.id)}
+            sourceIcon={AlertCircleIcon}
+            sourceImageUrl={job.previewUrl || undefined}
+            sourceDescription={
+              <>
+                {job.dimensions ? `${job.dimensions.width} × ${job.dimensions.height} · ` : ""}
+                {formatBytes(job.size)}
+              </>
+            }
+            status={
+              job.status === "converting"
+                ? { state: "processing", title: "Converting…" }
+                : job.status === "error"
+                  ? { state: "error", title: "Couldn't convert", description: job.error }
+                  : job.result
+                    ? {
+                        state: "done",
+                        icon: Image01Icon,
+                        title: job.result.name,
+                        description: formatBytes(job.result.size),
+                        download: { url: job.result.url, name: job.result.name },
+                      }
+                    : {
+                        state: "idle",
+                        icon: Image01Icon,
+                        title: "Ready to convert",
+                        description: "Pick a format and hit Convert",
+                      }
+            }
+          />
         ))}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file

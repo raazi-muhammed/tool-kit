@@ -15,12 +15,15 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { Dropzone } from "@/components/dropzone"
+import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, type Rect } from "@/lib/canvas"
+import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
@@ -36,35 +39,56 @@ const ASPECT_RATIOS: Record<Aspect, number | null> = {
   "9:16": 9 / 16,
 }
 
-function isImageFile(file: File): boolean {
-  return file.type.startsWith("image/")
-}
-
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () =>
-      reject(new Error("This file couldn't be decoded as an image."))
-    img.src = url
-  })
-}
-
-export default function ImageCropPage() {
-  const [file, setFile] = useState<File | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [aspect, setAspect] = useState<Aspect>("free")
+type Job = {
+  id: number
+  file: File
+  name: string
+  previewUrl: string
   // Background fill for transparent PNGs; null keeps transparency. It's
   // composited at render/export time (never baked into the image), so it
   // stays adjustable after cropping.
-  const [bgColor, setBgColor] = useState<string | null>(null)
+  bgColor: string | null
+}
 
-  // `imageCanvas` holds the current image (cropped so far, alpha intact);
-  // `displayCanvas` is what's on screen, including the selection preview.
-  const imageCanvasRef = useRef<HTMLCanvasElement | null>(null)
+async function loadResource(file: File): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(file)
+  try {
+    return imageToCanvas(await loadImage(url))
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+export default function ImageCropPage() {
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles: addFilesToQueue,
+    updateJob,
+    removeJob,
+    clear: clearQueue,
+    getResource,
+    setResource,
+  } = useEditorQueue<Job, HTMLCanvasElement>({
+    loadResource,
+    createJob: (file, id) => ({
+      id,
+      file,
+      name: file.name,
+      previewUrl: URL.createObjectURL(file),
+      bgColor: null,
+    }),
+    cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
+  })
+  const [error, setError] = useState<string | null>(null)
+  const [aspect, setAspect] = useState<Aspect>("free")
+
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const isPng = file?.type === "image/png"
+  const isPng = activeJob?.file.type === "image/png"
 
   const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
     canvasRef: displayCanvasRef,
@@ -72,15 +96,18 @@ export default function ImageCropPage() {
     render: (rect) => renderDisplay(rect),
   })
 
-  function renderDisplay(rect?: Rect | null, color: string | null = bgColor) {
-    const image = imageCanvasRef.current
+  function renderDisplay(
+    rect?: Rect | null,
+    color: string | null = activeJob?.bgColor ?? null
+  ) {
+    const image = getResource()
     const display = displayCanvasRef.current
     if (!image || !display) return
     const ctx = display.getContext("2d")
     if (!ctx) return
 
     // Keep the visible canvas's internal resolution in sync with the image —
-    // it may have just mounted, or the image may have just been cropped.
+    // it may have just mounted, switched jobs, or just been cropped.
     if (display.width !== image.width || display.height !== image.height) {
       display.width = image.width
       display.height = image.height
@@ -106,61 +133,33 @@ export default function ImageCropPage() {
     }
   }
 
-  // Paint the visible canvas after it mounts — it only exists in the DOM
-  // once a file has been picked, so this can't happen in addFile itself.
+  // Paint the visible canvas whenever the active job changes — it only
+  // exists in the DOM once a file has been picked, so this can't happen
+  // synchronously when a file is added.
   useEffect(() => {
-    if (file) renderDisplay()
+    if (activeId != null) clearSelection()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file])
+  }, [activeId])
 
-  function reset() {
-    setFile(null)
+  function clear() {
+    clearQueue()
     setError(null)
-    setBgColor(null)
-    imageCanvasRef.current = null
     clearSelection()
   }
 
-  async function addFile(picked: File | null | undefined) {
-    if (!picked) return
-    if (!isImageFile(picked)) {
-      reset()
-      setError("This file doesn't look like an image.")
-      return
-    }
-
-    const url = URL.createObjectURL(picked)
-    try {
-      const img = await loadImage(url)
-      const image = document.createElement("canvas")
-      image.width = img.naturalWidth
-      image.height = img.naturalHeight
-      const ctx = image.getContext("2d")
-      if (!ctx) throw new Error("Canvas isn't supported in this browser.")
-      ctx.drawImage(img, 0, 0)
-      imageCanvasRef.current = image
-
-      // The visible canvas mounts on this state change; the effect above
-      // paints it once it exists.
-      setFile(picked)
-      setError(null)
-      setBgColor(null)
-      clearSelection()
-    } catch (err) {
-      reset()
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while loading the image."
-      )
-    } finally {
-      URL.revokeObjectURL(url)
-    }
+  async function addFiles(fileList: FileList | null | undefined) {
+    const { addedCount, failedCount } = await addFilesToQueue(fileList)
+    setError(
+      addedCount === 0 && failedCount > 0
+        ? "None of the selected files could be loaded as images."
+        : null
+    )
   }
 
   function applyCrop() {
-    const image = imageCanvasRef.current
-    if (!image || !pendingRect) return
+    if (activeId == null || !pendingRect) return
+    const image = getResource()
+    if (!image) return
     const rect = {
       x: Math.round(pendingRect.x),
       y: Math.round(pendingRect.y),
@@ -183,12 +182,13 @@ export default function ImageCropPage() {
       rect.width,
       rect.height
     )
-    imageCanvasRef.current = cropped
+    setResource(activeId, cropped)
     clearSelection()
   }
 
   function onColorChange(color: string | null) {
-    setBgColor(color)
+    if (activeId == null) return
+    updateJob(activeId, { bgColor: color })
     renderDisplay(pendingRect, color)
   }
 
@@ -200,27 +200,30 @@ export default function ImageCropPage() {
   }
 
   async function download() {
-    const image = imageCanvasRef.current
-    if (!image || !file) return
+    if (!activeJob) return
+    const image = getResource()
+    if (!image) return
     const out = document.createElement("canvas")
     out.width = image.width
     out.height = image.height
     const ctx = out.getContext("2d")
     if (!ctx) return
-    if (bgColor) {
-      ctx.fillStyle = bgColor
+    if (activeJob.bgColor) {
+      ctx.fillStyle = activeJob.bgColor
       ctx.fillRect(0, 0, out.width, out.height)
     }
     ctx.drawImage(image, 0, 0)
 
     const mime =
-      file.type && file.type.startsWith("image/") ? file.type : "image/png"
+      activeJob.file.type && activeJob.file.type.startsWith("image/")
+        ? activeJob.file.type
+        : "image/png"
     const blob: Blob | null = await new Promise((resolve) =>
       out.toBlob(resolve, mime)
     )
     if (!blob) return
     const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(file.name, ext)
+    const name = replaceExtension(activeJob.name, ext)
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -244,11 +247,26 @@ export default function ImageCropPage() {
           { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
         ],
       }}
-      onClear={reset}
+      actions={
+        jobs.length > 0 && (
+          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
+            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+            Add file
+          </Button>
+        )
+      }
+      onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        {file ? (
+        {activeJob && (
           <div className="flex flex-col gap-4">
+            <JobStrip
+              jobs={jobs}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onRemove={removeJob}
+            />
+
             <Card className="overflow-hidden p-2">
               <div className="flex max-h-[60vh] items-center justify-center">
                 {/* Checkerboard behind the canvas so PNG transparency (and
@@ -271,12 +289,12 @@ export default function ImageCropPage() {
                   </span>
                   <input
                     type="color"
-                    value={bgColor ?? "#ffffff"}
+                    value={activeJob.bgColor ?? "#ffffff"}
                     onChange={(e) => onColorChange(e.target.value)}
                     aria-label="Background color"
                     className="size-8 cursor-pointer rounded-md border bg-transparent p-1"
                   />
-                  {bgColor ? (
+                  {activeJob.bgColor ? (
                     <Button variant="ghost" onClick={() => onColorChange(null)}>
                       <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
                       Transparent
@@ -306,21 +324,23 @@ export default function ImageCropPage() {
                 </Button>
               </div>
             </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-        ) : (
-          <>
-            <Dropzone
-              icon={CloudUploadIcon}
-              title="Drag and drop an image to upload"
-              description="or, click to browse · set a background colour on PNGs · in-browser only"
-              accept={ACCEPTED}
-              onFiles={(files) => addFile(files?.[0])}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </>
         )}
+
+        {/* Drop area — hidden (but still mounted, for the header's Add file
+            button) once at least one image has been picked. */}
+        <Dropzone
+          ref={dropzoneRef}
+          icon={CloudUploadIcon}
+          title="Drag and drop images to upload"
+          description="or, click to browse · set a background colour on PNGs · in-browser only"
+          accept={ACCEPTED}
+          multiple
+          hidden={jobs.length > 0}
+          onFiles={addFiles}
+        />
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     </ToolPage>
   )

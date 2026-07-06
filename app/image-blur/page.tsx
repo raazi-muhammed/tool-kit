@@ -13,11 +13,13 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { Dropzone } from "@/components/dropzone"
+import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
+import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
   blurRegion,
@@ -25,6 +27,7 @@ import {
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
+import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
@@ -38,31 +41,52 @@ type SafariGestureEvent = Event & {
   clientY?: number
 }
 
-function isImageFile(file: File): boolean {
-  return file.type.startsWith("image/")
+type Job = {
+  id: number
+  file: File
+  name: string
+  previewUrl: string
+  hasEdits: boolean
 }
 
-function loadImage(url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () =>
-      reject(new Error("This file couldn't be decoded as an image."))
-    img.src = url
-  })
+async function loadResource(file: File): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(file)
+  try {
+    return imageToCanvas(await loadImage(url))
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 export default function ImageBlurPage() {
-  const [file, setFile] = useState<File | null>(null)
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles: addFilesToQueue,
+    updateJob,
+    removeJob,
+    clear: clearQueue,
+    getResource,
+    setResource,
+  } = useEditorQueue<Job, HTMLCanvasElement>({
+    loadResource,
+    createJob: (file, id) => ({
+      id,
+      file,
+      name: file.name,
+      previewUrl: URL.createObjectURL(file),
+      hasEdits: false,
+    }),
+    cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
+  })
   const [error, setError] = useState<string | null>(null)
   const [blur, setBlur] = useState(20)
   const [mode, setMode] = useState<BlurMode>("gaussian")
-  const [hasEdits, setHasEdits] = useState(false)
 
-  // `baseCanvas` is the committed ground truth (applied blurs only).
-  // `displayCanvas` is what's on screen, and also shows the live preview.
-  const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
     canvasRef: displayCanvasRef,
@@ -98,7 +122,7 @@ export default function ImageBlurPage() {
   function fitView() {
     const canvas = displayCanvasRef.current
     const viewport = viewportRef.current
-    const base = baseCanvasRef.current
+    const base = getResource()
     if (!canvas || !viewport || !base) return
     const fit = Math.min(
       viewport.clientWidth / base.width,
@@ -133,14 +157,14 @@ export default function ImageBlurPage() {
     blurPx: number = blur,
     blurMode: BlurMode = mode
   ) {
-    const base = baseCanvasRef.current
+    const base = getResource()
     const display = displayCanvasRef.current
     if (!base || !display) return
     const ctx = display.getContext("2d")
     if (!ctx) return
 
     // Keep the visible canvas's internal resolution in sync with the image —
-    // it may have just mounted (React renders it only once a file is picked).
+    // it may have just mounted or switched to a different queued job.
     if (display.width !== base.width || display.height !== base.height) {
       display.width = base.width
       display.height = base.height
@@ -157,13 +181,15 @@ export default function ImageBlurPage() {
     }
   }
 
-  // Paint + fit the visible canvas after it mounts — it only exists in the
-  // DOM once a file has been picked, so this can't happen in addFile itself.
-  // Also wires zoom/pan listeners natively: React registers wheel handlers as
-  // passive, which would make preventDefault (needed to stop page scroll and
-  // browser pinch-zoom) a no-op.
+  // Paint + fit the visible canvas whenever the active job changes — it only
+  // exists in the DOM once a file has been picked, so this can't happen
+  // synchronously when a file is added. Also wires zoom/pan listeners
+  // natively: React registers wheel handlers as passive, which would make
+  // preventDefault (needed to stop page scroll and browser pinch-zoom) a
+  // no-op.
   useEffect(() => {
-    if (!file) return
+    if (activeId == null) return
+    clearSelection()
     renderDisplay()
     fitView()
 
@@ -223,78 +249,52 @@ export default function ImageBlurPage() {
       window.removeEventListener("resize", onResize)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file])
+  }, [activeId])
 
-  function reset() {
-    setFile(null)
+  function clear() {
+    clearQueue()
     setError(null)
     setBlur(20)
-    setHasEdits(false)
-    baseCanvasRef.current = null
     clearSelection()
   }
 
-  async function addFile(picked: File | null | undefined) {
-    if (!picked) return
-    if (!isImageFile(picked)) {
-      reset()
-      setError("This file doesn't look like an image.")
-      return
-    }
-
-    const url = URL.createObjectURL(picked)
-    try {
-      const img = await loadImage(url)
-      const base = document.createElement("canvas")
-      base.width = img.naturalWidth
-      base.height = img.naturalHeight
-      const baseCtx = base.getContext("2d")
-      if (!baseCtx) throw new Error("Canvas isn't supported in this browser.")
-      baseCtx.drawImage(img, 0, 0)
-      baseCanvasRef.current = base
-
-      // The visible canvas mounts on this state change; the effect below
-      // paints it once it exists.
-      setFile(picked)
-      setError(null)
-      setHasEdits(false)
-      clearSelection()
-    } catch (err) {
-      reset()
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong while loading the image."
-      )
-    } finally {
-      URL.revokeObjectURL(url)
-    }
+  async function addFiles(fileList: FileList | null | undefined) {
+    const { addedCount, failedCount } = await addFilesToQueue(fileList)
+    setError(
+      addedCount === 0 && failedCount > 0
+        ? "None of the selected files could be loaded as images."
+        : null
+    )
   }
 
   function applyBlur() {
-    const base = baseCanvasRef.current
-    if (!base || !pendingRect) return
+    if (activeId == null || !pendingRect) return
+    const base = getResource()
+    if (!base) return
     // Commit the current preview into the base image, then re-render clean.
     const committed = document.createElement("canvas")
     committed.width = base.width
     committed.height = base.height
     blurRegion(committed, base, pendingRect, blur, mode)
-    baseCanvasRef.current = committed
-    setHasEdits(true)
+    setResource(activeId, committed)
+    updateJob(activeId, { hasEdits: true })
     clearSelection()
   }
 
   async function download() {
-    const base = baseCanvasRef.current
-    if (!base || !file) return
+    if (!activeJob) return
+    const base = getResource()
+    if (!base) return
     const mime =
-      file.type && file.type.startsWith("image/") ? file.type : "image/png"
+      activeJob.file.type && activeJob.file.type.startsWith("image/")
+        ? activeJob.file.type
+        : "image/png"
     const blob: Blob | null = await new Promise((resolve) =>
       base.toBlob(resolve, mime)
     )
     if (!blob) return
     const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(file.name, ext)
+    const name = replaceExtension(activeJob.name, ext)
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -328,11 +328,26 @@ export default function ImageBlurPage() {
           { value: "pixelate", label: "Blocky", icon: GridViewIcon },
         ],
       }}
-      onClear={reset}
+      actions={
+        jobs.length > 0 && (
+          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
+            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+            Add file
+          </Button>
+        )
+      }
+      onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        {file ? (
+        {activeJob ? (
           <div className="flex flex-col gap-4">
+            <JobStrip
+              jobs={jobs}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onRemove={removeJob}
+            />
+
             <Card className="overflow-hidden p-2">
               <div
                 ref={viewportRef}
@@ -400,27 +415,29 @@ export default function ImageBlurPage() {
               <Button
                 variant="secondary"
                 onClick={download}
-                disabled={!hasEdits}
+                disabled={!activeJob.hasEdits}
               >
                 <HugeiconsIcon icon={Download04Icon} aria-hidden />
                 Download
               </Button>
             </div>
-
-            {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
-        ) : (
-          <>
-            <Dropzone
-              icon={CloudUploadIcon}
-              title="Drag and drop an image to upload"
-              description="or, click to browse · blur any region · in-browser only"
-              accept={ACCEPTED}
-              onFiles={(files) => addFile(files?.[0])}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </>
-        )}
+        ) : null}
+
+        {/* Drop area — hidden (but still mounted, for the header's Add file
+            button) once at least one image has been picked. */}
+        <Dropzone
+          ref={dropzoneRef}
+          icon={CloudUploadIcon}
+          title="Drag and drop images to upload"
+          description="or, click to browse · blur any region · in-browser only"
+          accept={ACCEPTED}
+          multiple
+          hidden={jobs.length > 0}
+          onFiles={addFiles}
+        />
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     </ToolPage>
   )
