@@ -1,5 +1,22 @@
 export type Rect = { x: number; y: number; width: number; height: number }
 
+/**
+ * Scale a rect from one canvas's coordinate space to another — e.g. to apply
+ * a selection made on one queued image to a different image of another size.
+ */
+export function scaleRect(
+  rect: Rect,
+  from: { width: number; height: number },
+  to: { width: number; height: number }
+): Rect {
+  return {
+    x: (rect.x / from.width) * to.width,
+    y: (rect.y / from.height) * to.height,
+    width: (rect.width / from.width) * to.width,
+    height: (rect.height / from.height) * to.height,
+  }
+}
+
 /** Normalize a drag from two arbitrary points into a rect with positive width/height. */
 export function rectFromPoints(
   x0: number,

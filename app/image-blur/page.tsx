@@ -24,6 +24,7 @@ import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
   blurRegion,
   drawSelectionRect,
+  scaleRect,
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
@@ -267,17 +268,36 @@ export default function ImageBlurPage() {
     )
   }
 
-  function applyBlur() {
-    if (activeId == null || !pendingRect) return
-    const base = getResource()
+  function blurJob(id: number, rect: Rect) {
+    const base = getResource(id)
     if (!base) return
-    // Commit the current preview into the base image, then re-render clean.
+    // Commit the blur into the base image so it becomes the new ground truth.
     const committed = document.createElement("canvas")
     committed.width = base.width
     committed.height = base.height
-    blurRegion(committed, base, pendingRect, blur, mode)
-    setResource(activeId, committed)
-    updateJob(activeId, { hasEdits: true })
+    blurRegion(committed, base, rect, blur, mode)
+    setResource(id, committed)
+    updateJob(id, { hasEdits: true })
+  }
+
+  function applyBlur() {
+    if (activeId == null || !pendingRect) return
+    blurJob(activeId, pendingRect)
+    clearSelection()
+  }
+
+  // Applies the current selection to every queued image, scaled to each
+  // image's own dimensions since they aren't necessarily the same size.
+  function applyBlurToAll() {
+    if (activeId == null || !pendingRect) return
+    const activeImage = getResource(activeId)
+    if (!activeImage) return
+
+    jobs.forEach((job) => {
+      const image = getResource(job.id)
+      if (!image) return
+      blurJob(job.id, scaleRect(pendingRect, activeImage, image))
+    })
     clearSelection()
   }
 
@@ -412,6 +432,16 @@ export default function ImageBlurPage() {
                 <HugeiconsIcon icon={BlurIcon} aria-hidden />
                 Apply blur
               </Button>
+              {jobs.length > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={applyBlurToAll}
+                  disabled={!pendingRect}
+                >
+                  <HugeiconsIcon icon={BlurIcon} aria-hidden />
+                  Apply blur to all
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 onClick={download}

@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
-import { drawSelectionRect, type Rect } from "@/lib/canvas"
+import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
 import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
@@ -156,33 +156,52 @@ export default function ImageCropPage() {
     )
   }
 
-  function applyCrop() {
-    if (activeId == null || !pendingRect) return
-    const image = getResource()
+  function cropJob(id: number, rect: Rect) {
+    const image = getResource(id)
     if (!image) return
-    const rect = {
-      x: Math.round(pendingRect.x),
-      y: Math.round(pendingRect.y),
-      width: Math.max(1, Math.round(pendingRect.width)),
-      height: Math.max(1, Math.round(pendingRect.height)),
+    const clamped = {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.max(1, Math.round(rect.width)),
+      height: Math.max(1, Math.round(rect.height)),
     }
     const cropped = document.createElement("canvas")
-    cropped.width = rect.width
-    cropped.height = rect.height
+    cropped.width = clamped.width
+    cropped.height = clamped.height
     const ctx = cropped.getContext("2d")
     if (!ctx) return
     ctx.drawImage(
       image,
-      rect.x,
-      rect.y,
-      rect.width,
-      rect.height,
+      clamped.x,
+      clamped.y,
+      clamped.width,
+      clamped.height,
       0,
       0,
-      rect.width,
-      rect.height
+      clamped.width,
+      clamped.height
     )
-    setResource(activeId, cropped)
+    setResource(id, cropped)
+  }
+
+  function applyCrop() {
+    if (activeId == null || !pendingRect) return
+    cropJob(activeId, pendingRect)
+    clearSelection()
+  }
+
+  // Applies the current selection to every queued image, scaled to each
+  // image's own dimensions since they aren't necessarily the same size.
+  function applyCropToAll() {
+    if (activeId == null || !pendingRect) return
+    const activeImage = getResource(activeId)
+    if (!activeImage) return
+
+    jobs.forEach((job) => {
+      const image = getResource(job.id)
+      if (!image) return
+      cropJob(job.id, scaleRect(pendingRect, activeImage, image))
+    })
     clearSelection()
   }
 
@@ -318,6 +337,16 @@ export default function ImageCropPage() {
                   <HugeiconsIcon icon={CropIcon} aria-hidden />
                   Crop
                 </Button>
+                {jobs.length > 1 && (
+                  <Button
+                    variant="outline"
+                    onClick={applyCropToAll}
+                    disabled={!pendingRect}
+                  >
+                    <HugeiconsIcon icon={CropIcon} aria-hidden />
+                    Crop all
+                  </Button>
+                )}
                 <Button variant="secondary" onClick={download}>
                   <HugeiconsIcon icon={Download04Icon} aria-hidden />
                   Download
