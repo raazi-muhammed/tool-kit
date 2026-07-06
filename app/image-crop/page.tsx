@@ -16,6 +16,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { ColorPicker } from "@/components/color-picker"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
@@ -322,12 +323,10 @@ export default function ImageCropPage() {
                   <span className="text-sm text-muted-foreground">
                     Background
                   </span>
-                  <input
-                    type="color"
+                  <ColorPicker
                     value={activeJob.bgColor ?? "#ffffff"}
-                    onChange={(e) => onColorChange(e.target.value)}
-                    aria-label="Background color"
-                    className="size-8 cursor-pointer rounded-md border bg-transparent p-1"
+                    onChange={onColorChange}
+                    label="Background color"
                   />
                   {activeJob.bgColor ? (
                     <Button variant="ghost" onClick={() => onColorChange(null)}>
