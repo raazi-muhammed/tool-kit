@@ -2,6 +2,7 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  ArrowDown01Icon,
   AspectRatioIcon,
   Cancel01Icon,
   CloudUploadIcon,
@@ -19,10 +20,18 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { Card } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
@@ -218,37 +227,44 @@ export default function ImageCropPage() {
     clearSelection()
   }
 
-  async function download() {
-    if (!activeJob) return
-    const image = getResource()
+  async function downloadJob(job: Job) {
+    const image = getResource(job.id)
     if (!image) return
     const out = document.createElement("canvas")
     out.width = image.width
     out.height = image.height
     const ctx = out.getContext("2d")
     if (!ctx) return
-    if (activeJob.bgColor) {
-      ctx.fillStyle = activeJob.bgColor
+    if (job.bgColor) {
+      ctx.fillStyle = job.bgColor
       ctx.fillRect(0, 0, out.width, out.height)
     }
     ctx.drawImage(image, 0, 0)
 
     const mime =
-      activeJob.file.type && activeJob.file.type.startsWith("image/")
-        ? activeJob.file.type
+      job.file.type && job.file.type.startsWith("image/")
+        ? job.file.type
         : "image/png"
     const blob: Blob | null = await new Promise((resolve) =>
       out.toBlob(resolve, mime)
     )
     if (!blob) return
     const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(activeJob.name, ext)
+    const name = replaceExtension(job.name, ext)
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = name
-    a.click()
+    downloadFile(url, name)
     URL.revokeObjectURL(url)
+  }
+
+  function download() {
+    if (activeJob) void downloadJob(activeJob)
+  }
+
+  async function downloadAll() {
+    for (const job of jobs) {
+      await downloadJob(job)
+      await downloadStagger()
+    }
   }
 
   return (
@@ -347,10 +363,31 @@ export default function ImageCropPage() {
                     Crop all
                   </Button>
                 )}
-                <Button variant="secondary" onClick={download}>
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
+                <ButtonGroup>
+                  <Button variant="secondary" onClick={download}>
+                    <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                    Download
+                  </Button>
+                  {jobs.length > 1 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          aria-label="More download options"
+                        >
+                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={downloadAll}>
+                          <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                          Download all
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </ButtonGroup>
               </div>
             </div>
           </div>

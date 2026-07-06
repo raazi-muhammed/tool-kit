@@ -2,7 +2,12 @@
 
 import { PDFDocument } from "@cantoo/pdf-lib"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { CloudUploadIcon, FileUnlockedIcon, Pdf02Icon } from "@hugeicons/core-free-icons"
+import {
+  CloudUploadIcon,
+  Download04Icon,
+  FileUnlockedIcon,
+  Pdf02Icon,
+} from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
 import { BatchJobRow } from "@/components/batch-job-row"
@@ -11,6 +16,7 @@ import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useJobQueue } from "@/hooks/use-job-queue"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "application/pdf,.pdf"
@@ -120,6 +126,14 @@ export default function PdfUnlockPage() {
     setFormError(null)
   }
 
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (!job.result) continue
+      downloadFile(job.result.url, job.result.name)
+      await downloadStagger()
+    }
+  }
+
   return (
     <ToolPage
       page="PDF Unlock"
@@ -194,10 +208,18 @@ export default function PdfUnlockPage() {
                 }}
               />
             </div>
-            <Button onClick={unlock} disabled={anyBusy} className="ml-auto">
-              <HugeiconsIcon icon={FileUnlockedIcon} aria-hidden />
-              Unlock
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              {jobs.some((job) => job.result) && (
+                <Button variant="outline" onClick={downloadAll}>
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download all
+                </Button>
+              )}
+              <Button onClick={unlock} disabled={anyBusy}>
+                <HugeiconsIcon icon={FileUnlockedIcon} aria-hidden />
+                Unlock
+              </Button>
+            </div>
           </div>
         )}
 

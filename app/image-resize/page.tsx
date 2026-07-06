@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   CloudUploadIcon,
+  Download04Icon,
   Image01Icon,
   LinkIcon,
   Resize02Icon,
@@ -16,6 +17,7 @@ import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useJobQueue } from "@/hooks/use-job-queue"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import { isImageFile, loadImage } from "@/lib/image-file"
 import { formatBytes } from "@/lib/wav"
 
@@ -221,6 +223,14 @@ export default function ImageResizePage() {
     setFormError(null)
   }
 
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (!job.result) continue
+      downloadFile(job.result.url, job.result.name)
+      await downloadStagger()
+    }
+  }
+
   return (
     <ToolPage
       page="Image Resize"
@@ -324,10 +334,18 @@ export default function ImageResizePage() {
                 className="w-28"
               />
             </div>
-            <Button onClick={resize} disabled={anyBusy} className="ml-auto">
-              <HugeiconsIcon icon={Resize02Icon} aria-hidden />
-              Resize
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              {jobs.some((job) => job.result) && (
+                <Button variant="outline" onClick={downloadAll}>
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download all
+                </Button>
+              )}
+              <Button onClick={resize} disabled={anyBusy}>
+                <HugeiconsIcon icon={Resize02Icon} aria-hidden />
+                Resize
+              </Button>
+            </div>
           </div>
         )}
 

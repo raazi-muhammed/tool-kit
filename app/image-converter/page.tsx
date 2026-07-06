@@ -5,6 +5,7 @@ import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
   CloudUploadIcon,
+  Download04Icon,
   Image01Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import { formatBytes, replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
@@ -150,6 +152,14 @@ export default function ImageConverterPage() {
     })
   }
 
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (!job.result) continue
+      downloadFile(job.result.url, job.result.name)
+      await downloadStagger()
+    }
+  }
+
   return (
     <ToolPage
       page="Image Converter"
@@ -244,10 +254,18 @@ export default function ImageConverterPage() {
                 <span className="w-8 text-right text-sm text-muted-foreground">{quality}</span>
               </div>
             )}
-            <Button onClick={convert} disabled={anyBusy} className="ml-auto">
-              <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
-              Convert
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              {jobs.some((job) => job.result) && (
+                <Button variant="outline" onClick={downloadAll}>
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download all
+                </Button>
+              )}
+              <Button onClick={convert} disabled={anyBusy}>
+                <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
+                Convert
+              </Button>
+            </div>
           </div>
         )}
       </div>

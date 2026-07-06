@@ -2,6 +2,7 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  ArrowDown01Icon,
   CloudUploadIcon,
   Download04Icon,
   ImageRotationClockwiseIcon,
@@ -14,9 +15,17 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { Card } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { rotateCanvas } from "@/lib/canvas"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
@@ -127,27 +136,37 @@ export default function ImageRotatePage() {
     if (activeJob) renderDisplay(normalizeRotation(activeJob.rotation + delta))
   }
 
-  async function download() {
-    if (!activeJob) return
-    const base = getResource()
+  async function downloadJob(job: Job) {
+    const base = getResource(job.id)
     if (!base) return
-    const rotated = rotateCanvas(base, activeJob.rotation)
+    const rotated = rotateCanvas(base, job.rotation)
     const mime =
-      activeJob.file.type && activeJob.file.type.startsWith("image/")
-        ? activeJob.file.type
+      job.file.type && job.file.type.startsWith("image/")
+        ? job.file.type
         : "image/png"
     const blob: Blob | null = await new Promise((resolve) =>
       rotated.toBlob(resolve, mime)
     )
     if (!blob) return
     const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(activeJob.name, ext)
+    const name = replaceExtension(job.name, ext)
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = name
-    a.click()
+    downloadFile(url, name)
     URL.revokeObjectURL(url)
+  }
+
+  function download() {
+    if (activeJob) void downloadJob(activeJob)
+  }
+
+  // Skips unrotated images — downloading them would just hand back the
+  // original file.
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (job.rotation === 0) continue
+      await downloadJob(job)
+      await downloadStagger()
+    }
   }
 
   return (
@@ -211,15 +230,38 @@ export default function ImageRotatePage() {
                 </div>
               )}
 
-              <Button
-                variant="secondary"
-                onClick={download}
-                disabled={activeJob.rotation === 0}
-                className="ml-auto"
-              >
-                <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                Download
-              </Button>
+              <ButtonGroup className="ml-auto">
+                <Button
+                  variant="secondary"
+                  onClick={download}
+                  disabled={activeJob.rotation === 0}
+                >
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download
+                </Button>
+                {jobs.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        aria-label="More download options"
+                      >
+                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={downloadAll}
+                        disabled={!jobs.some((job) => job.rotation !== 0)}
+                      >
+                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                        Download all
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </ButtonGroup>
             </div>
           </div>
         )}

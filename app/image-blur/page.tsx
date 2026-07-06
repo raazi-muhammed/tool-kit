@@ -2,6 +2,7 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
+  ArrowDown01Icon,
   BlurIcon,
   Cancel01Icon,
   CloudUploadIcon,
@@ -17,7 +18,14 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { Card } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Slider } from "@/components/ui/slider"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
@@ -28,6 +36,7 @@ import {
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
@@ -301,26 +310,36 @@ export default function ImageBlurPage() {
     clearSelection()
   }
 
-  async function download() {
-    if (!activeJob) return
-    const base = getResource()
+  async function downloadJob(job: Job) {
+    const base = getResource(job.id)
     if (!base) return
     const mime =
-      activeJob.file.type && activeJob.file.type.startsWith("image/")
-        ? activeJob.file.type
+      job.file.type && job.file.type.startsWith("image/")
+        ? job.file.type
         : "image/png"
     const blob: Blob | null = await new Promise((resolve) =>
       base.toBlob(resolve, mime)
     )
     if (!blob) return
     const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(activeJob.name, ext)
+    const name = replaceExtension(job.name, ext)
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = name
-    a.click()
+    downloadFile(url, name)
     URL.revokeObjectURL(url)
+  }
+
+  function download() {
+    if (activeJob) void downloadJob(activeJob)
+  }
+
+  // Skips jobs with no committed blur — downloading them would just hand
+  // back the original file.
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (!job.hasEdits) continue
+      await downloadJob(job)
+      await downloadStagger()
+    }
   }
 
   // Re-render whenever the blur strength or mode changes while a selection is
@@ -442,14 +461,38 @@ export default function ImageBlurPage() {
                   Apply blur to all
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                onClick={download}
-                disabled={!activeJob.hasEdits}
-              >
-                <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                Download
-              </Button>
+              <ButtonGroup>
+                <Button
+                  variant="secondary"
+                  onClick={download}
+                  disabled={!activeJob.hasEdits}
+                >
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download
+                </Button>
+                {jobs.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        aria-label="More download options"
+                      >
+                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={downloadAll}
+                        disabled={!jobs.some((job) => job.hasEdits)}
+                      >
+                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                        Download all
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </ButtonGroup>
             </div>
           </div>
         ) : null}
