@@ -110,10 +110,13 @@ export function BatchJobRow({
             <AttachmentDescription>{status.description}</AttachmentDescription>
           </AttachmentContent>
           <AttachmentActions>
-            <Button asChild>
-              <a href={status.download.url} download={status.download.name}>
+            <Button asChild variant="secondary" size="icon">
+              <a
+                href={status.download.url}
+                download={status.download.name}
+                aria-label={`Download ${status.download.name}`}
+              >
                 <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                Download
               </a>
             </Button>
           </AttachmentActions>

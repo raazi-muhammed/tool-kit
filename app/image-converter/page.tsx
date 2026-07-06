@@ -4,26 +4,46 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
+  ArrowDown01Icon,
+  Cancel01Icon,
   CloudUploadIcon,
+  Download04Icon,
+  EraserAutoIcon,
   Image01Icon,
+  Loading03Icon,
 } from "@hugeicons/core-free-icons"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
-import { BatchJobRow } from "@/components/batch-job-row"
+import { ColorPicker } from "@/components/color-picker"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
+import { Card } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Slider } from "@/components/ui/slider"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
-import { formatBytes, replaceExtension } from "@/lib/wav"
+import { removeBackgroundColor, sampleImageColorAtPoint } from "@/lib/canvas"
+import { downloadFile, downloadStagger } from "@/lib/download"
+import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
 const SUPPORTED_LABEL = "JPG, PNG, WebP, GIF, BMP, SVG, ICO, AVIF, TIFF"
 
+// Checkerboard behind the previews so PNG transparency (and the effect of
+// the background colour) is visible.
+const CHECKERBOARD =
+  "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
+
 type Format = "png" | "jpeg" | "webp" | "bmp"
 type Status = "idle" | "converting" | "done" | "error"
-type Dimensions = { width: number; height: number }
 type Result = { url: string; name: string; size: number }
 type Job = {
   id: number
@@ -31,7 +51,6 @@ type Job = {
   name: string
   size: number
   previewUrl: string
-  dimensions: Dimensions | null
   status: Status
   error: string | null
   result: Result | null
@@ -62,33 +81,94 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number):
 }
 
 export default function ImageConverterPage() {
-  const { jobs, setJobs, addFiles, updateJob, removeJob, clear } = useJobQueue<Job>({
-    createJob: (file, id) => {
-      const valid = isImageFile(file)
-      return {
-        id,
-        file,
-        name: file.name,
-        size: file.size,
-        previewUrl: valid ? URL.createObjectURL(file) : "",
-        dimensions: null,
-        status: valid ? "idle" : "error",
-        error: valid ? null : "This file doesn't look like a recognised image format.",
-        result: null,
-      }
-    },
-    cleanupJob: (job) => {
-      if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-      if (job.result) URL.revokeObjectURL(job.result.url)
-    },
-  })
+  const { jobs, setJobs, addFiles: addFilesToQueue, updateJob, removeJob, clear: clearQueue } =
+    useJobQueue<Job>({
+      createJob: (file, id) => {
+        const valid = isImageFile(file)
+        return {
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          previewUrl: valid ? URL.createObjectURL(file) : "",
+          status: valid ? "idle" : "error",
+          error: valid ? null : "This file doesn't look like a recognised image format.",
+          result: null,
+        }
+      },
+      cleanupJob: (job) => {
+        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+        if (job.result) URL.revokeObjectURL(job.result.url)
+      },
+    })
+  const [activeId, setActiveId] = useState<number | null>(null)
   const [format, setFormat] = useState<Format>("png")
   const [quality, setQuality] = useState(92)
+  // Fill for transparent PNGs; null keeps transparency (where the target
+  // format supports it — JPEG/BMP fall back to the browser's own default).
+  const [bgColor, setBgColor] = useState<string | null>(null)
+  // Chroma-key removal of a solid background color, only meaningful for
+  // targets that can actually hold the resulting transparency.
+  const [removeBg, setRemoveBg] = useState(false)
+  const [keyColor, setKeyColor] = useState("#ffffff")
+  const [tolerance, setTolerance] = useState(32)
+  // Which color control is waiting for a click on the Original preview.
+  const [pickTarget, setPickTarget] = useState<"bg" | "key" | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
+  const activeJob = jobs.find((job) => job.id === activeId) ?? null
   const anyBusy = jobs.some((job) => job.status === "converting")
+  const anyPng = jobs.some((job) => job.file.type === "image/png")
+  const supportsAlpha = format === "png" || format === "webp"
 
-  async function convertJob(job: Job, fmt: Format, q: number) {
+  useEffect(() => {
+    if (!pickTarget) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPickTarget(null)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [pickTarget])
+
+  function pickColorFromImage(e: React.MouseEvent<HTMLImageElement>) {
+    if (!pickTarget) return
+    const color = sampleImageColorAtPoint(e.currentTarget, e.clientX, e.clientY)
+    if (color) {
+      if (pickTarget === "bg") setBgColor(color)
+      else setKeyColor(color)
+    }
+    setPickTarget(null)
+  }
+
+  function addFiles(fileList: FileList | null | undefined) {
+    const created = addFilesToQueue(fileList)
+    if (created.length) setActiveId((prev) => prev ?? created[0].id)
+  }
+
+  function removeAndReselect(id: number) {
+    removeJob(id)
+    if (activeId !== id) return
+    const remaining = jobs.filter((job) => job.id !== id)
+    setActiveId(remaining.length ? remaining[0].id : null)
+  }
+
+  function clear() {
+    clearQueue()
+    setActiveId(null)
+  }
+
+  async function convertJob(
+    job: Job,
+    opts: {
+      format: Format
+      quality: number
+      bgColor: string | null
+      removeBg: boolean
+      keyColor: string
+      tolerance: number
+    }
+  ) {
+    const { format: fmt, quality: q } = opts
     if (fmt === "webp" && !supportsWebp()) {
       updateJob(job.id, {
         status: "error",
@@ -113,7 +193,14 @@ export default function ImageConverterPage() {
       canvas.height = img.naturalHeight
       const ctx = canvas.getContext("2d")
       if (!ctx) throw new Error("Canvas isn't supported in this browser.")
+      if (opts.bgColor) {
+        ctx.fillStyle = opts.bgColor
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+      }
       ctx.drawImage(img, 0, 0)
+      if (opts.removeBg && (fmt === "png" || fmt === "webp")) {
+        removeBackgroundColor(canvas, opts.keyColor, opts.tolerance)
+      }
 
       const blob =
         fmt === "bmp"
@@ -129,7 +216,6 @@ export default function ImageConverterPage() {
           if (j.result) URL.revokeObjectURL(j.result.url)
           return {
             ...j,
-            dimensions: { width: canvas.width, height: canvas.height },
             status: "done",
             error: null,
             result: { url, name, size: blob.size },
@@ -146,8 +232,21 @@ export default function ImageConverterPage() {
 
   function convert() {
     jobs.forEach((job) => {
-      if (job.status !== "converting") void convertJob(job, format, quality)
+      if (job.status !== "converting")
+        void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
     })
+  }
+
+  function downloadActive() {
+    if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
+  }
+
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (!job.result) continue
+      downloadFile(job.result.url, job.result.name)
+      await downloadStagger()
+    }
   }
 
   return (
@@ -176,42 +275,80 @@ export default function ImageConverterPage() {
       onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">
-        {/* One row per file: source (left) and its output (right), side by side. */}
-        {jobs.map((job) => (
-          <BatchJobRow
-            key={job.id}
-            name={job.name}
-            onRemove={() => removeJob(job.id)}
-            sourceIcon={AlertCircleIcon}
-            sourceImageUrl={job.previewUrl || undefined}
-            sourceDescription={
-              <>
-                {job.dimensions ? `${job.dimensions.width} × ${job.dimensions.height} · ` : ""}
-                {formatBytes(job.size)}
-              </>
-            }
-            status={
-              job.status === "converting"
-                ? { state: "processing", title: "Converting…" }
-                : job.status === "error"
-                  ? { state: "error", title: "Couldn't convert", description: job.error }
-                  : job.result
-                    ? {
-                        state: "done",
-                        icon: Image01Icon,
-                        title: job.result.name,
-                        description: formatBytes(job.result.size),
-                        download: { url: job.result.url, name: job.result.name },
-                      }
-                    : {
-                        state: "idle",
-                        icon: Image01Icon,
-                        title: "Ready to convert",
-                        description: "Pick a format and hit Convert",
-                      }
-            }
-          />
-        ))}
+        {activeJob && (
+          <div className="flex flex-col gap-4">
+            <JobStrip
+              jobs={jobs}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onRemove={removeAndReselect}
+            />
+
+            {/* Original (left) and converted (right) preview, side by side. */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {pickTarget
+                    ? "Click on the image to pick a color · Esc to cancel"
+                    : "Original"}
+                </span>
+                <Card className="overflow-hidden p-2">
+                  <div
+                    className={`flex h-[60vh] items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
+                  >
+                    {activeJob.previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={activeJob.previewUrl}
+                        alt={activeJob.name}
+                        onClick={pickColorFromImage}
+                        className={`max-h-full max-w-full object-contain ${pickTarget ? "cursor-crosshair" : ""}`}
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 px-6 text-center text-muted-foreground">
+                        <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
+                        <p className="text-sm">{activeJob.error}</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="text-sm text-muted-foreground">Converted</span>
+                <Card className="overflow-hidden p-2">
+                  <div
+                    className={`flex h-[60vh] items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
+                  >
+                    {activeJob.status === "converting" ? (
+                      <HugeiconsIcon
+                        icon={Loading03Icon}
+                        className="size-8 animate-spin text-muted-foreground"
+                        aria-hidden
+                      />
+                    ) : activeJob.status === "error" ? (
+                      <div className="flex flex-col items-center gap-2 px-6 text-center text-destructive">
+                        <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
+                        <p className="text-sm">{activeJob.error}</p>
+                      </div>
+                    ) : activeJob.result ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={activeJob.result.url}
+                        alt={activeJob.result.name}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Pick a format and hit Convert
+                      </p>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
             button) once at least one file has been added. */}
@@ -226,9 +363,64 @@ export default function ImageConverterPage() {
           onFiles={addFiles}
         />
 
-        {/* Quality (JPEG/WebP only) and the explicit Convert trigger. */}
+        {/* Background colour (PNG sources only), background removal
+            (PNG/WebP targets only), quality (JPEG/WebP only), download, and
+            the explicit Convert trigger. */}
         {jobs.length > 0 && (
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {anyPng && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Background</span>
+                <ColorPicker
+                  value={bgColor ?? "#ffffff"}
+                  onChange={setBgColor}
+                  label="Background color"
+                  onPickFromImage={() => setPickTarget("bg")}
+                />
+                {bgColor ? (
+                  <Button variant="ghost" onClick={() => setBgColor(null)}>
+                    <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+                    Transparent
+                  </Button>
+                ) : (
+                  <span className="text-sm text-muted-foreground">transparent</span>
+                )}
+              </div>
+            )}
+            {supportsAlpha && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={removeBg ? "secondary" : "outline"}
+                  aria-pressed={removeBg}
+                  onClick={() => setRemoveBg((v) => !v)}
+                >
+                  <HugeiconsIcon icon={EraserAutoIcon} aria-hidden />
+                  Remove background
+                </Button>
+                {removeBg && (
+                  <>
+                    <ColorPicker
+                      value={keyColor}
+                      onChange={setKeyColor}
+                      label="Background color to remove"
+                      onPickFromImage={() => setPickTarget("key")}
+                    />
+                    <span className="text-sm text-muted-foreground">Tolerance</span>
+                    <Slider
+                      value={[tolerance]}
+                      onValueChange={([value]) => setTolerance(value)}
+                      min={0}
+                      max={100}
+                      step={1}
+                      className="min-w-24 max-w-32"
+                    />
+                    <span className="w-8 text-right text-sm text-muted-foreground">
+                      {tolerance}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
             {(format === "jpeg" || format === "webp") && (
               <div className="flex flex-1 items-center gap-3">
                 <span className="text-sm text-muted-foreground">Quality</span>
@@ -244,10 +436,44 @@ export default function ImageConverterPage() {
                 <span className="w-8 text-right text-sm text-muted-foreground">{quality}</span>
               </div>
             )}
-            <Button onClick={convert} disabled={anyBusy} className="ml-auto">
-              <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
-              Convert
-            </Button>
+            <div className="ml-auto flex items-center gap-2">
+              <ButtonGroup>
+                <Button
+                  variant="secondary"
+                  onClick={downloadActive}
+                  disabled={!activeJob?.result}
+                >
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download
+                </Button>
+                {jobs.length > 1 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="icon"
+                        aria-label="More download options"
+                      >
+                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={downloadAll}
+                        disabled={!jobs.some((job) => job.result)}
+                      >
+                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                        Download all
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </ButtonGroup>
+              <Button onClick={convert} disabled={anyBusy}>
+                <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
+                Convert
+              </Button>
+            </div>
           </div>
         )}
       </div>

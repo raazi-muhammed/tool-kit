@@ -344,6 +344,27 @@ function pixelateCanvas(
   return out
 }
 
+/**
+ * Rotate `source` by a multiple of 90 degrees (clockwise) onto a new canvas,
+ * swapping width/height for 90/270 so the output isn't stretched.
+ */
+export function rotateCanvas(
+  source: HTMLCanvasElement,
+  degrees: number
+): HTMLCanvasElement {
+  const normalized = ((degrees % 360) + 360) % 360
+  const swapped = normalized === 90 || normalized === 270
+  const out = document.createElement("canvas")
+  out.width = swapped ? source.height : source.width
+  out.height = swapped ? source.width : source.height
+  const ctx = out.getContext("2d")
+  if (!ctx) return out
+  ctx.translate(out.width / 2, out.height / 2)
+  ctx.rotate((normalized * Math.PI) / 180)
+  ctx.drawImage(source, -source.width / 2, -source.height / 2)
+  return out
+}
+
 export type BlurMode = "gaussian" | "pixelate"
 
 /**
@@ -377,4 +398,79 @@ export function blurRegion(
   destCtx.clip()
   destCtx.drawImage(blurred, 0, 0)
   destCtx.restore()
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const num = parseInt(hex.replace("#", ""), 16)
+  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 }
+}
+
+/**
+ * Chroma-key background removal: make every pixel within `tolerance` of
+ * `colorHex` fully transparent, in place. `tolerance` is 0-100, mapped to a
+ * Euclidean RGB distance threshold — 0 matches only the exact color, 100
+ * matches everything.
+ */
+export function removeBackgroundColor(
+  canvas: HTMLCanvasElement,
+  colorHex: string,
+  tolerance: number
+) {
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return
+  const { r, g, b } = hexToRgb(colorHex)
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const data = imageData.data
+  const maxDist = Math.sqrt(3 * 255 ** 2)
+  const threshold = (tolerance / 100) * maxDist
+  for (let i = 0; i < data.length; i += 4) {
+    const dr = data[i] - r
+    const dg = data[i + 1] - g
+    const db = data[i + 2] - b
+    if (Math.sqrt(dr * dr + dg * dg + db * db) <= threshold) data[i + 3] = 0
+  }
+  ctx.putImageData(imageData, 0, 0)
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
+}
+
+/**
+ * Sample the color at (clientX, clientY) — viewport coordinates, e.g. from a
+ * click event — on an `<img>` rendered with `object-fit: contain`. Returns
+ * null if the point falls in the img box's letterbox padding rather than on
+ * the image itself.
+ */
+export function sampleImageColorAtPoint(
+  img: HTMLImageElement,
+  clientX: number,
+  clientY: number
+): string | null {
+  const box = img.getBoundingClientRect()
+  const scale = Math.min(
+    box.width / img.naturalWidth,
+    box.height / img.naturalHeight
+  )
+  const renderedWidth = img.naturalWidth * scale
+  const renderedHeight = img.naturalHeight * scale
+  const localX = clientX - box.left - (box.width - renderedWidth) / 2
+  const localY = clientY - box.top - (box.height - renderedHeight) / 2
+  if (localX < 0 || localY < 0 || localX > renderedWidth || localY > renderedHeight) {
+    return null
+  }
+
+  const canvas = document.createElement("canvas")
+  canvas.width = img.naturalWidth
+  canvas.height = img.naturalHeight
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return null
+  ctx.drawImage(img, 0, 0)
+  const [r, g, b] = ctx.getImageData(
+    Math.min(img.naturalWidth - 1, Math.floor(localX / scale)),
+    Math.min(img.naturalHeight - 1, Math.floor(localY / scale)),
+    1,
+    1
+  ).data
+  return rgbToHex(r, g, b)
 }

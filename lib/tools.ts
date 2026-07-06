@@ -7,6 +7,7 @@ import {
   FileUnlockedIcon,
   Image01Icon,
   ImageCropIcon,
+  ImageRotationClockwiseIcon,
   Resize02Icon,
 } from "@hugeicons/core-free-icons"
 
@@ -63,6 +64,12 @@ export const TOOLS: Tool[] = [
     icon: Resize02Icon,
     name: "Image Resize",
     description: "Resize an image to any width and height, in your browser.",
+  },
+  {
+    href: "/image-rotate",
+    icon: ImageRotationClockwiseIcon,
+    name: "Image Rotate",
+    description: "Rotate images in 90° steps, in your browser.",
   },
   {
     href: "/pdf-unlock",
