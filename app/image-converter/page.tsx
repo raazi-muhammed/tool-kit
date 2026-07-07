@@ -1,6 +1,5 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
@@ -18,8 +17,9 @@ import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
-import { removeBackgroundColor, sampleImageColorAtPoint } from "@/lib/canvas"
+import { removeBackgroundColor, sampleCanvasColorAtPoint } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
+import { loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
@@ -98,6 +98,7 @@ export default function ImageConverterPage() {
   // Which color control is waiting for a click on the Original preview.
   const [pickTarget, setPickTarget] = useState<"bg" | "key" | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
+  const originalCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const activeJob = jobs.find((job) => job.id === activeId) ?? null
   const anyBusy = jobs.some((job) => job.status === "converting")
@@ -113,9 +114,28 @@ export default function ImageConverterPage() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [pickTarget])
 
-  function pickColorFromImage(e: React.MouseEvent<HTMLImageElement>) {
+  // Paint the Original preview canvas whenever the active job's source
+  // image changes — it only exists in the DOM once a valid image has been
+  // picked, so this can't happen synchronously when a file is added.
+  useEffect(() => {
+    const canvas = originalCanvasRef.current
+    const previewUrl = activeJob?.previewUrl
+    if (!canvas || !previewUrl) return
+    let cancelled = false
+    loadImage(previewUrl).then((img) => {
+      if (cancelled) return
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      canvas.getContext("2d")?.drawImage(img, 0, 0)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [activeJob?.previewUrl])
+
+  function pickColorFromCanvas(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!pickTarget) return
-    const color = sampleImageColorAtPoint(e.currentTarget, e.clientX, e.clientY)
+    const color = sampleCanvasColorAtPoint(e.currentTarget, e.clientX, e.clientY)
     if (color) {
       if (pickTarget === "bg") setBgColor(color)
       else setKeyColor(color)
@@ -321,58 +341,43 @@ export default function ImageConverterPage() {
 
             {/* Original (left) and converted (right) preview, side by side. */}
             <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
-              <div className="flex min-h-0 flex-col gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {pickTarget
+              <PreviewCard
+                fill
+                checkerboard
+                title={
+                  pickTarget
                     ? "Click on the image to pick a color · Esc to cancel"
-                    : "Original"}
-                </span>
-                <PreviewCard fill checkerboard>
-                  {activeJob.previewUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={activeJob.previewUrl}
-                      alt={activeJob.name}
-                      onClick={pickColorFromImage}
-                      className={`max-h-full max-w-full object-contain ${pickTarget ? "cursor-crosshair" : ""}`}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 px-6 text-center text-muted-foreground">
-                      <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
-                      <p className="text-sm">{activeJob.error}</p>
-                    </div>
-                  )}
-                </PreviewCard>
-              </div>
-
-              <div className="flex min-h-0 flex-col gap-2">
-                <span className="text-sm text-muted-foreground">Converted</span>
-                <PreviewCard fill checkerboard>
-                  {activeJob.status === "converting" ? (
-                    <HugeiconsIcon
-                      icon={Loading03Icon}
-                      className="size-8 animate-spin text-muted-foreground"
-                      aria-hidden
-                    />
-                  ) : activeJob.status === "error" ? (
-                    <div className="flex flex-col items-center gap-2 px-6 text-center text-destructive">
-                      <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
-                      <p className="text-sm">{activeJob.error}</p>
-                    </div>
-                  ) : activeJob.result ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={activeJob.result.url}
-                      alt={activeJob.result.name}
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Pick a format and hit Convert
-                    </p>
-                  )}
-                </PreviewCard>
-              </div>
+                    : "Original"
+                }
+                canvases={[
+                  activeJob.previewUrl
+                    ? {
+                        ref: originalCanvasRef,
+                        onClick: pickColorFromCanvas,
+                        className: `relative max-h-full max-w-full ${pickTarget ? "cursor-crosshair" : ""}`,
+                      }
+                    : { kind: "status", icon: AlertCircleIcon, message: activeJob.error },
+                ]}
+              />
+              <PreviewCard
+                fill
+                checkerboard
+                title="Converted"
+                canvases={[
+                  activeJob.result
+                    ? {
+                        kind: "image",
+                        src: activeJob.result.url,
+                        alt: activeJob.result.name,
+                        className: "relative max-h-full max-w-full",
+                      }
+                    : activeJob.status === "converting"
+                      ? { kind: "status", icon: Loading03Icon, spin: true }
+                      : activeJob.status === "error"
+                        ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+                        : { kind: "status", message: "Pick a format and hit Convert" },
+                ]}
+              />
             </div>
           </div>
         )}

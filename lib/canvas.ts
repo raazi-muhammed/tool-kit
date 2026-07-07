@@ -438,37 +438,31 @@ function rgbToHex(r: number, g: number, b: number): string {
 
 /**
  * Sample the color at (clientX, clientY) — viewport coordinates, e.g. from a
- * click event — on an `<img>` rendered with `object-fit: contain`. Returns
- * null if the point falls in the img box's letterbox padding rather than on
- * the image itself.
+ * click event — on a `<canvas>` whose intrinsic bitmap is scaled down to fit
+ * its box (preserving aspect ratio, e.g. via `max-h`/`max-w`). Returns null
+ * if the point falls in the box's letterbox padding rather than on the
+ * canvas content itself.
  */
-export function sampleImageColorAtPoint(
-  img: HTMLImageElement,
+export function sampleCanvasColorAtPoint(
+  canvas: HTMLCanvasElement,
   clientX: number,
   clientY: number
 ): string | null {
-  const box = img.getBoundingClientRect()
-  const scale = Math.min(
-    box.width / img.naturalWidth,
-    box.height / img.naturalHeight
-  )
-  const renderedWidth = img.naturalWidth * scale
-  const renderedHeight = img.naturalHeight * scale
+  const box = canvas.getBoundingClientRect()
+  const scale = Math.min(box.width / canvas.width, box.height / canvas.height)
+  const renderedWidth = canvas.width * scale
+  const renderedHeight = canvas.height * scale
   const localX = clientX - box.left - (box.width - renderedWidth) / 2
   const localY = clientY - box.top - (box.height - renderedHeight) / 2
   if (localX < 0 || localY < 0 || localX > renderedWidth || localY > renderedHeight) {
     return null
   }
 
-  const canvas = document.createElement("canvas")
-  canvas.width = img.naturalWidth
-  canvas.height = img.naturalHeight
   const ctx = canvas.getContext("2d")
   if (!ctx) return null
-  ctx.drawImage(img, 0, 0)
   const [r, g, b] = ctx.getImageData(
-    Math.min(img.naturalWidth - 1, Math.floor(localX / scale)),
-    Math.min(img.naturalHeight - 1, Math.floor(localY / scale)),
+    Math.min(canvas.width - 1, Math.floor(localX / scale)),
+    Math.min(canvas.height - 1, Math.floor(localY / scale)),
     1,
     1
   ).data

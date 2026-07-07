@@ -122,30 +122,42 @@ before/after transform).
 For a tool's main content area — the bordered, centered box that shows the
 picked file (a canvas, an `<img>`, or a status placeholder) — use the shared
 `PreviewCard` component (`components/preview-card.tsx`) instead of
-hand-rolling a `Card` plus a centering/checkerboard wrapper div. It covers
-the two shapes every image/canvas tool needs:
+hand-rolling a `Card` plus a centering/checkerboard wrapper div:
 
 ```tsx
 import { PreviewCard } from "@/components/preview-card"
 
-// One or more canvases (Image Blur, Image Crop, Image Rotate) — pass a ref
-// and any extra canvas props/className per entry instead of writing the
-// <canvas> yourself. Two entries stack on top of each other (e.g. a base
-// image canvas plus a separate selection-overlay canvas).
 <PreviewCard
+  fill
   checkerboard
+  title="Converted"
   canvases={[
-    { ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" },
+    activeJob.result
+      // An image layer (`kind: "image"`) — e.g. a converted result that's
+      // already a decoded blob URL and doesn't need a canvas draw at all.
+      ? { kind: "image", src: activeJob.result.url, alt: activeJob.result.name }
+      // Or a status layer (`kind: "status"`) — a centered icon/message for
+      // the loading/error/idle states, so the whole preview (picked file
+      // *and* its fallback) is one data-driven `canvases` array with no
+      // JSX children at all.
+      : activeJob.status === "converting"
+        ? { kind: "status", icon: Loading03Icon, spin: true }
+        : { kind: "status", message: "Pick a format and hit Convert" },
   ]}
 />
-
-// Arbitrary swapped content (Image Converter's Original/Converted panes —
-// an <img>, a spinner, or an error message depending on job state) — pass
-// children instead; canvases and children are mutually exclusive.
-<PreviewCard fill checkerboard>
-  {activeJob.result ? <img src={activeJob.result.url} ... /> : <Spinner />}
-</PreviewCard>
 ```
+
+`canvases` filters falsy entries — same convention as `footer.actions` — so
+inline a layer's own readiness check (`condition && {...}`) instead of
+reaching for `children`. Multiple truthy entries stack on top of each other
+(e.g. a base image canvas plus a separate selection-overlay canvas), each
+positioned/sized identically so they line up. `children` still exists as an
+escape hatch for content none of `canvas`/`image`/`status` fits — it's shown
+only once every `canvases` entry resolves falsy. See Image Converter: its
+Original pane is a canvas layer (so its color-picker click can sample
+pixels) with a status layer for the invalid-file case, and its Converted
+pane switches between an image layer and a status layer for
+converting/error/idle — no `children` on either.
 
 Pass `fill` for a viewport that grows to the available height (Image Blur's
 pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed
@@ -153,6 +165,10 @@ pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed
 `checkerboard` so PNG/WebP transparency (and the effect of a background
 colour) is visible against it. `viewportRef` exposes the inner viewport node
 for wheel/gesture listeners or fit-to-screen math (see Image Blur's zoom/pan).
+Pass `title` for a muted label above the box (e.g. "Original", "Converted")
+instead of hand-rolling a `<span>` above the `PreviewCard` — it accepts any
+`ReactNode`, so a dynamic hint (Image Converter's color-picker prompt) works
+too.
 
 For tools that let the user select a rectangular region on a canvas (crop,
 blur), use the shared `useRectSelection` hook (`hooks/use-rect-selection.ts`)
