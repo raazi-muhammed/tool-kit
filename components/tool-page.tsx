@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -52,7 +53,6 @@ type FooterSlider = {
   min: number
   max: number
   step?: number
-  valueLabel?: string
 }
 
 type FooterAction = {
@@ -192,11 +192,23 @@ export function ToolPage({
                 min={footer.slider.min}
                 max={footer.slider.max}
                 step={footer.slider.step ?? 1}
-                className="max-w-48"
+                className="min-w-32 max-w-32"
               />
-              <span className="w-8 text-right text-sm text-muted-foreground">
-                {footer.slider.valueLabel ?? footer.slider.value}
-              </span>
+              <Input
+                type="number"
+                value={footer.slider.value}
+                onChange={(e) => {
+                  const parsed = Number(e.target.value)
+                  if (!Number.isFinite(parsed)) return
+                  footer.slider!.onValueChange(
+                    Math.min(footer.slider!.max, Math.max(footer.slider!.min, parsed))
+                  )
+                }}
+                min={footer.slider.min}
+                max={footer.slider.max}
+                step={footer.slider.step ?? 1}
+                className="h-8 w-14 px-2 text-right"
+              />
             </div>
           )}
 

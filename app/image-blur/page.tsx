@@ -418,7 +418,7 @@ export default function ImageBlurPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             <JobStrip
               jobs={jobs}
               activeId={activeId}
@@ -426,10 +426,10 @@ export default function ImageBlurPage() {
               onRemove={removeJob}
             />
 
-            <Card className="overflow-hidden p-2">
+            <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
               <div
                 ref={viewportRef}
-                className="relative h-[60vh] w-full overflow-hidden rounded-md"
+                className="relative min-h-[60vh] w-full flex-1 overflow-hidden rounded-md"
               >
                 <canvas
                   ref={displayCanvasRef}
