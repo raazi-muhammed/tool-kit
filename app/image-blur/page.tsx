@@ -429,9 +429,7 @@ export default function ImageBlurPage() {
             <PreviewCard
               fill
               viewportRef={viewportRef}
-              canvases={[
-                { ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" },
-              ]}
+              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
             />
           </div>
         ) : null}

@@ -37,17 +37,23 @@ type PreviewStatusLayer = {
   message?: ReactNode
 }
 
-// A layer to render inside the viewport. Multiple entries stack on top of
-// each other (e.g. a base image canvas plus a separate selection-overlay
-// canvas), each positioned/sized identically so they line up. Falsy entries
-// are filtered — same convention as `ToolPage`'s `footer.actions` — so a
-// tool can inline its own loading/error/idle state as `condition && {...}`
-// right alongside the real layer instead of reaching for `children`.
 export type PreviewLayer = PreviewCanvasLayer | PreviewImageLayer | PreviewStatusLayer
+// A layer, or nothing to render this pass — e.g. `activeJob.result && {...}`.
+type PreviewLayerInput = PreviewLayer | false | null | undefined
 
 type PreviewCardProps = PreviewCardBaseProps & {
-  canvases?: (PreviewLayer | false | null | undefined)[]
-  /** Shown instead, once `canvases` has no truthy layers left after filtering — e.g. a spinner, an error message, or an empty-state placeholder. */
+  /**
+   * What to render inside the viewport: a single layer (the common case —
+   * a canvas, an image, or a status placeholder), or an array of layers
+   * that stack on top of each other, positioned/sized identically so they
+   * line up (e.g. a base image canvas plus a separate selection-overlay
+   * canvas). Either form may be falsy — same convention as `ToolPage`'s
+   * `footer.actions` — so a tool can inline its own loading/error/idle
+   * state as `condition ? {...} : {...}` right alongside the real layer
+   * instead of reaching for `children`.
+   */
+  layer?: PreviewLayerInput | PreviewLayerInput[]
+  /** Shown instead, once `layer` has no truthy layers left after filtering — e.g. a spinner, an error message, or an empty-state placeholder. */
   children?: ReactNode
 }
 
@@ -66,10 +72,12 @@ export function PreviewCard({
   fill,
   viewportRef,
   className,
-  canvases,
+  layer,
   children,
 }: PreviewCardProps) {
-  const layers = canvases?.filter((layer): layer is PreviewLayer => !!layer) ?? []
+  const layers = (Array.isArray(layer) ? layer : [layer]).filter(
+    (entry): entry is PreviewLayer => !!entry
+  )
   const stacked = layers.length > 1
 
   function layerClassName(override?: string) {
@@ -96,30 +104,30 @@ export function PreviewCard({
         )}
       >
         {layers.length > 0
-          ? layers.map((layer, index) => {
-              if (layer.kind === "status") {
+          ? layers.map((entry, index) => {
+              if (entry.kind === "status") {
                 return (
                   <div
                     key={index}
                     className={cn(
                       "flex flex-col items-center gap-2 px-6 text-center",
-                      layer.tone === "destructive" ? "text-destructive" : "text-muted-foreground"
+                      entry.tone === "destructive" ? "text-destructive" : "text-muted-foreground"
                     )}
                   >
-                    {layer.icon && (
+                    {entry.icon && (
                       <HugeiconsIcon
-                        icon={layer.icon}
-                        className={cn("size-8", layer.spin && "animate-spin")}
+                        icon={entry.icon}
+                        className={cn("size-8", entry.spin && "animate-spin")}
                         aria-hidden
                       />
                     )}
-                    {layer.message && <p className="text-sm">{layer.message}</p>}
+                    {entry.message && <p className="text-sm">{entry.message}</p>}
                   </div>
                 )
               }
-              if (layer.kind === "image") {
+              if (entry.kind === "image") {
                 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                const { kind, className: imgClassName, ...imgProps } = layer
+                const { kind, className: imgClassName, ...imgProps } = entry
                 return (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -130,7 +138,7 @@ export function PreviewCard({
                   />
                 )
               }
-              const { ref, className: canvasClassName, ...canvasProps } = layer
+              const { ref, className: canvasClassName, ...canvasProps } = entry
               return (
                 <canvas
                   key={index}

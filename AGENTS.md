@@ -131,29 +131,30 @@ import { PreviewCard } from "@/components/preview-card"
   fill
   checkerboard
   title="Converted"
-  canvases={[
+  layer={
     activeJob.result
       // An image layer (`kind: "image"`) — e.g. a converted result that's
       // already a decoded blob URL and doesn't need a canvas draw at all.
       ? { kind: "image", src: activeJob.result.url, alt: activeJob.result.name }
       // Or a status layer (`kind: "status"`) — a centered icon/message for
       // the loading/error/idle states, so the whole preview (picked file
-      // *and* its fallback) is one data-driven `canvases` array with no
-      // JSX children at all.
+      // *and* its fallback) is one data-driven `layer` with no JSX children
+      // at all.
       : activeJob.status === "converting"
         ? { kind: "status", icon: Loading03Icon, spin: true }
-        : { kind: "status", message: "Pick a format and hit Convert" },
-  ]}
+        : { kind: "status", message: "Pick a format and hit Convert" }
+  }
 />
 ```
 
-`canvases` filters falsy entries — same convention as `footer.actions` — so
-inline a layer's own readiness check (`condition && {...}`) instead of
-reaching for `children`. Multiple truthy entries stack on top of each other
-(e.g. a base image canvas plus a separate selection-overlay canvas), each
-positioned/sized identically so they line up. `children` still exists as an
-escape hatch for content none of `canvas`/`image`/`status` fits — it's shown
-only once every `canvases` entry resolves falsy. See Image Converter: its
+`layer` takes a single layer object (the common case) or an array of layers
+that stack on top of each other, positioned/sized identically so they line
+up (e.g. a base image canvas plus a separate selection-overlay canvas). It
+filters falsy values — same convention as `ToolPage`'s `footer.actions` —
+so inline a layer's own readiness check (`condition ? {...} : {...}`)
+instead of reaching for `children`. `children` still exists as an escape
+hatch for content none of `canvas`/`image`/`status` fits — it's shown only
+once `layer` resolves to no truthy layers. See Image Converter: its
 Original pane is a canvas layer (so its color-picker click can sample
 pixels) with a status layer for the invalid-file case, and its Converted
 pane switches between an image layer and a status layer for
@@ -184,7 +185,7 @@ const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
   render: (rect) => renderDisplay(rect), // repaint with the selection (null = none)
 })
 
-<PreviewCard canvases={[{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }]} />
+<PreviewCard layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }} />
 ```
 
 The hook owns the selection state: read `pendingRect` to enable Apply-style

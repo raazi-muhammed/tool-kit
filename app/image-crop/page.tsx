@@ -323,9 +323,7 @@ export default function ImageCropPage() {
 
             <PreviewCard
               checkerboard
-              canvases={[
-                { ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" },
-              ]}
+              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
             />
           </div>
         )}

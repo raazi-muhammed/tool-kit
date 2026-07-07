@@ -203,7 +203,7 @@ export default function ImageRotatePage() {
               onRemove={removeJob}
             />
 
-            <PreviewCard canvases={[{ ref: displayCanvasRef }]} />
+            <PreviewCard layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

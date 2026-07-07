@@ -349,21 +349,22 @@ export default function ImageConverterPage() {
                     ? "Click on the image to pick a color · Esc to cancel"
                     : "Original"
                 }
-                canvases={[
+                layer={
                   activeJob.previewUrl
                     ? {
                         ref: originalCanvasRef,
                         onClick: pickColorFromCanvas,
                         className: `relative max-h-full max-w-full ${pickTarget ? "cursor-crosshair" : ""}`,
                       }
-                    : { kind: "status", icon: AlertCircleIcon, message: activeJob.error },
-                ]}
+                    : { kind: "status", icon: AlertCircleIcon, message: activeJob.error }
+                }
               />
+
               <PreviewCard
                 fill
                 checkerboard
                 title="Converted"
-                canvases={[
+                layer={
                   activeJob.result
                     ? {
                         kind: "image",
@@ -375,8 +376,8 @@ export default function ImageConverterPage() {
                       ? { kind: "status", icon: Loading03Icon, spin: true }
                       : activeJob.status === "error"
                         ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
-                        : { kind: "status", message: "Pick a format and hit Convert" },
-                ]}
+                        : { kind: "status", message: "Pick a format and hit Convert" }
+                }
               />
             </div>
           </div>
