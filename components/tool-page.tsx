@@ -17,6 +17,7 @@ import {
 import { useState } from "react"
 import type { ReactNode } from "react"
 
+import { ColorPicker } from "@/components/color-picker"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
@@ -53,6 +54,7 @@ type FooterSlider = {
   min: number
   max: number
   step?: number
+  disabled?: boolean
 }
 
 type FooterAction = {
@@ -70,7 +72,38 @@ type FooterDownload = {
   downloadAllDisabled?: boolean
 }
 
+// A color swatch that can also be "unset" (e.g. a transparent background) —
+// rendered as a ColorPicker plus a clear button, or a muted label when unset.
+type FooterColor = {
+  label: string
+  value: string | null
+  onChange: (value: string | null) => void
+  fallback: string
+  onPickFromImage?: () => void
+  nullLabel?: string
+  clearLabel?: string
+  clearIcon?: IconSvgElement
+}
+
+// A pressable toggle (e.g. "Remove background") that reveals its own color
+// picker and/or strength slider only while pressed.
+type FooterToggle = {
+  label: string
+  icon: IconSvgElement
+  pressed: boolean
+  onPressedChange: (pressed: boolean) => void
+  color?: {
+    label: string
+    value: string
+    onChange: (value: string) => void
+    onPickFromImage?: () => void
+  }
+  slider?: FooterSlider
+}
+
 type Footer = {
+  color?: FooterColor
+  toggle?: FooterToggle
   zoom?: FooterZoom
   slider?: FooterSlider
   actions?: (FooterAction | false | null | undefined)[]
@@ -109,7 +142,7 @@ export function ToolPage({
   }
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
+    <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
       <PageBreadcrumb page={page} icon={icon} />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -156,6 +189,69 @@ export function ToolPage({
 
       {footer && (
         <div className="flex flex-wrap items-center gap-4">
+          {footer.color && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{footer.color.label}</span>
+              <ColorPicker
+                value={footer.color.value ?? footer.color.fallback}
+                onChange={(value) => footer.color!.onChange(value)}
+                label={footer.color.label}
+                onPickFromImage={footer.color.onPickFromImage}
+              />
+              {footer.color.value ? (
+                <Button variant="ghost" onClick={() => footer.color!.onChange(null)}>
+                  {footer.color.clearIcon && (
+                    <HugeiconsIcon icon={footer.color.clearIcon} aria-hidden />
+                  )}
+                  {footer.color.clearLabel ?? "Clear"}
+                </Button>
+              ) : (
+                footer.color.nullLabel && (
+                  <span className="text-sm text-muted-foreground">{footer.color.nullLabel}</span>
+                )
+              )}
+            </div>
+          )}
+
+          {footer.toggle && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant={footer.toggle.pressed ? "secondary" : "outline"}
+                aria-pressed={footer.toggle.pressed}
+                onClick={() => footer.toggle!.onPressedChange(!footer.toggle!.pressed)}
+              >
+                <HugeiconsIcon icon={footer.toggle.icon} aria-hidden />
+                {footer.toggle.label}
+              </Button>
+              {footer.toggle.pressed && footer.toggle.color && (
+                <ColorPicker
+                  value={footer.toggle.color.value}
+                  onChange={footer.toggle.color.onChange}
+                  label={footer.toggle.color.label}
+                  onPickFromImage={footer.toggle.color.onPickFromImage}
+                />
+              )}
+              {footer.toggle.pressed && footer.toggle.slider && (
+                <>
+                  <span className="text-sm text-muted-foreground">
+                    {footer.toggle.slider.label}
+                  </span>
+                  <Slider
+                    value={[footer.toggle.slider.value]}
+                    onValueChange={([value]) => footer.toggle!.slider!.onValueChange(value)}
+                    min={footer.toggle.slider.min}
+                    max={footer.toggle.slider.max}
+                    step={footer.toggle.slider.step ?? 1}
+                    className="min-w-24 max-w-32"
+                  />
+                  <span className="w-8 text-right text-sm text-muted-foreground">
+                    {footer.toggle.slider.value}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
           {footer.zoom && (
             <div className="flex items-center gap-1">
               <Button
@@ -192,6 +288,7 @@ export function ToolPage({
                 min={footer.slider.min}
                 max={footer.slider.max}
                 step={footer.slider.step ?? 1}
+                disabled={footer.slider.disabled}
                 className="min-w-32 max-w-32"
               />
               <Input
@@ -207,6 +304,7 @@ export function ToolPage({
                 min={footer.slider.min}
                 max={footer.slider.max}
                 step={footer.slider.step ?? 1}
+                disabled={footer.slider.disabled}
                 className="h-8 w-14 px-2 text-right"
               />
             </div>

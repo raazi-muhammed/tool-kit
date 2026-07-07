@@ -4,30 +4,18 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
-  ArrowDown01Icon,
   Cancel01Icon,
   CloudUploadIcon,
-  Download04Icon,
   EraserAutoIcon,
   Image01Icon,
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { ColorPicker } from "@/components/color-picker"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import { Card } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Slider } from "@/components/ui/slider"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { removeBackgroundColor, sampleImageColorAtPoint } from "@/lib/canvas"
@@ -266,10 +254,69 @@ export default function ImageConverterPage() {
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        jobs.length > 0
+          ? {
+              color: anyPng
+                ? {
+                    label: "Background",
+                    value: bgColor,
+                    onChange: setBgColor,
+                    fallback: "#ffffff",
+                    onPickFromImage: () => setPickTarget("bg"),
+                    nullLabel: "transparent",
+                    clearLabel: "Transparent",
+                    clearIcon: Cancel01Icon,
+                  }
+                : undefined,
+              toggle: supportsAlpha
+                ? {
+                    label: "Remove background",
+                    icon: EraserAutoIcon,
+                    pressed: removeBg,
+                    onPressedChange: setRemoveBg,
+                    color: {
+                      label: "Background color to remove",
+                      value: keyColor,
+                      onChange: setKeyColor,
+                      onPickFromImage: () => setPickTarget("key"),
+                    },
+                    slider: {
+                      label: "Tolerance",
+                      value: tolerance,
+                      onValueChange: setTolerance,
+                      min: 0,
+                      max: 100,
+                    },
+                  }
+                : undefined,
+              slider:
+                format === "jpeg" || format === "webp"
+                  ? {
+                      label: "Quality",
+                      value: quality,
+                      onValueChange: setQuality,
+                      min: 0,
+                      max: 100,
+                      disabled: anyBusy,
+                    }
+                  : undefined,
+              actions: [
+                { label: "Convert", icon: ArrowDataTransferHorizontalIcon, onClick: convert, disabled: anyBusy },
+              ],
+              download: {
+                onDownload: downloadActive,
+                disabled: !activeJob?.result,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.result),
+              },
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             <JobStrip
               jobs={jobs}
               activeId={activeId}
@@ -278,16 +325,16 @@ export default function ImageConverterPage() {
             />
 
             {/* Original (left) and converted (right) preview, side by side. */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-2">
+            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+              <div className="flex min-h-0 flex-col gap-2">
                 <span className="text-sm text-muted-foreground">
                   {pickTarget
                     ? "Click on the image to pick a color · Esc to cancel"
                     : "Original"}
                 </span>
-                <Card className="overflow-hidden p-2">
+                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
                   <div
-                    className={`flex h-[60vh] items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
+                    className={`flex min-h-[60vh] flex-1 items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
                   >
                     {activeJob.previewUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -307,11 +354,11 @@ export default function ImageConverterPage() {
                 </Card>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex min-h-0 flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Converted</span>
-                <Card className="overflow-hidden p-2">
+                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
                   <div
-                    className={`flex h-[60vh] items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
+                    className={`flex min-h-[60vh] flex-1 items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
                   >
                     {activeJob.status === "converting" ? (
                       <HugeiconsIcon
@@ -355,120 +402,6 @@ export default function ImageConverterPage() {
           hidden={jobs.length > 0}
           onFiles={addFiles}
         />
-
-        {/* Background colour (PNG sources only), background removal
-            (PNG/WebP targets only), quality (JPEG/WebP only), download, and
-            the explicit Convert trigger. */}
-        {jobs.length > 0 && (
-          <div className="flex flex-wrap items-center gap-4">
-            {anyPng && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Background</span>
-                <ColorPicker
-                  value={bgColor ?? "#ffffff"}
-                  onChange={setBgColor}
-                  label="Background color"
-                  onPickFromImage={() => setPickTarget("bg")}
-                />
-                {bgColor ? (
-                  <Button variant="ghost" onClick={() => setBgColor(null)}>
-                    <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                    Transparent
-                  </Button>
-                ) : (
-                  <span className="text-sm text-muted-foreground">transparent</span>
-                )}
-              </div>
-            )}
-            {supportsAlpha && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={removeBg ? "secondary" : "outline"}
-                  aria-pressed={removeBg}
-                  onClick={() => setRemoveBg((v) => !v)}
-                >
-                  <HugeiconsIcon icon={EraserAutoIcon} aria-hidden />
-                  Remove background
-                </Button>
-                {removeBg && (
-                  <>
-                    <ColorPicker
-                      value={keyColor}
-                      onChange={setKeyColor}
-                      label="Background color to remove"
-                      onPickFromImage={() => setPickTarget("key")}
-                    />
-                    <span className="text-sm text-muted-foreground">Tolerance</span>
-                    <Slider
-                      value={[tolerance]}
-                      onValueChange={([value]) => setTolerance(value)}
-                      min={0}
-                      max={100}
-                      step={1}
-                      className="min-w-24 max-w-32"
-                    />
-                    <span className="w-8 text-right text-sm text-muted-foreground">
-                      {tolerance}
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-            {(format === "jpeg" || format === "webp") && (
-              <div className="flex flex-1 items-center gap-3">
-                <span className="text-sm text-muted-foreground">Quality</span>
-                <Slider
-                  value={[quality]}
-                  onValueChange={([value]) => setQuality(value)}
-                  min={0}
-                  max={100}
-                  step={1}
-                  disabled={anyBusy}
-                  className="max-w-48"
-                />
-                <span className="w-8 text-right text-sm text-muted-foreground">{quality}</span>
-              </div>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              <ButtonGroup>
-                <Button
-                  variant="secondary"
-                  onClick={downloadActive}
-                  disabled={!activeJob?.result}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
-                {jobs.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        aria-label="More download options"
-                      >
-                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={downloadAll}
-                        disabled={!jobs.some((job) => job.result)}
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download all
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </ButtonGroup>
-              <Button onClick={convert} disabled={anyBusy}>
-                <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
-                Convert
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
     </ToolPage>
   )
