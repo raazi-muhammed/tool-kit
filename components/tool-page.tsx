@@ -101,9 +101,23 @@ type FooterToggle = {
   slider?: FooterSlider
 }
 
+// A single labeled text/number/password field (e.g. a resize width, a PDF
+// password) — rendered label-above-input, matching the app's form fields.
+type FooterInput = {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  type?: "text" | "number" | "password"
+  disabled?: boolean
+  min?: number
+  className?: string
+  onEnter?: () => void
+}
+
 type Footer = {
   color?: FooterColor
   toggle?: FooterToggle
+  inputs?: FooterInput[]
   zoom?: FooterZoom
   slider?: FooterSlider
   actions?: (FooterAction | false | null | undefined)[]
@@ -251,6 +265,28 @@ export function ToolPage({
               )}
             </div>
           )}
+
+          {footer.inputs?.map((input, index) => (
+            <div key={index} className="flex flex-col gap-1.5">
+              <span className="text-sm text-muted-foreground">{input.label}</span>
+              <Input
+                type={input.type ?? "text"}
+                min={input.min}
+                value={input.value}
+                onChange={(e) => input.onChange(e.target.value)}
+                disabled={input.disabled}
+                autoComplete="off"
+                onKeyDown={
+                  input.onEnter
+                    ? (e) => {
+                        if (e.key === "Enter") input.onEnter!()
+                      }
+                    : undefined
+                }
+                className={input.className ?? "w-28"}
+              />
+            </div>
+          ))}
 
           {footer.zoom && (
             <div className="flex items-center gap-1">

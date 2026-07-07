@@ -1,10 +1,7 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowDown01Icon,
   CloudUploadIcon,
-  Download04Icon,
   ImageRotationClockwiseIcon,
   RotateCcwSquareIcon,
   RotateCwSquareIcon,
@@ -14,15 +11,7 @@ import { useEffect, useRef, useState } from "react"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import { Card } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { rotateCanvas } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
@@ -175,6 +164,34 @@ export default function ImageRotatePage() {
       icon={ImageRotationClockwiseIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        activeJob
+          ? {
+              actions: [
+                { label: "Rotate left", icon: RotateCcwSquareIcon, onClick: () => rotate(-90) },
+                { label: "Rotate right", icon: RotateCwSquareIcon, onClick: () => rotate(90) },
+                jobs.length > 1 && {
+                  label: "Rotate all left",
+                  icon: RotateCcwSquareIcon,
+                  onClick: () => rotateAll(-90),
+                  variant: "outline",
+                },
+                jobs.length > 1 && {
+                  label: "Rotate all right",
+                  icon: RotateCwSquareIcon,
+                  onClick: () => rotateAll(90),
+                  variant: "outline",
+                },
+              ],
+              download: {
+                onDownload: download,
+                disabled: activeJob.rotation === 0,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.rotation !== 0),
+              },
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
@@ -194,68 +211,6 @@ export default function ImageRotatePage() {
                 />
               </div>
             </Card>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Button onClick={() => rotate(-90)}>
-                  <HugeiconsIcon icon={RotateCcwSquareIcon} aria-hidden />
-                  Rotate left
-                </Button>
-                <Button onClick={() => rotate(90)}>
-                  <HugeiconsIcon icon={RotateCwSquareIcon} aria-hidden />
-                  Rotate right
-                </Button>
-                <span className="w-12 text-center text-sm text-muted-foreground">
-                  {activeJob.rotation}°
-                </span>
-              </div>
-
-              {jobs.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => rotateAll(-90)}>
-                    <HugeiconsIcon icon={RotateCcwSquareIcon} aria-hidden />
-                    Rotate all left
-                  </Button>
-                  <Button variant="outline" onClick={() => rotateAll(90)}>
-                    <HugeiconsIcon icon={RotateCwSquareIcon} aria-hidden />
-                    Rotate all right
-                  </Button>
-                </div>
-              )}
-
-              <ButtonGroup className="ml-auto">
-                <Button
-                  variant="secondary"
-                  onClick={download}
-                  disabled={activeJob.rotation === 0}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
-                {jobs.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        aria-label="More download options"
-                      >
-                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={downloadAll}
-                        disabled={!jobs.some((job) => job.rotation !== 0)}
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download all
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </ButtonGroup>
-            </div>
           </div>
         )}
 

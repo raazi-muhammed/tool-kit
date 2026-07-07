@@ -87,6 +87,29 @@ selection" only while a selection is pending — are just `condition && {...}`);
 `download` renders the Download button and, only when `onDownloadAll` is set,
 its "Download all" dropdown. See `app/image-blur/page.tsx`.
 
+The footer also has config primitives for a few other recurring controls —
+still config objects, never JSX, so `ToolPage` renders them itself:
+
+- `color` — a settable/clearable color swatch (e.g. a background fill for
+  transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
+  clearLabel?, clearIcon?, onPickFromImage? }`. `value: null` shows `nullLabel`
+  as muted text instead of the clear button. See `app/image-converter/page.tsx`
+  and `app/image-crop/page.tsx`.
+- `toggle` — a pressable button (e.g. "Remove background") that reveals its
+  own nested `color` and/or `slider` only while pressed: `{ label, icon,
+  pressed, onPressedChange, color?, slider? }`. See
+  `app/image-converter/page.tsx`.
+- `inputs` — an array of labeled text/number/password fields rendered
+  label-above-input (e.g. resize width/height, a PDF password): `{ label,
+  value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. See
+  `app/image-resize/page.tsx` and `app/pdf-unlock/page.tsx`.
+
+Render order in the footer row is `color`, `toggle`, `inputs`, `zoom`,
+`slider`, then `actions`/`download` right-aligned together. Don't add a new
+primitive for a one-off control — reuse `actions` (e.g. an icon+label toggle
+button computed from page state, like Image Resize's aspect-ratio lock) unless
+the control is genuinely reusable across tools.
+
 ## Copy
 
 Never use the `→` arrow character in tool names, page copy, or code comments

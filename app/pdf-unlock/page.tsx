@@ -1,7 +1,6 @@
 "use client"
 
 import { PDFDocument } from "@cantoo/pdf-lib"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   CloudUploadIcon,
   Download04Icon,
@@ -13,8 +12,6 @@ import { useRef, useState } from "react"
 import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
@@ -140,6 +137,32 @@ export default function PdfUnlockPage() {
       icon={FileUnlockedIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        jobs.length > 0
+          ? {
+              inputs: [
+                {
+                  label: "Password",
+                  type: "password",
+                  value: password,
+                  onChange: setPassword,
+                  disabled: anyBusy,
+                  className: "w-56",
+                  onEnter: unlock,
+                },
+              ],
+              actions: [
+                jobs.some((job) => job.result) && {
+                  label: "Download all",
+                  icon: Download04Icon,
+                  onClick: downloadAll,
+                  variant: "outline",
+                },
+                { label: "Unlock", icon: FileUnlockedIcon, onClick: unlock, disabled: anyBusy },
+              ],
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {jobs.map((job) => (
@@ -184,37 +207,6 @@ export default function PdfUnlockPage() {
           hidden={jobs.length > 0}
           onFiles={addFiles}
         />
-
-        {jobs.length > 0 && (
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm text-muted-foreground">Password</span>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={anyBusy}
-                autoComplete="off"
-                className="w-56"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") unlock()
-                }}
-              />
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {jobs.some((job) => job.result) && (
-                <Button variant="outline" onClick={downloadAll}>
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download all
-                </Button>
-              )}
-              <Button onClick={unlock} disabled={anyBusy}>
-                <HugeiconsIcon icon={FileUnlockedIcon} aria-hidden />
-                Unlock
-              </Button>
-            </div>
-          </div>
-        )}
 
         {formError && <p className="text-sm text-destructive">{formError}</p>}
       </div>
