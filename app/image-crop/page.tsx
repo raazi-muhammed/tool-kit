@@ -15,8 +15,8 @@ import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Card } from "@/components/ui/card"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
@@ -321,19 +321,12 @@ export default function ImageCropPage() {
               onRemove={removeJob}
             />
 
-            <Card className="overflow-hidden p-2">
-              <div className="flex max-h-[60vh] items-center justify-center">
-                {/* Checkerboard behind the canvas so PNG transparency (and
-                    the effect of the background colour) is visible. */}
-                <div className="max-h-full rounded-md bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]">
-                  <canvas
-                    ref={displayCanvasRef}
-                    {...selectionHandlers}
-                    className="block max-h-[calc(60vh-1rem)] max-w-full cursor-crosshair touch-none select-none"
-                  />
-                </div>
-              </div>
-            </Card>
+            <PreviewCard
+              checkerboard
+              canvases={[
+                { ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" },
+              ]}
+            />
           </div>
         )}
 

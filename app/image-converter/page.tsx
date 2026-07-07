@@ -14,8 +14,8 @@ import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Card } from "@/components/ui/card"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { removeBackgroundColor, sampleImageColorAtPoint } from "@/lib/canvas"
@@ -24,11 +24,6 @@ import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
 const SUPPORTED_LABEL = "JPG, PNG, WebP, GIF, BMP, SVG, ICO, AVIF, TIFF"
-
-// Checkerboard behind the previews so PNG transparency (and the effect of
-// the background colour) is visible.
-const CHECKERBOARD =
-  "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
 
 type Format = "png" | "jpeg" | "webp" | "bmp"
 type Status = "idle" | "converting" | "done" | "error"
@@ -332,59 +327,51 @@ export default function ImageConverterPage() {
                     ? "Click on the image to pick a color · Esc to cancel"
                     : "Original"}
                 </span>
-                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
-                  <div
-                    className={`flex min-h-[60vh] flex-1 items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
-                  >
-                    {activeJob.previewUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={activeJob.previewUrl}
-                        alt={activeJob.name}
-                        onClick={pickColorFromImage}
-                        className={`max-h-full max-w-full object-contain ${pickTarget ? "cursor-crosshair" : ""}`}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-2 px-6 text-center text-muted-foreground">
-                        <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
-                        <p className="text-sm">{activeJob.error}</p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
+                <PreviewCard fill checkerboard>
+                  {activeJob.previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={activeJob.previewUrl}
+                      alt={activeJob.name}
+                      onClick={pickColorFromImage}
+                      className={`max-h-full max-w-full object-contain ${pickTarget ? "cursor-crosshair" : ""}`}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 px-6 text-center text-muted-foreground">
+                      <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
+                      <p className="text-sm">{activeJob.error}</p>
+                    </div>
+                  )}
+                </PreviewCard>
               </div>
 
               <div className="flex min-h-0 flex-col gap-2">
                 <span className="text-sm text-muted-foreground">Converted</span>
-                <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
-                  <div
-                    className={`flex min-h-[60vh] flex-1 items-center justify-center overflow-hidden rounded-md ${CHECKERBOARD}`}
-                  >
-                    {activeJob.status === "converting" ? (
-                      <HugeiconsIcon
-                        icon={Loading03Icon}
-                        className="size-8 animate-spin text-muted-foreground"
-                        aria-hidden
-                      />
-                    ) : activeJob.status === "error" ? (
-                      <div className="flex flex-col items-center gap-2 px-6 text-center text-destructive">
-                        <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
-                        <p className="text-sm">{activeJob.error}</p>
-                      </div>
-                    ) : activeJob.result ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={activeJob.result.url}
-                        alt={activeJob.result.name}
-                        className="max-h-full max-w-full object-contain"
-                      />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Pick a format and hit Convert
-                      </p>
-                    )}
-                  </div>
-                </Card>
+                <PreviewCard fill checkerboard>
+                  {activeJob.status === "converting" ? (
+                    <HugeiconsIcon
+                      icon={Loading03Icon}
+                      className="size-8 animate-spin text-muted-foreground"
+                      aria-hidden
+                    />
+                  ) : activeJob.status === "error" ? (
+                    <div className="flex flex-col items-center gap-2 px-6 text-center text-destructive">
+                      <HugeiconsIcon icon={AlertCircleIcon} className="size-8" aria-hidden />
+                      <p className="text-sm">{activeJob.error}</p>
+                    </div>
+                  ) : activeJob.result ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={activeJob.result.url}
+                      alt={activeJob.result.name}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Pick a format and hit Convert
+                    </p>
+                  )}
+                </PreviewCard>
               </div>
             </div>
           </div>

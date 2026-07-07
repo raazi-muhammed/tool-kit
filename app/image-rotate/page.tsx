@@ -10,8 +10,8 @@ import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Card } from "@/components/ui/card"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { rotateCanvas } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
@@ -203,14 +203,7 @@ export default function ImageRotatePage() {
               onRemove={removeJob}
             />
 
-            <Card className="overflow-hidden p-2">
-              <div className="flex max-h-[60vh] items-center justify-center">
-                <canvas
-                  ref={displayCanvasRef}
-                  className="block max-h-[60vh] max-w-full select-none"
-                />
-              </div>
-            </Card>
+            <PreviewCard canvases={[{ ref: displayCanvasRef }]} />
           </div>
         )}
 

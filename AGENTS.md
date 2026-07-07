@@ -117,7 +117,42 @@ Never use the `→` arrow character in tool names, page copy, or code comments
 `->` in code comments where an arrow is genuinely useful (e.g. describing a
 before/after transform).
 
-## Canvas rect selection
+## Preview surface
+
+For a tool's main content area — the bordered, centered box that shows the
+picked file (a canvas, an `<img>`, or a status placeholder) — use the shared
+`PreviewCard` component (`components/preview-card.tsx`) instead of
+hand-rolling a `Card` plus a centering/checkerboard wrapper div. It covers
+the two shapes every image/canvas tool needs:
+
+```tsx
+import { PreviewCard } from "@/components/preview-card"
+
+// One or more canvases (Image Blur, Image Crop, Image Rotate) — pass a ref
+// and any extra canvas props/className per entry instead of writing the
+// <canvas> yourself. Two entries stack on top of each other (e.g. a base
+// image canvas plus a separate selection-overlay canvas).
+<PreviewCard
+  checkerboard
+  canvases={[
+    { ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" },
+  ]}
+/>
+
+// Arbitrary swapped content (Image Converter's Original/Converted panes —
+// an <img>, a spinner, or an error message depending on job state) — pass
+// children instead; canvases and children are mutually exclusive.
+<PreviewCard fill checkerboard>
+  {activeJob.result ? <img src={activeJob.result.url} ... /> : <Spinner />}
+</PreviewCard>
+```
+
+Pass `fill` for a viewport that grows to the available height (Image Blur's
+pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed
+`max-h-[60vh]` centered preview (Image Crop, Image Rotate). Pass
+`checkerboard` so PNG/WebP transparency (and the effect of a background
+colour) is visible against it. `viewportRef` exposes the inner viewport node
+for wheel/gesture listeners or fit-to-screen math (see Image Blur's zoom/pan).
 
 For tools that let the user select a rectangular region on a canvas (crop,
 blur), use the shared `useRectSelection` hook (`hooks/use-rect-selection.ts`)
@@ -133,7 +168,7 @@ const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
   render: (rect) => renderDisplay(rect), // repaint with the selection (null = none)
 })
 
-<canvas ref={displayCanvasRef} {...selectionHandlers} className="… cursor-crosshair touch-none select-none" />
+<PreviewCard canvases={[{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }]} />
 ```
 
 The hook owns the selection state: read `pendingRect` to enable Apply-style

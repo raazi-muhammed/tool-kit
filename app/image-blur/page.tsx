@@ -10,8 +10,8 @@ import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Card } from "@/components/ui/card"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
@@ -426,18 +426,13 @@ export default function ImageBlurPage() {
               onRemove={removeJob}
             />
 
-            <Card className="flex min-h-0 flex-1 flex-col overflow-hidden p-2">
-              <div
-                ref={viewportRef}
-                className="relative min-h-[60vh] w-full flex-1 overflow-hidden rounded-md"
-              >
-                <canvas
-                  ref={displayCanvasRef}
-                  {...selectionHandlers}
-                  className="absolute top-0 left-0 origin-top-left cursor-crosshair touch-none select-none"
-                />
-              </div>
-            </Card>
+            <PreviewCard
+              fill
+              viewportRef={viewportRef}
+              canvases={[
+                { ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" },
+              ]}
+            />
           </div>
         ) : null}
 
