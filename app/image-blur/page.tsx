@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Slider } from "@/components/ui/slider"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
   blurRegion,
@@ -68,6 +69,16 @@ async function loadResource(file: File): Promise<HTMLCanvasElement> {
   }
 }
 
+function parseBlurSettings(
+  value: unknown
+): { blur: number; mode: BlurMode } | null {
+  if (typeof value !== "object" || value === null) return null
+  const { blur, mode } = value as Record<string, unknown>
+  if (typeof blur !== "number" || !Number.isFinite(blur)) return null
+  if (mode !== "gaussian" && mode !== "pixelate") return null
+  return { blur: Math.min(50, Math.max(1, blur)), mode }
+}
+
 export default function ImageBlurPage() {
   const {
     jobs,
@@ -92,8 +103,11 @@ export default function ImageBlurPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const [blur, setBlur] = useState(20)
-  const [mode, setMode] = useState<BlurMode>("gaussian")
+  const [{ blur, mode }, setBlurSettings] = usePersistedState(
+    "image-blur:settings",
+    { blur: 20, mode: "gaussian" as BlurMode },
+    parseBlurSettings
+  )
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -264,7 +278,6 @@ export default function ImageBlurPage() {
   function clear() {
     clearQueue()
     setError(null)
-    setBlur(20)
     clearSelection()
   }
 
@@ -346,12 +359,12 @@ export default function ImageBlurPage() {
   // pending, so the preview stays live. New values are passed explicitly —
   // the state in these closures is still the old one.
   function onBlurChange(value: number) {
-    setBlur(value)
+    setBlurSettings((prev) => ({ ...prev, blur: value }))
     if (pendingRect) renderDisplay(pendingRect, value)
   }
 
   function onModeChange(value: BlurMode) {
-    setMode(value)
+    setBlurSettings((prev) => ({ ...prev, mode: value }))
     if (pendingRect) renderDisplay(pendingRect, blur, value)
   }
 
