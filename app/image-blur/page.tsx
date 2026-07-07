@@ -1,32 +1,17 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowDown01Icon,
   BlurIcon,
   Cancel01Icon,
   CloudUploadIcon,
-  Download04Icon,
-  FitToScreenIcon,
   GridViewIcon,
-  ZoomInAreaIcon,
-  ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
 import { Card } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Slider } from "@/components/ui/slider"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
@@ -380,15 +365,56 @@ export default function ImageBlurPage() {
           { value: "pixelate", label: "Blocky", icon: GridViewIcon },
         ],
       }}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        activeJob
+          ? {
+              zoom: {
+                percent: zoomPct,
+                onZoomOut: () => zoomFromButton(0.8),
+                onZoomIn: () => zoomFromButton(1.25),
+                onFit: fitView,
+                zoomOutDisabled: zoomPct <= MIN_ZOOM * 100,
+                zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
+              },
+              slider: {
+                label: "Blur",
+                value: blur,
+                onValueChange: onBlurChange,
+                min: 1,
+                max: 50,
+              },
+              actions: [
+                pendingRect && {
+                  label: "Cancel selection",
+                  icon: Cancel01Icon,
+                  onClick: clearSelection,
+                  variant: "ghost",
+                },
+                {
+                  label: "Apply blur",
+                  icon: BlurIcon,
+                  onClick: applyBlur,
+                  disabled: !pendingRect,
+                },
+                jobs.length > 1 && {
+                  label: "Apply blur to all",
+                  icon: BlurIcon,
+                  onClick: applyBlurToAll,
+                  disabled: !pendingRect,
+                  variant: "outline",
+                },
+              ],
+              download: {
+                onDownload: download,
+                disabled: !activeJob.hasEdits,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.hasEdits),
+              },
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob ? (
@@ -412,101 +438,6 @@ export default function ImageBlurPage() {
                 />
               </div>
             </Card>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  onClick={() => zoomFromButton(0.8)}
-                  disabled={zoomPct <= MIN_ZOOM * 100}
-                  aria-label="Zoom out"
-                >
-                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-                </Button>
-                <span className="w-12 text-center text-sm text-muted-foreground">
-                  {zoomPct}%
-                </span>
-                <Button
-                  variant="ghost"
-                  onClick={() => zoomFromButton(1.25)}
-                  disabled={zoomPct >= MAX_ZOOM * 100}
-                  aria-label="Zoom in"
-                >
-                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-                </Button>
-                <Button variant="ghost" onClick={fitView} aria-label="Fit to screen">
-                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-                </Button>
-              </div>
-
-              <div className="flex flex-1 items-center gap-3">
-                <span className="text-sm text-muted-foreground">Blur</span>
-                <Slider
-                  value={[blur]}
-                  onValueChange={([value]) => onBlurChange(value)}
-                  min={1}
-                  max={50}
-                  step={1}
-                  className="max-w-48"
-                />
-                <span className="w-8 text-right text-sm text-muted-foreground">
-                  {blur}
-                </span>
-              </div>
-
-              {pendingRect && (
-                <Button variant="ghost" onClick={clearSelection}>
-                  <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                  Cancel selection
-                </Button>
-              )}
-              <Button onClick={applyBlur} disabled={!pendingRect}>
-                <HugeiconsIcon icon={BlurIcon} aria-hidden />
-                Apply blur
-              </Button>
-              {jobs.length > 1 && (
-                <Button
-                  variant="outline"
-                  onClick={applyBlurToAll}
-                  disabled={!pendingRect}
-                >
-                  <HugeiconsIcon icon={BlurIcon} aria-hidden />
-                  Apply blur to all
-                </Button>
-              )}
-              <ButtonGroup>
-                <Button
-                  variant="secondary"
-                  onClick={download}
-                  disabled={!activeJob.hasEdits}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
-                {jobs.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        aria-label="More download options"
-                      >
-                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={downloadAll}
-                        disabled={!jobs.some((job) => job.hasEdits)}
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download all
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </ButtonGroup>
-            </div>
           </div>
         ) : null}
 

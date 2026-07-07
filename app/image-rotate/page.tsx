@@ -173,14 +173,7 @@ export default function ImageRotatePage() {
     <ToolPage
       page="Image Rotate"
       icon={ImageRotationClockwiseIcon}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">

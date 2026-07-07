@@ -235,14 +235,7 @@ export default function ImageResizePage() {
     <ToolPage
       page="Image Resize"
       icon={Resize02Icon}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
     >
       <div className="flex flex-1 flex-col gap-4">

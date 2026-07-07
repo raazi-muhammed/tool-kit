@@ -57,6 +57,36 @@ use `segments` in the header as shown above — don't hand-roll it as a `Select`
 placed next to the dropzone. See `app/video-to-audio/page.tsx` and
 `app/image-converter/page.tsx`.
 
+For a tool's bottom control bar (zoom controls, a single strength/setting
+slider, the primary action button(s), and the Download button), pass the
+`footer` prop instead of hand-rolling that row inside `children` — like
+`segments`, it takes a config object, not JSX, so `ToolPage` renders the row
+(and its icons) itself:
+
+```tsx
+<ToolPage
+  page="Image Blur"
+  icon={BlurIcon}
+  footer={
+    activeJob && {
+      zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
+      slider: { label: "Blur", value: blur, onValueChange: onBlurChange, min: 1, max: 50 },
+      actions: [
+        pendingRect && { label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost" },
+        { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
+      ],
+      download: { onDownload: download, disabled: !activeJob.hasEdits, onDownloadAll: downloadAll },
+    }
+  }
+>
+```
+
+`zoom` and `slider` are each optional single-instance blocks; `actions` is an
+array (falsy entries are filtered, so conditional buttons — like "Cancel
+selection" only while a selection is pending — are just `condition && {...}`);
+`download` renders the Download button and, only when `onDownloadAll` is set,
+its "Download all" dropdown. See `app/image-blur/page.tsx`.
+
 ## Copy
 
 Never use the `→` arrow character in tool names, page copy, or code comments
@@ -224,27 +254,27 @@ receives the raw `FileList`; use `Array.from(fileList)` to iterate — see
 `app/image-converter/page.tsx`).
 
 For tools that keep the dropzone around after a file's been picked so the
-header's "Add file" button can still open the same picker (see the `actions`
-example above), don't unmount `Dropzone` — its hidden `<input>` needs to stay
-mounted for the ref to work. Instead render it unconditionally and pass
-`hidden` to hide just the card, and reach it via a `DropzoneHandle` ref:
+header's "Add file" button can still open the same picker, don't unmount
+`Dropzone` — its hidden `<input>` needs to stay mounted for the ref to work.
+Instead render it unconditionally and pass `hidden` to hide just the card, and
+reach it via a `DropzoneHandle` ref. Wire the button itself through
+`ToolPage`'s `onAddFile` prop rather than hand-rolling it in `actions` — every
+tool page that keeps a dropzone around does this identically, so `ToolPage`
+renders the button itself once `onAddFile` is set:
 
 ```tsx
 const dropzoneRef = useRef<DropzoneHandle>(null)
 
 <ToolPage
-  actions={file && (
-    <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-      <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-      Add file
-    </Button>
-  )}
+  onAddFile={file ? () => dropzoneRef.current?.open() : undefined}
   ...
 >
   <Dropzone ref={dropzoneRef} hidden={!!file} ... />
 ```
 
-See `app/image-resize/page.tsx` and `app/video-to-audio/page.tsx`.
+Reserve `actions` for buttons that aren't this pattern (e.g. the JSON Parser's
+Format/Minify buttons). See `app/image-resize/page.tsx` and
+`app/video-to-audio/page.tsx`.
 
 ## Overriding component default styles
 
