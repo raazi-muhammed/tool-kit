@@ -452,6 +452,35 @@ export function removeBackgroundColor(
   ctx.putImageData(imageData, 0, 0)
 }
 
+/**
+ * Bounding box of every pixel with non-zero alpha, in `canvas`'s own pixel
+ * space — used to trim fully-transparent margins. Returns null if every
+ * pixel is fully transparent (nothing to keep).
+ */
+export function findOpaqueBounds(canvas: HTMLCanvasElement): Rect | null {
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return null
+  const { width, height } = canvas
+  const data = ctx.getImageData(0, 0, width, height).data
+
+  let minX = width
+  let minY = height
+  let maxX = -1
+  let maxY = -1
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] === 0) continue
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+  }
+  if (maxX < minX || maxY < minY) return null
+
+  return { x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1 }
+}
+
 function rgbToHex(r: number, g: number, b: number): string {
   return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
 }
