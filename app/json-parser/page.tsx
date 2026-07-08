@@ -20,18 +20,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { JsonTree } from "@/components/json-tree"
 import { extractJsonSegment, safeParseJson } from "@/lib/json"
 
-const SAMPLE = JSON.stringify(
-  {
-    name: "tool-kit",
-    version: "0.0.1",
-    tools: ["json-parser"],
-    active: true,
-    meta: { author: "raazi", stars: 42, homepage: null },
-  },
-  null,
-  2,
-)
-
 export default function JsonParserPage() {
   const [raw, setRaw] = useState("")
 
@@ -71,24 +59,14 @@ export default function JsonParserPage() {
     }
   }
 
-  async function copy() {
-    await navigator.clipboard.writeText(raw)
-  }
-
   function clear() {
     setRaw("")
-  }
-
-  function loadSample() {
-    setRaw(SAMPLE)
   }
 
   return (
     <ToolPage
       page="JSON Parser"
       icon={BracesIcon}
-      onCopy={copy}
-      onLoadSample={loadSample}
       onClear={clear}
       actions={
         <>
