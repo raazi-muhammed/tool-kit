@@ -161,11 +161,24 @@ pane switches between an image layer and a status layer for
 converting/error/idle — no `children` on either.
 
 Pass `fill` for a viewport that grows to the available height (Image Blur's
-pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed
-`max-h-[60vh]` centered preview (Image Crop, Image Rotate). Pass
-`checkerboard` so PNG/WebP transparency (and the effect of a background
-colour) is visible against it. `viewportRef` exposes the inner viewport node
-for wheel/gesture listeners or fit-to-screen math (see Image Blur's zoom/pan).
+pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed,
+viewport-relative preview (Image Crop, Image Rotate) capped at
+`PreviewCard`'s own `MAX_HEIGHT` constant (`max-h-[calc(100dvh-220px)]`) —
+derived from, and documented alongside, the fixed chrome ToolPage typically
+stacks around it (padding, breadcrumb/toolbar/footer rows, gaps, the Card's
+own padding, a possible `JobStrip` row), so preview tools use the actual
+available space instead of an arbitrary `vh` guess. A page with a taller
+header than that (e.g. a wrapped toolbar) can raise the cap via `className`.
+Note that `fill` only avoids overflowing the viewport where there's JS logic
+actively constraining the rendered size to the available space (Image Blur's
+fit-to-screen zoom math; Image Converter's panes are typically small enough
+in practice) — without that, a `fill` layer's CSS-only `max-h-full` can't
+reliably bound a large canvas, since intermediate flex containers don't
+uniformly force a definite height, so the canvas renders at its native pixel
+size and pushes the page past the viewport. Pass `checkerboard` so PNG/WebP
+transparency (and the effect of a background colour) is visible against it.
+`viewportRef` exposes the inner viewport node for wheel/gesture listeners or
+fit-to-screen math (see Image Blur's zoom/pan).
 Pass `title` for a muted label above the box (e.g. "Original", "Converted")
 instead of hand-rolling a `<span>` above the `PreviewCard` — it accepts any
 `ReactNode`, so a dynamic hint (Image Converter's color-picker prompt) works
