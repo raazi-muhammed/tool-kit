@@ -87,6 +87,29 @@ selection" only while a selection is pending — are just `condition && {...}`);
 `download` renders the Download button and, only when `onDownloadAll` is set,
 its "Download all" dropdown. See `app/image-blur/page.tsx`.
 
+For a primary action that also has a "do this to every job" variant (e.g.
+Image Blur's "Apply blur" / "Apply blur to all", Image Crop's "Crop" / "Crop
+all"), give that `FooterAction` a `more: { label, icon, onClick, disabled? }`
+instead of adding a second button — `ToolPage` renders it as the same
+Download-style `ButtonGroup` + dropdown chevron, only once `more` is set (so
+gate it on the same `jobs.length > 1` check as `onDownloadAll`):
+
+```tsx
+actions: [
+  {
+    label: "Crop",
+    icon: CropIcon,
+    onClick: applyCrop,
+    disabled: !pendingRect,
+    more: jobs.length > 1 ? { label: "Crop all", icon: CropIcon, onClick: applyCropToAll, disabled: !pendingRect } : undefined,
+  },
+],
+```
+
+See `app/image-crop/page.tsx`, `app/image-trim/page.tsx`, and
+`app/image-rotate/page.tsx` (which gives each of "Rotate left"/"Rotate right"
+its own `more`).
+
 The footer also has config primitives for a few other recurring controls —
 still config objects, never JSX, so `ToolPage` renders them itself:
 
@@ -297,6 +320,30 @@ controls in `app/image-blur/page.tsx`). The smaller sizes still exist for
 places that aren't a `Button` at all — e.g. `TabsTrigger` sizing — but don't
 reach for them on a `Button`.
 
+## Tooltips
+
+For an icon-only control whose purpose isn't spelled out in visible text (the
+zoom in/out/fit buttons in a `footer.zoom`), wrap it in the shared
+`IconTooltip` component (`components/icon-tooltip.tsx`) instead of reaching
+for the shadcn `Tooltip`/`TooltipTrigger`/`TooltipContent` trio directly:
+
+```tsx
+import { IconTooltip } from "@/components/icon-tooltip"
+
+<IconTooltip label="Zoom in">
+  <Button variant="ghost" onClick={onZoomIn} aria-label="Zoom in">
+    <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+  </Button>
+</IconTooltip>
+```
+
+`TooltipProvider` is mounted once in `app/layout.tsx` wrapping the whole app
+— don't add another one on individual pages. `TooltipContent`
+(`components/ui/tooltip.tsx`) is pinned to a fixed dark background
+(`bg-neutral-900`/`text-neutral-50`) rather than the theme-following
+`bg-foreground`/`text-background`, so the tooltip doesn't flip to a light
+bubble in dark mode. See `components/tool-page.tsx`.
+
 ## File attachments
 
 To display a picked file, an in-progress job, an error, or a produced output,
@@ -392,3 +439,11 @@ fight against:
   default) for anything that should still look like a normal form input.
 
 See `components/ui/attachment.tsx` and `components/ui/textarea.tsx`.
+
+`DropdownMenuContent`'s default width (`w-(--radix-dropdown-menu-trigger-width)`)
+matches its trigger — fine for a full-width trigger, but when the trigger is
+an icon-only chevron button (the "more options" pattern below), the menu is
+squeezed to that same narrow width and its item label wraps to two lines.
+Since it's a plain utility (not a conditional one), overriding it via
+`className="w-max"` works normally through `cn`'s `tailwind-merge` — no
+variant needed. See the `more`/`download` dropdowns in `components/tool-page.tsx`.

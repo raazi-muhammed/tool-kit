@@ -296,13 +296,20 @@ export default function ImageCropPage() {
                   onClick: clearSelection,
                   variant: "ghost",
                 },
-                { label: "Crop", icon: CropIcon, onClick: applyCrop, disabled: !pendingRect },
-                jobs.length > 1 && {
-                  label: "Crop all",
+                {
+                  label: "Crop",
                   icon: CropIcon,
-                  onClick: applyCropToAll,
+                  onClick: applyCrop,
                   disabled: !pendingRect,
-                  variant: "outline",
+                  more:
+                    jobs.length > 1
+                      ? {
+                          label: "Crop all",
+                          icon: CropIcon,
+                          onClick: applyCropToAll,
+                          disabled: !pendingRect,
+                        }
+                      : undefined,
                 },
               ],
               download: {

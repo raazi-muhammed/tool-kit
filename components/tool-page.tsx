@@ -64,6 +64,15 @@ type FooterAction = {
   onClick: () => void
   disabled?: boolean
   variant?: "default" | "outline" | "ghost" | "secondary"
+  // A secondary "do this to every job" option (e.g. "Apply blur to all"),
+  // rendered as a Download-style ButtonGroup + dropdown chevron instead of a
+  // separate button.
+  more?: {
+    label: string
+    icon: IconSvgElement
+    onClick: () => void
+    disabled?: boolean
+  }
 }
 
 type FooterDownload = {
@@ -373,17 +382,50 @@ export function ToolPage({
           <div className="ml-auto flex flex-wrap items-center gap-4">
             {footer.actions
               ?.filter((action): action is FooterAction => !!action)
-              .map((action, index) => (
-                <Button
-                  key={index}
-                  variant={action.variant}
-                  onClick={action.onClick}
-                  disabled={action.disabled}
-                >
-                  <HugeiconsIcon icon={action.icon} aria-hidden />
-                  {action.label}
-                </Button>
-              ))}
+              .map((action, index) =>
+                action.more ? (
+                  <ButtonGroup key={index}>
+                    <Button
+                      variant={action.variant}
+                      onClick={action.onClick}
+                      disabled={action.disabled}
+                    >
+                      <HugeiconsIcon icon={action.icon} aria-hidden />
+                      {action.label}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant={action.variant}
+                          size="icon"
+                          aria-label={`More ${action.label.toLowerCase()} options`}
+                        >
+                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-max">
+                        <DropdownMenuItem
+                          onClick={action.more.onClick}
+                          disabled={action.more.disabled}
+                        >
+                          <HugeiconsIcon icon={action.more.icon} aria-hidden />
+                          {action.more.label}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </ButtonGroup>
+                ) : (
+                  <Button
+                    key={index}
+                    variant={action.variant}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                  >
+                    <HugeiconsIcon icon={action.icon} aria-hidden />
+                    {action.label}
+                  </Button>
+                )
+              )}
 
             {footer.download && (
               <ButtonGroup>
@@ -402,7 +444,7 @@ export function ToolPage({
                         <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="w-max">
                       <DropdownMenuItem
                         onClick={footer.download.onDownloadAll}
                         disabled={footer.download.downloadAllDisabled}
