@@ -18,6 +18,7 @@ import { useState } from "react"
 import type { ReactNode } from "react"
 
 import { ColorPicker } from "@/components/color-picker"
+import { IconTooltip } from "@/components/icon-tooltip"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
@@ -305,28 +306,34 @@ export function ToolPage({
 
           {footer.zoom && (
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                onClick={footer.zoom.onZoomOut}
-                disabled={footer.zoom.zoomOutDisabled}
-                aria-label="Zoom out"
-              >
-                <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-              </Button>
+              <IconTooltip label="Zoom out">
+                <Button
+                  variant="ghost"
+                  onClick={footer.zoom.onZoomOut}
+                  disabled={footer.zoom.zoomOutDisabled}
+                  aria-label="Zoom out"
+                >
+                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
               <span className="w-12 text-center text-sm text-muted-foreground">
                 {footer.zoom.percent}%
               </span>
-              <Button
-                variant="ghost"
-                onClick={footer.zoom.onZoomIn}
-                disabled={footer.zoom.zoomInDisabled}
-                aria-label="Zoom in"
-              >
-                <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-              </Button>
-              <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
-                <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-              </Button>
+              <IconTooltip label="Zoom in">
+                <Button
+                  variant="ghost"
+                  onClick={footer.zoom.onZoomIn}
+                  disabled={footer.zoom.zoomInDisabled}
+                  aria-label="Zoom in"
+                >
+                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
+              <IconTooltip label="Fit to screen">
+                <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
+                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
             </div>
           )}
 
