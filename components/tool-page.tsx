@@ -141,7 +141,7 @@ export function ToolPage({
   onCopy?: () => void
   onLoadSample?: () => void
   onAddFile?: () => void
-  onClear: () => void
+  onClear?: () => void
   segments?: Segments
   actions?: ReactNode
   footer?: Footer
@@ -192,10 +192,12 @@ export function ToolPage({
               Load sample
             </Button>
           )}
-          <Button variant="ghost" onClick={onClear}>
-            <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
-            Clear
-          </Button>
+          {onClear && (
+            <Button variant="ghost" onClick={onClear}>
+              <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
