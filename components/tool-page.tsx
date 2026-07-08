@@ -199,7 +199,7 @@ export function ToolPage({
             </Button>
           )}
           {onAddFile && (
-            <Button variant="outline" onClick={onAddFile}>
+            <Button variant="secondary" onClick={onAddFile}>
               <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
               Add file
             </Button>
