@@ -5,6 +5,7 @@ import {
   Cancel01Icon,
   CloudUploadIcon,
   GridViewIcon,
+  RemoveSquareIcon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
@@ -17,7 +18,9 @@ import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
   blurRegion,
+  canvasPointFromEvent,
   drawSelectionRect,
+  pointInRect,
   scaleRect,
   type BlurMode,
   type Rect,
@@ -90,17 +93,81 @@ export default function ImageBlurPage() {
   const [error, setError] = useState<string | null>(null)
   const [{ blur, mode }, setBlurSettings] = usePersistedState(
     "image-blur:settings",
-    { blur: 20, mode: "gaussian" as BlurMode },
+    { blur: 20, mode: "pixelate" as BlurMode },
     parseBlurSettings
   )
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
-    canvasRef: displayCanvasRef,
-    render: (rect) => renderDisplay(rect ?? undefined),
-  })
+  // Rectangles already drawn and left in place when a new one was started
+  // elsewhere — separate from the hook's own `pendingRect`, which is just the
+  // one currently being drawn/dragged. Mirrored into a ref so `renderDisplay`
+  // (called synchronously from inside `clearSelection`/`onDiscardPending`,
+  // before React re-renders) always sees the latest list instead of a stale
+  // closure over `rects` state.
+  const [rects, setRects] = useState<Rect[]>([])
+  const rectsRef = useRef<Rect[]>([])
+
+  const { pendingRect, clearSelection, selectRect, selectionHandlers } =
+    useRectSelection({
+      canvasRef: displayCanvasRef,
+      render: (rect) => renderDisplay(rect ?? undefined),
+      // Drawing a new rect elsewhere shouldn't erase the one already there —
+      // queue it instead of letting the hook discard it.
+      onDiscardPending: (rect) => {
+        rectsRef.current = [...rectsRef.current, rect]
+        setRects(rectsRef.current)
+      },
+    })
+
+  const totalRects = rects.length + (pendingRect ? 1 : 0)
+
+  function clearAllRects() {
+    rectsRef.current = []
+    setRects([])
+    clearSelection()
+  }
+
+  // Queued rects (unlike the hook's own `pendingRect`) aren't wired up for
+  // interaction — hand a click on one of them off to the hook instead of
+  // letting it start a fresh selection there, so any queued rect can be
+  // picked up and moved/resized, not just the most recently drawn one.
+  function onCanvasPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = displayCanvasRef.current
+    if (canvas && rectsRef.current.length > 0) {
+      const point = canvasPointFromEvent(canvas, e)
+      const onActiveRect =
+        pendingRect && pointInRect(point.x, point.y, pendingRect)
+      if (!onActiveRect) {
+        const index = rectsRef.current.findIndex((r) =>
+          pointInRect(point.x, point.y, r)
+        )
+        if (index !== -1) {
+          const rect = rectsRef.current[index]
+          const rest = rectsRef.current.filter((_, i) => i !== index)
+          const nextRects = pendingRect ? [...rest, pendingRect] : rest
+          rectsRef.current = nextRects
+          setRects(nextRects)
+          selectRect(rect, e)
+          return
+        }
+      }
+    }
+    selectionHandlers.onPointerDown(e)
+  }
+
+  // Layered on top of the hook's own hover-cursor logic (which only knows
+  // about `pendingRect`) so hovering a queued rect also previews as movable.
+  function onCanvasPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    selectionHandlers.onPointerMove(e)
+    const canvas = displayCanvasRef.current
+    if (!canvas) return
+    const point = canvasPointFromEvent(canvas, e)
+    if (rectsRef.current.some((r) => pointInRect(point.x, point.y, r))) {
+      canvas.style.cursor = "move"
+    }
+  }
 
   // Zoom/pan is pure CSS transform on the canvas inside a clipped viewport —
   // selection mapping is unaffected because getBoundingClientRect already
@@ -179,15 +246,14 @@ export default function ImageBlurPage() {
       display.height = base.height
     }
 
-    if (rect && rect.width > 0 && rect.height > 0) {
-      blurRegion(display, base, rect, blurPx, blurMode)
+    const allRects = rect ? [...rectsRef.current, rect] : rectsRef.current
+    if (allRects.length > 0) {
+      blurRegion(display, base, allRects, blurPx, blurMode)
     } else {
       ctx.drawImage(base, 0, 0)
     }
 
-    if (rect) {
-      drawSelectionRect(display, rect)
-    }
+    for (const r of allRects) drawSelectionRect(display, r)
   }
 
   // Paint + fit the visible canvas whenever the active job changes — it only
@@ -198,7 +264,8 @@ export default function ImageBlurPage() {
   // no-op.
   useEffect(() => {
     if (activeId == null) return
-    clearSelection()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    clearAllRects()
     renderDisplay()
     fitView()
 
@@ -263,6 +330,8 @@ export default function ImageBlurPage() {
   function clear() {
     clearQueue()
     setError(null)
+    rectsRef.current = []
+    setRects([])
     clearSelection()
   }
 
@@ -275,37 +344,42 @@ export default function ImageBlurPage() {
     )
   }
 
-  function blurJob(id: number, rect: Rect) {
+  function blurJob(id: number, targetRects: Rect[]) {
     const base = getResource(id)
     if (!base) return
     // Commit the blur into the base image so it becomes the new ground truth.
     const committed = document.createElement("canvas")
     committed.width = base.width
     committed.height = base.height
-    blurRegion(committed, base, rect, blur, mode)
+    blurRegion(committed, base, targetRects, blur, mode)
     setResource(id, committed)
     updateJob(id, { hasEdits: true })
   }
 
   function applyBlur() {
-    if (activeId == null || !pendingRect) return
-    blurJob(activeId, pendingRect)
-    clearSelection()
+    if (activeId == null || totalRects === 0) return
+    const allRects = pendingRect ? [...rects, pendingRect] : rects
+    blurJob(activeId, allRects)
+    clearAllRects()
   }
 
   // Applies the current selection to every queued image, scaled to each
   // image's own dimensions since they aren't necessarily the same size.
   function applyBlurToAll() {
-    if (activeId == null || !pendingRect) return
+    if (activeId == null || totalRects === 0) return
     const activeImage = getResource(activeId)
     if (!activeImage) return
+    const allRects = pendingRect ? [...rects, pendingRect] : rects
 
     jobs.forEach((job) => {
       const image = getResource(job.id)
       if (!image) return
-      blurJob(job.id, scaleRect(pendingRect, activeImage, image))
+      blurJob(
+        job.id,
+        allRects.map((rect) => scaleRect(rect, activeImage, image))
+      )
     })
-    clearSelection()
+    clearAllRects()
   }
 
   async function downloadJob(job: Job) {
@@ -345,12 +419,12 @@ export default function ImageBlurPage() {
   // the state in these closures is still the old one.
   function onBlurChange(value: number) {
     setBlurSettings((prev) => ({ ...prev, blur: value }))
-    if (pendingRect) renderDisplay(pendingRect, value)
+    if (totalRects > 0) renderDisplay(pendingRect ?? undefined, value)
   }
 
   function onModeChange(value: BlurMode) {
     setBlurSettings((prev) => ({ ...prev, mode: value }))
-    if (pendingRect) renderDisplay(pendingRect, blur, value)
+    if (totalRects > 0) renderDisplay(pendingRect ?? undefined, blur, value)
   }
 
   return (
@@ -361,8 +435,8 @@ export default function ImageBlurPage() {
         value: mode,
         onValueChange: (value) => onModeChange(value as BlurMode),
         options: [
-          { value: "gaussian", label: "Gaussian", icon: BlurIcon },
           { value: "pixelate", label: "Blocky", icon: GridViewIcon },
+          { value: "gaussian", label: "Gaussian", icon: BlurIcon },
         ],
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
@@ -387,22 +461,29 @@ export default function ImageBlurPage() {
               },
               actions: [
                 pendingRect && {
-                  label: "Cancel selection",
-                  icon: Cancel01Icon,
+                  label: "Delete rectangle",
+                  icon: RemoveSquareIcon,
                   onClick: clearSelection,
                   variant: "ghost",
                 },
+                rects.length > 0 && {
+                  label: "Clear all",
+                  icon: Cancel01Icon,
+                  onClick: clearAllRects,
+                  variant: "ghost",
+                },
                 {
-                  label: "Apply blur",
+                  label:
+                    totalRects > 1 ? `Apply blur (${totalRects})` : "Apply blur",
                   icon: BlurIcon,
                   onClick: applyBlur,
-                  disabled: !pendingRect,
+                  disabled: totalRects === 0,
                 },
                 jobs.length > 1 && {
                   label: "Apply blur to all",
                   icon: BlurIcon,
                   onClick: applyBlurToAll,
-                  disabled: !pendingRect,
+                  disabled: totalRects === 0,
                   variant: "outline",
                 },
               ],
@@ -429,7 +510,13 @@ export default function ImageBlurPage() {
             <PreviewCard
               fill
               viewportRef={viewportRef}
-              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
+              layer={{
+                ref: displayCanvasRef,
+                ...selectionHandlers,
+                onPointerDown: onCanvasPointerDown,
+                onPointerMove: onCanvasPointerMove,
+                className: "cursor-crosshair touch-none",
+              }}
             />
           </div>
         ) : null}

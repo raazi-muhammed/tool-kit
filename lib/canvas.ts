@@ -17,6 +17,23 @@ export function scaleRect(
   }
 }
 
+/**
+ * Convert a pointer event's client coordinates into `canvas`'s own pixel
+ * space, accounting for however it's scaled/transformed on screen (CSS
+ * size, zoom/pan transforms, etc. — `getBoundingClientRect` already reflects
+ * all of that).
+ */
+export function canvasPointFromEvent(
+  canvas: HTMLCanvasElement,
+  e: { clientX: number; clientY: number }
+): { x: number; y: number } {
+  const box = canvas.getBoundingClientRect()
+  return {
+    x: (e.clientX - box.left) * (canvas.width / box.width),
+    y: (e.clientY - box.top) * (canvas.height / box.height),
+  }
+}
+
 /** Normalize a drag from two arbitrary points into a rect with positive width/height. */
 export function rectFromPoints(
   x0: number,
@@ -368,22 +385,25 @@ export function rotateCanvas(
 export type BlurMode = "gaussian" | "pixelate"
 
 /**
- * Copy `source` onto `dest` and obscure just the given rect — with a Gaussian
- * blur or a blocky pixelate mosaic — by processing a full copy of the source
- * (so neighbouring pixels bleed in naturally at the edges) and clipping that
- * copy onto the destination.
+ * Copy `source` onto `dest` and obscure the given rect(s) — with a Gaussian
+ * blur or a blocky pixelate mosaic — by processing a single full-canvas blur
+ * of the source (so neighbouring pixels bleed in naturally at the edges) and
+ * clipping that copy onto the destination through the union of the rects.
  */
 export function blurRegion(
   dest: HTMLCanvasElement,
   source: HTMLCanvasElement,
-  rect: Rect,
+  rects: Rect | Rect[],
   blurPx: number,
   mode: BlurMode = "gaussian"
 ) {
   const destCtx = dest.getContext("2d")
   if (!destCtx) return
   destCtx.drawImage(source, 0, 0)
-  if (rect.width <= 0 || rect.height <= 0 || blurPx <= 0) return
+  const list = (Array.isArray(rects) ? rects : [rects]).filter(
+    (rect) => rect.width > 0 && rect.height > 0
+  )
+  if (list.length === 0 || blurPx <= 0) return
 
   const blurred =
     mode === "pixelate"
@@ -394,7 +414,7 @@ export function blurRegion(
 
   destCtx.save()
   destCtx.beginPath()
-  destCtx.rect(rect.x, rect.y, rect.width, rect.height)
+  for (const rect of list) destCtx.rect(rect.x, rect.y, rect.width, rect.height)
   destCtx.clip()
   destCtx.drawImage(blurred, 0, 0)
   destCtx.restore()
