@@ -160,12 +160,16 @@ pixels) with a status layer for the invalid-file case, and its Converted
 pane switches between an image layer and a status layer for
 converting/error/idle — no `children` on either.
 
-Pass `fill` for a viewport that grows to the available height (Image Blur's
-pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed
-`max-h-[60vh]` centered preview (Image Crop, Image Rotate). Pass
-`checkerboard` so PNG/WebP transparency (and the effect of a background
-colour) is visible against it. `viewportRef` exposes the inner viewport node
-for wheel/gesture listeners or fit-to-screen math (see Image Blur's zoom/pan).
+Pass `fill` for a viewport that grows to the available height; omit it for a
+fixed `max-h-[60vh]` centered preview (Image Rotate). Under `fill`, the layer
+defaults to absolute positioning for a JS-driven pan/zoom transform (Image
+Blur's canvas) — for a full-height preview that just centers and scales the
+image to fit, without pan/zoom, override the layer's `className` to `relative
+max-h-full max-w-full` instead (Image Crop, Image Converter's side-by-side
+panes). Pass `checkerboard` so PNG/WebP transparency (and the effect of a
+background colour) is visible against it. `viewportRef` exposes the inner
+viewport node for wheel/gesture listeners or fit-to-screen math (see Image
+Blur's zoom/pan).
 Pass `title` for a muted label above the box (e.g. "Original", "Converted")
 instead of hand-rolling a `<span>` above the `PreviewCard` — it accepts any
 `ReactNode`, so a dynamic hint (Image Converter's color-picker prompt) works
