@@ -246,7 +246,7 @@ export default function ImageTrimPage() {
               onRemove={removeJob}
             />
 
-            <PreviewCard checkerboard layer={{ ref: displayCanvasRef }} />
+            <PreviewCard checkerboard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

@@ -324,6 +324,7 @@ export default function ImageCropPage() {
             />
             <PreviewCard
               checkerboard
+              jobStrip={jobs.length > 1}
               layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
             />
           </div>

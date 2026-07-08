@@ -17,16 +17,21 @@ const CHECKERBOARD =
 // space instead of an arbitrary vh guess, without risking the page growing
 // past the viewport: p-6 top+bottom (48) + breadcrumb/toolbar/footer rows
 // at h-8 (32 each) + three gap-4 gaps between them (48) + the Card's own
-// p-2 (16) + a JobStrip row plus its gap-4 for tools that queue multiple
-// files (56). Pages with a taller header (e.g. wrapped toolbar buttons)
-// may need a bigger cap via `className`.
+// p-2 (16). Pages with a taller header (e.g. wrapped toolbar buttons) may
+// need a bigger cap via `className`.
 const MAX_HEIGHT = "max-h-[calc(100dvh-220px)]"
+// Same, minus a JobStrip row plus its gap-4 (56) — pass `jobStrip` once a
+// tool's queue actually renders one (`jobs.length > 1`), so the preview
+// shrinks to make room instead of pushing the page past the viewport.
+const MAX_HEIGHT_WITH_JOB_STRIP = "max-h-[calc(100dvh-276px)]"
 
 type PreviewCardBaseProps = {
   /** Muted label rendered above the viewport (e.g. "Original", "Converted") — replaces a hand-rolled `<span>` above the card. */
   title?: ReactNode
   checkerboard?: boolean
   fill?: boolean
+  /** Pass once the page renders a `JobStrip` (i.e. `jobs.length > 1`) so the non-`fill` cap shrinks to make room for it. */
+  jobStrip?: boolean
   viewportRef?: Ref<HTMLDivElement>
   className?: string
 }
@@ -80,6 +85,7 @@ export function PreviewCard({
   title,
   checkerboard,
   fill,
+  jobStrip,
   viewportRef,
   className,
   layer,
@@ -89,14 +95,15 @@ export function PreviewCard({
     (entry): entry is PreviewLayer => !!entry
   )
   const stacked = layers.length > 1
+  const maxHeight = jobStrip ? MAX_HEIGHT_WITH_JOB_STRIP : MAX_HEIGHT
 
   function layerClassName(override?: string) {
     return cn(
       fill
         ? "absolute top-0 left-0 origin-top-left select-none"
         : stacked
-          ? cn("absolute inset-0 m-auto max-w-full select-none", MAX_HEIGHT)
-          : cn("block max-w-full select-none", MAX_HEIGHT),
+          ? cn("absolute inset-0 m-auto max-w-full select-none", maxHeight)
+          : cn("block max-w-full select-none", maxHeight),
       override
     )
   }
@@ -107,7 +114,7 @@ export function PreviewCard({
         ref={viewportRef}
         className={cn(
           "flex w-full items-center justify-center overflow-hidden rounded-md",
-          fill ? "relative min-h-[60vh] flex-1" : MAX_HEIGHT,
+          fill ? "relative min-h-[60vh] flex-1" : maxHeight,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
           className

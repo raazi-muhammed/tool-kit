@@ -169,9 +169,12 @@ viewport-relative preview (Image Crop, Image Rotate) capped at
 `PreviewCard`'s own `MAX_HEIGHT` constant (`max-h-[calc(100dvh-220px)]`) —
 derived from, and documented alongside, the fixed chrome ToolPage typically
 stacks around it (padding, breadcrumb/toolbar/footer rows, gaps, the Card's
-own padding, a possible `JobStrip` row), so preview tools use the actual
-available space instead of an arbitrary `vh` guess. A page with a taller
-header than that (e.g. a wrapped toolbar) can raise the cap via `className`.
+own padding), so preview tools use the actual available space instead of an
+arbitrary `vh` guess. A page with a taller header than that (e.g. a wrapped
+toolbar) can raise the cap via `className`. Pass `jobStrip` once the page
+actually renders a `JobStrip` above it (`jobs.length > 1`) so the cap shrinks
+further to make room for that row instead of pushing the page past the
+viewport.
 Note that `fill` only avoids overflowing the viewport where there's JS logic
 actively constraining the rendered size to the available space (Image Blur's
 fit-to-screen zoom math; Image Converter's panes are typically small enough
