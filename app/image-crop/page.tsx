@@ -316,7 +316,7 @@ export default function ImageCropPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <JobStrip
               jobs={jobs}
               activeId={activeId}
@@ -325,13 +325,8 @@ export default function ImageCropPage() {
             />
 
             <PreviewCard
-              fill
               checkerboard
-              layer={{
-                ref: displayCanvasRef,
-                ...selectionHandlers,
-                className: "relative max-h-full max-w-full cursor-crosshair touch-none",
-              }}
+              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
             />
           </div>
         )}
