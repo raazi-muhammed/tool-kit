@@ -92,12 +92,12 @@ export function PreviewCard({
   }
 
   const card = (
-    <Card className={cn("overflow-hidden p-2", fill && "flex min-h-0 flex-1 flex-col")}>
+    <Card className={cn("w-full overflow-hidden p-2", fill && "flex min-h-0 flex-1 flex-col")}>
       <div
         ref={viewportRef}
         className={cn(
-          "flex items-center justify-center overflow-hidden rounded-md",
-          fill ? "relative min-h-[60vh] w-full flex-1" : "max-h-[60vh]",
+          "flex w-full items-center justify-center overflow-hidden rounded-md",
+          fill ? "relative min-h-[60vh] flex-1" : "max-h-[60vh]",
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
           className
