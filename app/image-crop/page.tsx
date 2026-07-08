@@ -26,7 +26,6 @@ import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
-
 type Aspect = "free" | "1:1" | "4:3" | "3:4" | "16:9" | "9:16"
 
 // width / height for each locked aspect; free-form has no ratio.
@@ -323,9 +322,9 @@ export default function ImageCropPage() {
               onSelect={setActiveId}
               onRemove={removeJob}
             />
-
             <PreviewCard
               checkerboard
+              jobStrip={jobs.length > 1}
               layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
             />
           </div>

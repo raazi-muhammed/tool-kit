@@ -12,11 +12,26 @@ import { cn } from "@/lib/utils"
 const CHECKERBOARD =
   "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
 
+// Caps the non-`fill` preview at the viewport height minus everything else
+// ToolPage typically stacks around it, so it uses the actual available
+// space instead of an arbitrary vh guess, without risking the page growing
+// past the viewport: p-6 top+bottom (48) + breadcrumb/toolbar/footer rows
+// at h-8 (32 each) + three gap-4 gaps between them (48) + the Card's own
+// p-2 (16). Pages with a taller header (e.g. wrapped toolbar buttons) may
+// need a bigger cap via `className`.
+const MAX_HEIGHT = "max-h-[calc(100dvh-220px)]"
+// Same, minus a JobStrip row plus its gap-4 (56) — pass `jobStrip` once a
+// tool's queue actually renders one (`jobs.length > 1`), so the preview
+// shrinks to make room instead of pushing the page past the viewport.
+const MAX_HEIGHT_WITH_JOB_STRIP = "max-h-[calc(100dvh-276px)]"
+
 type PreviewCardBaseProps = {
   /** Muted label rendered above the viewport (e.g. "Original", "Converted") — replaces a hand-rolled `<span>` above the card. */
   title?: ReactNode
   checkerboard?: boolean
   fill?: boolean
+  /** Pass once the page renders a `JobStrip` (i.e. `jobs.length > 1`) so the non-`fill` cap shrinks to make room for it. */
+  jobStrip?: boolean
   viewportRef?: Ref<HTMLDivElement>
   className?: string
 }
@@ -62,14 +77,15 @@ type PreviewCardProps = PreviewCardBaseProps & {
  * centered, rounded viewport that every canvas/image-based tool wraps its
  * preview in (Image Blur, Image Crop, Image Rotate, Image Converter). Pass
  * `fill` for a viewport that grows to the available height (e.g. Image
- * Blur's pan/zoom canvas); omit it for a fixed `max-h-[60vh]` centered
- * preview (Image Crop, Image Rotate). `viewportRef` exposes the inner
- * viewport node, e.g. for wheel/gesture listeners or fit-to-screen math.
+ * Blur's pan/zoom canvas); omit it for a fixed, viewport-relative `MAX_HEIGHT`
+ * centered preview (Image Crop, Image Rotate). `viewportRef` exposes the
+ * inner viewport node, e.g. for wheel/gesture listeners or fit-to-screen math.
  */
 export function PreviewCard({
   title,
   checkerboard,
   fill,
+  jobStrip,
   viewportRef,
   className,
   layer,
@@ -79,25 +95,26 @@ export function PreviewCard({
     (entry): entry is PreviewLayer => !!entry
   )
   const stacked = layers.length > 1
+  const maxHeight = jobStrip ? MAX_HEIGHT_WITH_JOB_STRIP : MAX_HEIGHT
 
   function layerClassName(override?: string) {
     return cn(
       fill
         ? "absolute top-0 left-0 origin-top-left select-none"
         : stacked
-          ? "absolute inset-0 m-auto max-h-[60vh] max-w-full select-none"
-          : "block max-h-[60vh] max-w-full select-none",
+          ? cn("absolute inset-0 m-auto max-w-full select-none", maxHeight)
+          : cn("block max-w-full select-none", maxHeight),
       override
     )
   }
 
   const card = (
-    <Card className={cn("overflow-hidden p-2", fill && "flex min-h-0 flex-1 flex-col")}>
+    <Card className={cn("w-full overflow-hidden p-2 border-2", fill && "flex min-h-0 flex-1 flex-col")}>
       <div
         ref={viewportRef}
         className={cn(
-          "flex items-center justify-center overflow-hidden rounded-md",
-          fill ? "relative min-h-[60vh] w-full flex-1" : "max-h-[60vh]",
+          "flex w-full items-center justify-center overflow-hidden rounded-md",
+          fill ? "relative min-h-[60vh] flex-1" : maxHeight,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
           className

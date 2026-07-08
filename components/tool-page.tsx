@@ -120,6 +120,8 @@ type Footer = {
   inputs?: FooterInput[]
   zoom?: FooterZoom
   slider?: FooterSlider
+  /** Muted contextual text (e.g. "No transparent margin to trim.") shown inline with the footer, left of the right-aligned actions/download group. */
+  hint?: ReactNode
   actions?: (FooterAction | false | null | undefined)[]
   download?: FooterDownload
 }
@@ -141,7 +143,7 @@ export function ToolPage({
   onCopy?: () => void
   onLoadSample?: () => void
   onAddFile?: () => void
-  onClear: () => void
+  onClear?: () => void
   segments?: Segments
   actions?: ReactNode
   footer?: Footer
@@ -192,10 +194,12 @@ export function ToolPage({
               Load sample
             </Button>
           )}
-          <Button variant="ghost" onClick={onClear}>
-            <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
-            Clear
-          </Button>
+          {onClear && (
+            <Button variant="ghost" onClick={onClear}>
+              <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
@@ -345,6 +349,8 @@ export function ToolPage({
               />
             </div>
           )}
+
+          {footer.hint && <span className="text-sm text-muted-foreground">{footer.hint}</span>}
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
             {footer.actions

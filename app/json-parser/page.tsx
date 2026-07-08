@@ -1,6 +1,5 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowShrink02Icon,
   BracesIcon,
@@ -12,28 +11,17 @@ import { useMemo, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { JsonTree } from "@/components/json-tree"
 import { extractJsonSegment, safeParseJson } from "@/lib/json"
 
-const SAMPLE = JSON.stringify(
-  {
-    name: "tool-kit",
-    version: "0.0.1",
-    tools: ["json-parser"],
-    active: true,
-    meta: { author: "raazi", stars: 42, homepage: null },
-  },
-  null,
-  2,
-)
+type Tab = "text" | "viewer"
 
 export default function JsonParserPage() {
   const [raw, setRaw] = useState("")
+  const [tab, setTab] = useState<Tab>("text")
 
   const parsed = useMemo(() => safeParseJson(raw), [raw])
 
@@ -71,63 +59,43 @@ export default function JsonParserPage() {
     }
   }
 
-  async function copy() {
-    await navigator.clipboard.writeText(raw)
-  }
-
   function clear() {
     setRaw("")
-  }
-
-  function loadSample() {
-    setRaw(SAMPLE)
   }
 
   return (
     <ToolPage
       page="JSON Parser"
-      icon={BracesIcon}
-      onCopy={copy}
-      onLoadSample={loadSample}
       onClear={clear}
-      actions={
-        <>
-          <Button onClick={format}>
-            <HugeiconsIcon icon={TextIndentIcon} aria-hidden />
-            Format
-          </Button>
-          <Button variant="secondary" onClick={minify}>
-            <HugeiconsIcon icon={ArrowShrink02Icon} aria-hidden />
-            Minify
-          </Button>
-        </>
-      }
+      icon={BracesIcon}
+      segments={{
+        value: tab,
+        onValueChange: (value) => setTab(value as Tab),
+        options: [
+          { value: "text", label: "Text", icon: TextIcon },
+          { value: "viewer", label: "Viewer", icon: EyeIcon },
+        ],
+      }}
+      footer={{
+        actions: [
+          { label: "Format", icon: TextIndentIcon, onClick: format },
+          { label: "Minify", icon: ArrowShrink02Icon, onClick: minify, variant: "secondary" },
+        ],
+      }}
     >
-      <Tabs defaultValue="text" className="flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <TabsList>
-            <TabsTrigger value="text">
-              <HugeiconsIcon icon={TextIcon} aria-hidden />
-              Text
-            </TabsTrigger>
-            <TabsTrigger value="viewer">
-              <HugeiconsIcon icon={EyeIcon} aria-hidden />
-              Viewer
-            </TabsTrigger>
-          </TabsList>
-          {raw.trim() && (
-            <div className="flex items-center gap-2">
-              {!parsed.error && parsed.cleaned !== raw.trim() && (
-                <Badge variant="outline">Auto-cleaned</Badge>
-              )}
-              <Badge variant={parsed.error ? "destructive" : "secondary"}>
-                {parsed.error ? "Invalid JSON" : "Valid JSON"}
-              </Badge>
-            </div>
-          )}
-        </div>
+      <div className="flex flex-1 flex-col gap-2">
+        {raw.trim() && (
+          <div className="flex items-center gap-2">
+            {!parsed.error && parsed.cleaned !== raw.trim() && (
+              <Badge variant="outline">Auto-cleaned</Badge>
+            )}
+            <Badge variant={parsed.error ? "destructive" : "secondary"}>
+              {parsed.error ? "Invalid JSON" : "Valid JSON"}
+            </Badge>
+          </div>
+        )}
 
-        <TabsContent value="text" className="flex flex-col">
+        {tab === "text" ? (
           <Textarea
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
@@ -136,9 +104,7 @@ export default function JsonParserPage() {
             className="min-h-[420px] flex-1 rounded-lg border border-border bg-card/40 p-4 font-mono text-xs"
             spellCheck={false}
           />
-        </TabsContent>
-
-        <TabsContent value="viewer" className="flex flex-col">
+        ) : (
           <Card className="min-h-[420px] flex-1 rounded-lg border bg-card/40 p-4 ring-0">
             {parsed.error ? (
               <p className="text-sm text-destructive">{parsed.error}</p>
@@ -152,8 +118,8 @@ export default function JsonParserPage() {
               </ScrollArea>
             )}
           </Card>
-        </TabsContent>
-      </Tabs>
+        )}
+      </div>
     </ToolPage>
   )
 }
