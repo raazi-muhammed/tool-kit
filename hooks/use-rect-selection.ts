@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 
 import {
+  canvasPointFromEvent,
   clampRect,
   edgeCursor,
   hitEdges,
@@ -40,6 +41,7 @@ export function useRectSelection({
   ratio = null,
   render,
   minSize = 2,
+  onDiscardPending,
 }: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
   /** Locked aspect ratio (width / height); null for free-form. */
@@ -48,6 +50,13 @@ export function useRectSelection({
   render: (rect: Rect | null) => void
   /** Drags smaller than this (canvas px) are discarded as accidental. */
   minSize?: number
+  /**
+   * Called with the pending rect right before it's replaced by a fresh
+   * "draw a new selection" drag started elsewhere on the canvas (not a
+   * move/resize of it) — e.g. to stash it in a caller-owned list instead of
+   * losing it, so drawing a second rect doesn't erase the first.
+   */
+  onDiscardPending?: (rect: Rect) => void
 }) {
   const [pendingRect, setPendingRect] = useState<Rect | null>(null)
   // Drag tracking lives entirely in a ref — pointerdown/move/up can all fire
@@ -57,11 +66,7 @@ export function useRectSelection({
   function toCanvasPoint(e: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
-    const box = canvas.getBoundingClientRect()
-    return {
-      x: (e.clientX - box.left) * (canvas.width / box.width),
-      y: (e.clientY - box.top) * (canvas.height / box.height),
-    }
+    return canvasPointFromEvent(canvas, e)
   }
 
   /** Edge grab tolerance: ~8 screen px, converted to canvas px. */
@@ -146,6 +151,7 @@ export function useRectSelection({
         rect: pendingRect,
       }
     } else {
+      if (pendingRect) onDiscardPending?.(pendingRect)
       dragRef.current = { mode: "select", startX: point.x, startY: point.y }
       setPendingRect(null)
     }
@@ -201,9 +207,38 @@ export function useRectSelection({
     render(null)
   }
 
+  /**
+   * Make `rect` the pending selection and immediately start moving it from
+   * the pointer event that picked it up — for a caller that manages other
+   * rects of its own (e.g. several queued selections) and wants clicking one
+   * of them to hand it off to this hook instead of starting a fresh drag.
+   * Sets `dragRef` directly (not through React state) so the drag continues
+   * correctly on this same gesture's `onPointerMove`/`onPointerUp`.
+   */
+  function selectRect(rect: Rect, e: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    e.preventDefault()
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Untrusted/synthetic events have no active pointer to capture.
+    }
+    const point = toCanvasPoint(e)
+    dragRef.current = {
+      mode: "move",
+      grabX: point.x - rect.x,
+      grabY: point.y - rect.y,
+      rect,
+    }
+    setPendingRect(rect)
+    render(rect)
+  }
+
   return {
     pendingRect,
     clearSelection,
+    selectRect,
     selectionHandlers: {
       onPointerDown,
       onPointerMove,
