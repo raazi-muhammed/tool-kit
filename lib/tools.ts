@@ -9,6 +9,7 @@ import {
   ImageCropIcon,
   ImageRotationClockwiseIcon,
   Resize02Icon,
+  ScissorRectangleIcon,
 } from "@hugeicons/core-free-icons"
 
 export type Tool = {
@@ -58,6 +59,13 @@ export const TOOLS: Tool[] = [
     name: "Image Crop",
     description:
       "Crop images to a selection, and give transparent PNGs a background color.",
+  },
+  {
+    href: "/image-trim",
+    icon: ScissorRectangleIcon,
+    name: "Image Trim",
+    description:
+      "Automatically crop away transparent margins around an image, in your browser.",
   },
   {
     href: "/image-resize",
