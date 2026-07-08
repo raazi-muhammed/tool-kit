@@ -1,107 +1,122 @@
 "use client"
 
-import {
-  AlertCircleIcon,
-  CloudUploadIcon,
-  Download04Icon,
-  Image01Icon,
-  LinkIcon,
-  Resize02Icon,
-} from "@hugeicons/core-free-icons"
-import { useRef, useState } from "react"
+import { CloudUploadIcon, LinkIcon, Resize02Icon } from "@hugeicons/core-free-icons"
+import { useEffect, useRef, useState } from "react"
 
-import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useJobQueue } from "@/hooks/use-job-queue"
+import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { downloadFile, downloadStagger } from "@/lib/download"
-import { isImageFile, loadImage } from "@/lib/image-file"
-import { formatBytes } from "@/lib/wav"
+import { imageToCanvas, loadImage } from "@/lib/image-file"
+import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
 
-type Status = "idle" | "resizing" | "done" | "error"
-type Result = {
-  url: string
-  name: string
-  size: number
-  width: number
-  height: number
-}
-type Dimensions = { width: number; height: number }
+type Result = { canvas: HTMLCanvasElement; width: number; height: number }
 type Job = {
   id: number
   file: File
   name: string
-  size: number
   previewUrl: string
-  original: Dimensions | null
-  status: Status
-  error: string | null
+  // Set once resized, from the original resource so repeated resizes never
+  // compound quality loss; null means still showing the original size.
   result: Result | null
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, mime: string): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) =>
-        blob ? resolve(blob) : reject(new Error("Encoding produced no data.")),
-      mime
-    )
-  })
+async function loadResource(file: File): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(file)
+  try {
+    return imageToCanvas(await loadImage(url))
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 export default function ImageResizePage() {
-  const { jobs, setJobs, addFiles: addFilesToQueue, updateJob, removeJob, clear: clearQueue } =
-    useJobQueue<Job>({
-      createJob: (file, id) => {
-        const valid = isImageFile(file)
-        return {
-          id,
-          file,
-          name: file.name,
-          size: file.size,
-          previewUrl: valid ? URL.createObjectURL(file) : "",
-          original: null,
-          status: valid ? "idle" : "error",
-          error: valid ? null : "This file doesn't look like an image.",
-          result: null,
-        }
-      },
-      cleanupJob: (job) => {
-        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-        if (job.result) URL.revokeObjectURL(job.result.url)
-      },
-    })
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles: addFilesToQueue,
+    updateJob,
+    removeJob,
+    clear: clearQueue,
+    getResource,
+  } = useEditorQueue<Job, HTMLCanvasElement>({
+    loadResource,
+    createJob: (file, id) => ({
+      id,
+      file,
+      name: file.name,
+      previewUrl: URL.createObjectURL(file),
+      result: null,
+    }),
+    cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
+  })
+  const [error, setError] = useState<string | null>(null)
   const [width, setWidth] = useState("")
   const [height, setHeight] = useState("")
   const [lockAspect, setLockAspect] = useState(true)
   const [formError, setFormError] = useState<string | null>(null)
+
+  const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const anyBusy = jobs.some((job) => job.status === "resizing")
   // The target width/height apply to every queued image; the aspect lock is
-  // derived from the first image added, purely as a convenient reference.
-  const referenceOriginal = jobs[0]?.original ?? null
+  // derived from the active image's original resource, purely as a
+  // convenient reference.
+  const activeOriginal = activeJob ? getResource(activeJob.id) : undefined
+  const referenceOriginal = activeOriginal
+    ? { width: activeOriginal.width, height: activeOriginal.height }
+    : null
 
-  function addFiles(fileList: FileList | null | undefined) {
-    const created = addFilesToQueue(fileList)
-    created.forEach((job) => {
-      if (job.status === "error") return
-      loadImage(job.previewUrl)
-        .then((img) => {
-          const original = { width: img.naturalWidth, height: img.naturalHeight }
-          updateJob(job.id, { original })
-          setWidth((w) => w || String(original.width))
-          setHeight((h) => h || String(original.height))
-        })
-        .catch(() => {
-          updateJob(job.id, {
-            status: "error",
-            error: "This file couldn't be decoded as an image.",
-          })
-        })
-    })
+  function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
+    const display = displayCanvasRef.current
+    if (!source || !display) return
+    if (display.width !== source.width || display.height !== source.height) {
+      display.width = source.width
+      display.height = source.height
+    }
+    const ctx = display.getContext("2d")
+    if (!ctx) return
+    ctx.clearRect(0, 0, display.width, display.height)
+    ctx.drawImage(source, 0, 0)
+  }
+
+  // Paint the visible canvas whenever the active job changes, seed the
+  // width/height fields from the first image's size once (never again, since
+  // the target size is shared across every queued image) — it only exists in
+  // the DOM once a file has been picked, so this can't happen synchronously
+  // when a file is added.
+  useEffect(() => {
+    if (activeId == null) return
+    renderDisplay()
+    if (!width && !height && referenceOriginal) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setWidth(String(referenceOriginal.width))
+      setHeight(String(referenceOriginal.height))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId])
+
+  function clear() {
+    clearQueue()
+    setWidth("")
+    setHeight("")
+    setFormError(null)
+    setError(null)
+  }
+
+  async function addFiles(fileList: FileList | null | undefined) {
+    const { addedCount, failedCount } = await addFilesToQueue(fileList)
+    setError(
+      addedCount === 0 && failedCount > 0
+        ? "None of the selected files could be loaded as images."
+        : null
+    )
   }
 
   function onWidthChange(value: string) {
@@ -155,49 +170,18 @@ export default function ImageResizePage() {
     setLockAspect(!lockAspect)
   }
 
-  async function resizeJob(job: Job, targetWidth: number, targetHeight: number) {
-    updateJob(job.id, { status: "resizing", error: null })
-
-    try {
-      const img = await loadImage(job.previewUrl)
-      const canvas = document.createElement("canvas")
-      canvas.width = targetWidth
-      canvas.height = targetHeight
-      const ctx = canvas.getContext("2d")
-      if (!ctx) throw new Error("Canvas isn't supported in this browser.")
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = "high"
-      ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
-
-      const mime =
-        job.file.type && job.file.type.startsWith("image/")
-          ? job.file.type
-          : "image/png"
-      const blob = await canvasToBlob(canvas, mime)
-
-      setJobs((prev) => {
-        if (!prev.some((j) => j.id === job.id)) return prev
-        const url = URL.createObjectURL(blob)
-        return prev.map((j) => {
-          if (j.id !== job.id) return j
-          if (j.result) URL.revokeObjectURL(j.result.url)
-          return {
-            ...j,
-            status: "done",
-            error: null,
-            result: { url, name: j.name, size: blob.size, width: targetWidth, height: targetHeight },
-          }
-        })
-      })
-    } catch (err) {
-      updateJob(job.id, {
-        status: "error",
-        error:
-          err instanceof Error
-            ? err.message
-            : "Something went wrong while resizing the image.",
-      })
-    }
+  function resizeJob(job: Job, targetWidth: number, targetHeight: number): HTMLCanvasElement | null {
+    const base = getResource(job.id)
+    if (!base) return null
+    const canvas = document.createElement("canvas")
+    canvas.width = targetWidth
+    canvas.height = targetHeight
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return null
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = "high"
+    ctx.drawImage(base, 0, 0, targetWidth, targetHeight)
+    return canvas
   }
 
   function resize() {
@@ -208,22 +192,44 @@ export default function ImageResizePage() {
       return
     }
     setFormError(null)
+
+    let activeCanvas: HTMLCanvasElement | null = null
     jobs.forEach((job) => {
-      if (job.status !== "resizing" && job.original) void resizeJob(job, targetWidth, targetHeight)
+      const canvas = resizeJob(job, targetWidth, targetHeight)
+      if (!canvas) return
+      updateJob(job.id, { result: { canvas, width: targetWidth, height: targetHeight } })
+      if (job.id === activeId) activeCanvas = canvas
     })
+    if (activeCanvas) renderDisplay(activeCanvas)
   }
 
-  function clear() {
-    clearQueue()
-    setWidth("")
-    setHeight("")
-    setFormError(null)
+  async function downloadJob(job: Job) {
+    if (!job.result) return
+    const mime =
+      job.file.type && job.file.type.startsWith("image/")
+        ? job.file.type
+        : "image/png"
+    const blob: Blob | null = await new Promise((resolve) =>
+      job.result!.canvas.toBlob(resolve, mime)
+    )
+    if (!blob) return
+    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
+    const name = replaceExtension(job.name, ext)
+    const url = URL.createObjectURL(blob)
+    downloadFile(url, name)
+    URL.revokeObjectURL(url)
   }
 
+  function download() {
+    if (activeJob) void downloadJob(activeJob)
+  }
+
+  // Skips unresized images — downloading them would just hand back the
+  // original file.
   async function downloadAll() {
     for (const job of jobs) {
       if (!job.result) continue
-      downloadFile(job.result.url, job.result.name)
+      await downloadJob(job)
       await downloadStagger()
     }
   }
@@ -235,86 +241,47 @@ export default function ImageResizePage() {
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
       footer={
-        jobs.length > 0
+        activeJob
           ? {
               inputs: [
-                {
-                  label: "Width",
-                  type: "number",
-                  min: 1,
-                  value: width,
-                  onChange: onWidthChange,
-                  disabled: anyBusy,
-                },
-                {
-                  label: "Height",
-                  type: "number",
-                  min: 1,
-                  value: height,
-                  onChange: onHeightChange,
-                  disabled: anyBusy,
-                },
+                { label: "", type: "number", min: 1, value: width, onChange: onWidthChange },
+                { label: "", type: "number", min: 1, value: height, onChange: onHeightChange },
               ],
               actions: [
                 {
                   label: lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio",
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
-                  disabled: anyBusy,
                   variant: lockAspect ? "secondary" : "outline",
                 },
-                jobs.some((job) => job.result) && {
-                  label: "Download all",
-                  icon: Download04Icon,
-                  onClick: downloadAll,
-                  variant: "outline",
-                },
-                { label: "Resize", icon: Resize02Icon, onClick: resize, disabled: anyBusy },
+                { label: "Resize", icon: Resize02Icon, onClick: resize },
               ],
+              download: {
+                onDownload: download,
+                disabled: !activeJob.result,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.result),
+              },
             }
           : undefined
       }
     >
       <div className="flex flex-1 flex-col gap-4">
-        {/* One row per file: source (left) and its output (right), side by side. */}
-        {jobs.map((job) => (
-          <BatchJobRow
-            key={job.id}
-            name={job.name}
-            onRemove={() => removeJob(job.id)}
-            sourceIcon={AlertCircleIcon}
-            sourceImageUrl={job.previewUrl || undefined}
-            sourceDescription={
-              <>
-                {job.original ? `${job.original.width} × ${job.original.height} · ` : ""}
-                {formatBytes(job.size)}
-              </>
-            }
-            status={
-              job.status === "resizing"
-                ? { state: "processing", title: "Resizing…" }
-                : job.status === "error"
-                  ? { state: "error", title: "Couldn't resize", description: job.error }
-                  : job.result
-                    ? {
-                        state: "done",
-                        icon: Image01Icon,
-                        title: job.result.name,
-                        description: `${job.result.width} × ${job.result.height} · ${formatBytes(job.result.size)}`,
-                        download: { url: job.result.url, name: job.result.name },
-                      }
-                    : {
-                        state: "idle",
-                        icon: Image01Icon,
-                        title: "Ready to resize",
-                        description: "Set a width and height, then hit Resize",
-                      }
-            }
-          />
-        ))}
+        {activeJob && (
+          <div className="flex flex-col gap-4">
+            <JobStrip
+              jobs={jobs}
+              activeId={activeId}
+              onSelect={setActiveId}
+              onRemove={removeJob}
+            />
+
+            <PreviewCard checkerboard layer={{ ref: displayCanvasRef }} />
+          </div>
+        )}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
-            button) once at least one file has been added. */}
+            button) once at least one image has been picked. */}
         <Dropzone
           ref={dropzoneRef}
           icon={CloudUploadIcon}
@@ -326,6 +293,7 @@ export default function ImageResizePage() {
           onFiles={addFiles}
         />
 
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {formError && <p className="text-sm text-destructive">{formError}</p>}
       </div>
     </ToolPage>
