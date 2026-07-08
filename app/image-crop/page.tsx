@@ -5,6 +5,7 @@ import {
   Cancel01Icon,
   CloudUploadIcon,
   CropIcon,
+  Image02Icon,
   ImageCropIcon,
   RectangularIcon,
   SmartPhone01Icon,
@@ -26,13 +27,14 @@ import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
 
-type Aspect = "free" | "1:1" | "4:3" | "16:9" | "9:16"
+type Aspect = "free" | "1:1" | "4:3" | "3:4" | "16:9" | "9:16"
 
 // width / height for each locked aspect; free-form has no ratio.
 const ASPECT_RATIOS: Record<Aspect, number | null> = {
   free: null,
   "1:1": 1,
   "4:3": 4 / 3,
+  "3:4": 3 / 4,
   "16:9": 16 / 9,
   "9:16": 9 / 16,
 }
@@ -267,6 +269,7 @@ export default function ImageCropPage() {
           { value: "free", label: "Free", icon: AspectRatioIcon },
           { value: "1:1", label: "1:1", icon: SquareIcon },
           { value: "4:3", label: "4:3", icon: Tv01Icon },
+          { value: "3:4", label: "3:4", icon: Image02Icon },
           { value: "16:9", label: "16:9", icon: RectangularIcon },
           { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
         ],
