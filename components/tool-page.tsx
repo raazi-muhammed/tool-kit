@@ -262,9 +262,20 @@ export function ToolPage({
                     step={footer.toggle.slider.step ?? 1}
                     className="min-w-24 max-w-32"
                   />
-                  <span className="w-8 text-right text-sm text-muted-foreground">
-                    {footer.toggle.slider.value}
-                  </span>
+                  <Input
+                    type="number"
+                    value={footer.toggle.slider.value}
+                    onChange={(e) => {
+                      const parsed = Number(e.target.value)
+                      if (!Number.isFinite(parsed)) return
+                      const { min, max } = footer.toggle!.slider!
+                      footer.toggle!.slider!.onValueChange(Math.min(max, Math.max(min, parsed)))
+                    }}
+                    min={footer.toggle.slider.min}
+                    max={footer.toggle.slider.max}
+                    step={footer.toggle.slider.step ?? 1}
+                    className="h-8 w-14 px-2 text-right"
+                  />
                 </>
               )}
             </div>
