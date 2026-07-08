@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono, Inter, Unbounded } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -39,6 +40,7 @@ export default function RootLayout({
         <ThemeProvider>
           <CommandMenuProvider>{children}</CommandMenuProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
