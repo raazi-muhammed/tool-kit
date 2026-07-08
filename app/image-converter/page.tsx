@@ -2,7 +2,6 @@
 
 import {
   AlertCircleIcon,
-  ArrowDataTransferHorizontalIcon,
   Cancel01Icon,
   CloudUploadIcon,
   EraserAutoIcon,
@@ -233,12 +232,21 @@ export default function ImageConverterPage() {
     }
   }
 
-  function convert() {
-    jobs.forEach((job) => {
-      if (job.status !== "converting")
-        void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
-    })
-  }
+  // Re-run the conversion automatically whenever the format or any setting
+  // changes, instead of requiring an explicit Convert click. Debounced so
+  // dragging the quality/tolerance sliders (many onValueChange updates a
+  // second) doesn't re-encode on every tick — only once the value settles.
+  useEffect(() => {
+    if (jobs.length === 0) return
+    const timeout = setTimeout(() => {
+      jobs.forEach((job) => {
+        if (job.status !== "converting")
+          void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
+      })
+    }, 300)
+    return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [format, quality, bgColor, removeBg, keyColor, tolerance, jobs.length])
 
   function downloadActive() {
     if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
@@ -316,9 +324,6 @@ export default function ImageConverterPage() {
                       disabled: anyBusy,
                     }
                   : undefined,
-              actions: [
-                { label: "Convert", icon: ArrowDataTransferHorizontalIcon, onClick: convert, disabled: anyBusy },
-              ],
               download: {
                 onDownload: downloadActive,
                 disabled: !activeJob?.result,
@@ -376,7 +381,7 @@ export default function ImageConverterPage() {
                       ? { kind: "status", icon: Loading03Icon, spin: true }
                       : activeJob.status === "error"
                         ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
-                        : { kind: "status", message: "Pick a format and hit Convert" }
+                        : { kind: "status", message: "Pick a format to convert it" }
                 }
               />
             </div>
