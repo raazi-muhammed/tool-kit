@@ -10,7 +10,6 @@ import {
 import { useMemo, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
@@ -77,6 +76,13 @@ export default function JsonParserPage() {
         ],
       }}
       footer={{
+        hint: raw.trim()
+          ? parsed.error
+            ? "Invalid JSON"
+            : parsed.cleaned !== raw.trim()
+              ? "Auto-cleaned"
+              : undefined
+          : undefined,
         actions: [
           { label: "Format", icon: TextIndentIcon, onClick: format },
           { label: "Minify", icon: ArrowShrink02Icon, onClick: minify, variant: "secondary" },
@@ -84,17 +90,6 @@ export default function JsonParserPage() {
       }}
     >
       <div className="flex flex-1 flex-col gap-2">
-        {raw.trim() && (
-          <div className="flex items-center gap-2">
-            {!parsed.error && parsed.cleaned !== raw.trim() && (
-              <Badge variant="outline">Auto-cleaned</Badge>
-            )}
-            <Badge variant={parsed.error ? "destructive" : "secondary"}>
-              {parsed.error ? "Invalid JSON" : "Valid JSON"}
-            </Badge>
-          </div>
-        )}
-
         {tab === "text" ? (
           <Textarea
             value={raw}

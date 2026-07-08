@@ -478,13 +478,15 @@ export default function ImageBlurPage() {
                   icon: BlurIcon,
                   onClick: applyBlur,
                   disabled: totalRects === 0,
-                },
-                jobs.length > 1 && {
-                  label: "Apply blur to all",
-                  icon: BlurIcon,
-                  onClick: applyBlurToAll,
-                  disabled: totalRects === 0,
-                  variant: "outline",
+                  more:
+                    jobs.length > 1
+                      ? {
+                          label: "Apply blur to all",
+                          icon: BlurIcon,
+                          onClick: applyBlurToAll,
+                          disabled: totalRects === 0,
+                        }
+                      : undefined,
                 },
               ],
               download: {

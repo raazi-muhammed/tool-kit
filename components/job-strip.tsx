@@ -37,10 +37,8 @@ export function JobStrip({
           type="button"
           onClick={() => onSelect(job.id)}
           className={cn(
-            "flex shrink-0 items-center gap-2 rounded-md border p-1.5 pr-2 text-sm transition-colors",
-            job.id === activeId
-              ? "border-primary bg-accent/40"
-              : "hover:bg-muted/40"
+            "flex shrink-0 items-center gap-2 rounded-xl bg-muted/60 p-1.5 pr-2 text-sm text-foreground/60 transition-colors hover:text-foreground",
+            job.id === activeId && "bg-input text-foreground shadow-sm"
           )}
         >
           <span className="size-8 shrink-0 overflow-hidden rounded bg-muted">

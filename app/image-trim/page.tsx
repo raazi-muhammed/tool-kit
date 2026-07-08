@@ -218,12 +218,14 @@ export default function ImageTrimPage() {
                   icon: ScissorRectangleIcon,
                   onClick: applyTrim,
                   disabled: !pendingRect,
-                },
-                jobs.length > 1 && {
-                  label: "Trim all",
-                  icon: ScissorRectangleIcon,
-                  onClick: applyTrimToAll,
-                  variant: "outline",
+                  more:
+                    jobs.length > 1
+                      ? {
+                          label: "Trim all",
+                          icon: ScissorRectangleIcon,
+                          onClick: applyTrimToAll,
+                        }
+                      : undefined,
                 },
               ],
               download: {

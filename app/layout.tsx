@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CommandMenuProvider } from "@/components/command-menu"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'})
@@ -38,7 +39,9 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <CommandMenuProvider>{children}</CommandMenuProvider>
+          <TooltipProvider>
+            <CommandMenuProvider>{children}</CommandMenuProvider>
+          </TooltipProvider>
         </ThemeProvider>
         <Analytics />
       </body>

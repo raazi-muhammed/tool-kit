@@ -18,6 +18,7 @@ import { useState } from "react"
 import type { ReactNode } from "react"
 
 import { ColorPicker } from "@/components/color-picker"
+import { IconTooltip } from "@/components/icon-tooltip"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
@@ -63,6 +64,15 @@ type FooterAction = {
   onClick: () => void
   disabled?: boolean
   variant?: "default" | "outline" | "ghost" | "secondary"
+  // A secondary "do this to every job" option (e.g. "Apply blur to all"),
+  // rendered as a Download-style ButtonGroup + dropdown chevron instead of a
+  // separate button.
+  more?: {
+    label: string
+    icon: IconSvgElement
+    onClick: () => void
+    disabled?: boolean
+  }
 }
 
 type FooterDownload = {
@@ -174,12 +184,6 @@ export function ToolPage({
             </TabsList>
           </Tabs>
         )}
-        {onAddFile && (
-          <Button variant="outline" onClick={onAddFile}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )}
         {actions}
         <div className="ml-auto flex items-center gap-2">
           {onCopy && (
@@ -194,11 +198,18 @@ export function ToolPage({
               Load sample
             </Button>
           )}
-          {onClear && (
-            <Button variant="ghost" onClick={onClear}>
-              <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
-              Clear
+          {onAddFile && (
+            <Button variant="secondary" onClick={onAddFile}>
+              <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+              Add file
             </Button>
+          )}
+          {onClear && (
+            <IconTooltip label="Clear">
+              <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear">
+                <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+              </Button>
+            </IconTooltip>
           )}
         </div>
       </div>
@@ -262,9 +273,20 @@ export function ToolPage({
                     step={footer.toggle.slider.step ?? 1}
                     className="min-w-24 max-w-32"
                   />
-                  <span className="w-8 text-right text-sm text-muted-foreground">
-                    {footer.toggle.slider.value}
-                  </span>
+                  <Input
+                    type="number"
+                    value={footer.toggle.slider.value}
+                    onChange={(e) => {
+                      const parsed = Number(e.target.value)
+                      if (!Number.isFinite(parsed)) return
+                      const { min, max } = footer.toggle!.slider!
+                      footer.toggle!.slider!.onValueChange(Math.min(max, Math.max(min, parsed)))
+                    }}
+                    min={footer.toggle.slider.min}
+                    max={footer.toggle.slider.max}
+                    step={footer.toggle.slider.step ?? 1}
+                    className="h-8 w-14 px-2 text-right"
+                  />
                 </>
               )}
             </div>
@@ -294,28 +316,34 @@ export function ToolPage({
 
           {footer.zoom && (
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                onClick={footer.zoom.onZoomOut}
-                disabled={footer.zoom.zoomOutDisabled}
-                aria-label="Zoom out"
-              >
-                <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-              </Button>
+              <IconTooltip label="Zoom out">
+                <Button
+                  variant="ghost"
+                  onClick={footer.zoom.onZoomOut}
+                  disabled={footer.zoom.zoomOutDisabled}
+                  aria-label="Zoom out"
+                >
+                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
               <span className="w-12 text-center text-sm text-muted-foreground">
                 {footer.zoom.percent}%
               </span>
-              <Button
-                variant="ghost"
-                onClick={footer.zoom.onZoomIn}
-                disabled={footer.zoom.zoomInDisabled}
-                aria-label="Zoom in"
-              >
-                <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-              </Button>
-              <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
-                <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-              </Button>
+              <IconTooltip label="Zoom in">
+                <Button
+                  variant="ghost"
+                  onClick={footer.zoom.onZoomIn}
+                  disabled={footer.zoom.zoomInDisabled}
+                  aria-label="Zoom in"
+                >
+                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
+              <IconTooltip label="Fit to screen">
+                <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
+                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
             </div>
           )}
 
@@ -355,17 +383,50 @@ export function ToolPage({
           <div className="ml-auto flex flex-wrap items-center gap-4">
             {footer.actions
               ?.filter((action): action is FooterAction => !!action)
-              .map((action, index) => (
-                <Button
-                  key={index}
-                  variant={action.variant}
-                  onClick={action.onClick}
-                  disabled={action.disabled}
-                >
-                  <HugeiconsIcon icon={action.icon} aria-hidden />
-                  {action.label}
-                </Button>
-              ))}
+              .map((action, index) =>
+                action.more ? (
+                  <ButtonGroup key={index}>
+                    <Button
+                      variant={action.variant}
+                      onClick={action.onClick}
+                      disabled={action.disabled}
+                    >
+                      <HugeiconsIcon icon={action.icon} aria-hidden />
+                      {action.label}
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant={action.variant}
+                          size="icon"
+                          aria-label={`More ${action.label.toLowerCase()} options`}
+                        >
+                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-max">
+                        <DropdownMenuItem
+                          onClick={action.more.onClick}
+                          disabled={action.more.disabled}
+                        >
+                          <HugeiconsIcon icon={action.more.icon} aria-hidden />
+                          {action.more.label}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </ButtonGroup>
+                ) : (
+                  <Button
+                    key={index}
+                    variant={action.variant}
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                  >
+                    <HugeiconsIcon icon={action.icon} aria-hidden />
+                    {action.label}
+                  </Button>
+                )
+              )}
 
             {footer.download && (
               <ButtonGroup>
@@ -384,7 +445,7 @@ export function ToolPage({
                         <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="w-max">
                       <DropdownMenuItem
                         onClick={footer.download.onDownloadAll}
                         disabled={footer.download.downloadAllDisabled}

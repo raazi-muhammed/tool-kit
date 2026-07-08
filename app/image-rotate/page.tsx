@@ -168,19 +168,31 @@ export default function ImageRotatePage() {
         activeJob
           ? {
               actions: [
-                { label: "Rotate left", icon: RotateCcwSquareIcon, onClick: () => rotate(-90) },
-                { label: "Rotate right", icon: RotateCwSquareIcon, onClick: () => rotate(90) },
-                jobs.length > 1 && {
-                  label: "Rotate all left",
+                {
+                  label: "Rotate left",
                   icon: RotateCcwSquareIcon,
-                  onClick: () => rotateAll(-90),
-                  variant: "outline",
+                  onClick: () => rotate(-90),
+                  more:
+                    jobs.length > 1
+                      ? {
+                          label: "Rotate all left",
+                          icon: RotateCcwSquareIcon,
+                          onClick: () => rotateAll(-90),
+                        }
+                      : undefined,
                 },
-                jobs.length > 1 && {
-                  label: "Rotate all right",
+                {
+                  label: "Rotate right",
                   icon: RotateCwSquareIcon,
-                  onClick: () => rotateAll(90),
-                  variant: "outline",
+                  onClick: () => rotate(90),
+                  more:
+                    jobs.length > 1
+                      ? {
+                          label: "Rotate all right",
+                          icon: RotateCwSquareIcon,
+                          onClick: () => rotateAll(90),
+                        }
+                      : undefined,
                 },
               ],
               download: {
