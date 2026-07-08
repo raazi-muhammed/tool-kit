@@ -42,10 +42,6 @@ export default function InlineCalculatorPage() {
     }, 1000)
   }
 
-  function clear() {
-    setText("")
-  }
-
   const lines = text.split("\n")
   const annotations = useMemo(() => annotateLines(text), [text])
 
@@ -88,11 +84,7 @@ export default function InlineCalculatorPage() {
   }
 
   return (
-    <ToolPage
-      page="Inline Calculator"
-      icon={Calculator01Icon}
-      onClear={clear}
-    >
+    <ToolPage page="Inline Calculator" icon={Calculator01Icon}>
       <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-md border bg-card/40">
         <div
           ref={backdropRef}
