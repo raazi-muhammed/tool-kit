@@ -184,12 +184,6 @@ export function ToolPage({
             </TabsList>
           </Tabs>
         )}
-        {onAddFile && (
-          <Button variant="outline" onClick={onAddFile}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )}
         {actions}
         <div className="ml-auto flex items-center gap-2">
           {onCopy && (
@@ -204,11 +198,18 @@ export function ToolPage({
               Load sample
             </Button>
           )}
-          {onClear && (
-            <Button variant="ghost" onClick={onClear}>
-              <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
-              Clear
+          {onAddFile && (
+            <Button variant="outline" onClick={onAddFile}>
+              <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+              Add file
             </Button>
+          )}
+          {onClear && (
+            <IconTooltip label="Clear">
+              <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear">
+                <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+              </Button>
+            </IconTooltip>
           )}
         </div>
       </div>
