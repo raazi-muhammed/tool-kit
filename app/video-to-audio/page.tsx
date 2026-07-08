@@ -1,6 +1,5 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowDataTransferHorizontalIcon,
   AudioWave01Icon,
@@ -13,7 +12,6 @@ import { useRef, useState } from "react"
 import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import {
   decodeAudioData,
@@ -180,15 +178,22 @@ export default function VideoToAudioPage() {
         ],
         disabled: anyBusy,
       }}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        jobs.length > 0
+          ? {
+              actions: [
+                {
+                  label: "Convert",
+                  icon: ArrowDataTransferHorizontalIcon,
+                  onClick: convert,
+                  disabled: anyBusy || !anyIdle,
+                },
+              ],
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {/* One row per file: source (left) and its output (right), side by side. */}
@@ -237,11 +242,6 @@ export default function VideoToAudioPage() {
           hidden={jobs.length > 0}
           onFiles={addFiles}
         />
-
-        <Button onClick={convert} disabled={anyBusy || !anyIdle} className="ml-auto">
-          <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} aria-hidden />
-          Convert
-        </Button>
       </div>
     </ToolPage>
   )

@@ -1,33 +1,19 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowDown01Icon,
   BlurIcon,
   Cancel01Icon,
   CloudUploadIcon,
-  Download04Icon,
-  FitToScreenIcon,
   GridViewIcon,
-  ZoomInAreaIcon,
-  ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
-import { Card } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Slider } from "@/components/ui/slider"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
   blurRegion,
@@ -68,6 +54,16 @@ async function loadResource(file: File): Promise<HTMLCanvasElement> {
   }
 }
 
+function parseBlurSettings(
+  value: unknown
+): { blur: number; mode: BlurMode } | null {
+  if (typeof value !== "object" || value === null) return null
+  const { blur, mode } = value as Record<string, unknown>
+  if (typeof blur !== "number" || !Number.isFinite(blur)) return null
+  if (mode !== "gaussian" && mode !== "pixelate") return null
+  return { blur: Math.min(50, Math.max(1, blur)), mode }
+}
+
 export default function ImageBlurPage() {
   const {
     jobs,
@@ -92,8 +88,11 @@ export default function ImageBlurPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const [blur, setBlur] = useState(20)
-  const [mode, setMode] = useState<BlurMode>("gaussian")
+  const [{ blur, mode }, setBlurSettings] = usePersistedState(
+    "image-blur:settings",
+    { blur: 20, mode: "gaussian" as BlurMode },
+    parseBlurSettings
+  )
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -264,7 +263,6 @@ export default function ImageBlurPage() {
   function clear() {
     clearQueue()
     setError(null)
-    setBlur(20)
     clearSelection()
   }
 
@@ -346,12 +344,12 @@ export default function ImageBlurPage() {
   // pending, so the preview stays live. New values are passed explicitly —
   // the state in these closures is still the old one.
   function onBlurChange(value: number) {
-    setBlur(value)
+    setBlurSettings((prev) => ({ ...prev, blur: value }))
     if (pendingRect) renderDisplay(pendingRect, value)
   }
 
   function onModeChange(value: BlurMode) {
-    setMode(value)
+    setBlurSettings((prev) => ({ ...prev, mode: value }))
     if (pendingRect) renderDisplay(pendingRect, blur, value)
   }
 
@@ -367,19 +365,60 @@ export default function ImageBlurPage() {
           { value: "pixelate", label: "Blocky", icon: GridViewIcon },
         ],
       }}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        activeJob
+          ? {
+              zoom: {
+                percent: zoomPct,
+                onZoomOut: () => zoomFromButton(0.8),
+                onZoomIn: () => zoomFromButton(1.25),
+                onFit: fitView,
+                zoomOutDisabled: zoomPct <= MIN_ZOOM * 100,
+                zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
+              },
+              slider: {
+                label: "Blur",
+                value: blur,
+                onValueChange: onBlurChange,
+                min: 1,
+                max: 50,
+              },
+              actions: [
+                pendingRect && {
+                  label: "Cancel selection",
+                  icon: Cancel01Icon,
+                  onClick: clearSelection,
+                  variant: "ghost",
+                },
+                {
+                  label: "Apply blur",
+                  icon: BlurIcon,
+                  onClick: applyBlur,
+                  disabled: !pendingRect,
+                },
+                jobs.length > 1 && {
+                  label: "Apply blur to all",
+                  icon: BlurIcon,
+                  onClick: applyBlurToAll,
+                  disabled: !pendingRect,
+                  variant: "outline",
+                },
+              ],
+              download: {
+                onDownload: download,
+                disabled: !activeJob.hasEdits,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.hasEdits),
+              },
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             <JobStrip
               jobs={jobs}
               activeId={activeId}
@@ -387,113 +426,11 @@ export default function ImageBlurPage() {
               onRemove={removeJob}
             />
 
-            <Card className="overflow-hidden p-2">
-              <div
-                ref={viewportRef}
-                className="relative h-[60vh] w-full overflow-hidden rounded-md"
-              >
-                <canvas
-                  ref={displayCanvasRef}
-                  {...selectionHandlers}
-                  className="absolute top-0 left-0 origin-top-left cursor-crosshair touch-none select-none"
-                />
-              </div>
-            </Card>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  onClick={() => zoomFromButton(0.8)}
-                  disabled={zoomPct <= MIN_ZOOM * 100}
-                  aria-label="Zoom out"
-                >
-                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-                </Button>
-                <span className="w-12 text-center text-sm text-muted-foreground">
-                  {zoomPct}%
-                </span>
-                <Button
-                  variant="ghost"
-                  onClick={() => zoomFromButton(1.25)}
-                  disabled={zoomPct >= MAX_ZOOM * 100}
-                  aria-label="Zoom in"
-                >
-                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-                </Button>
-                <Button variant="ghost" onClick={fitView} aria-label="Fit to screen">
-                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-                </Button>
-              </div>
-
-              <div className="flex flex-1 items-center gap-3">
-                <span className="text-sm text-muted-foreground">Blur</span>
-                <Slider
-                  value={[blur]}
-                  onValueChange={([value]) => onBlurChange(value)}
-                  min={1}
-                  max={50}
-                  step={1}
-                  className="max-w-48"
-                />
-                <span className="w-8 text-right text-sm text-muted-foreground">
-                  {blur}
-                </span>
-              </div>
-
-              {pendingRect && (
-                <Button variant="ghost" onClick={clearSelection}>
-                  <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                  Cancel selection
-                </Button>
-              )}
-              <Button onClick={applyBlur} disabled={!pendingRect}>
-                <HugeiconsIcon icon={BlurIcon} aria-hidden />
-                Apply blur
-              </Button>
-              {jobs.length > 1 && (
-                <Button
-                  variant="outline"
-                  onClick={applyBlurToAll}
-                  disabled={!pendingRect}
-                >
-                  <HugeiconsIcon icon={BlurIcon} aria-hidden />
-                  Apply blur to all
-                </Button>
-              )}
-              <ButtonGroup>
-                <Button
-                  variant="secondary"
-                  onClick={download}
-                  disabled={!activeJob.hasEdits}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
-                {jobs.length > 1 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        aria-label="More download options"
-                      >
-                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={downloadAll}
-                        disabled={!jobs.some((job) => job.hasEdits)}
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download all
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </ButtonGroup>
-            </div>
+            <PreviewCard
+              fill
+              viewportRef={viewportRef}
+              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
+            />
           </div>
         ) : null}
 

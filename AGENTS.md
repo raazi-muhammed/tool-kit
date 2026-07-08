@@ -57,6 +57,59 @@ use `segments` in the header as shown above — don't hand-roll it as a `Select`
 placed next to the dropzone. See `app/video-to-audio/page.tsx` and
 `app/image-converter/page.tsx`.
 
+For a tool's bottom control bar (zoom controls, a single strength/setting
+slider, the primary action button(s), and the Download button), pass the
+`footer` prop instead of hand-rolling that row inside `children` — like
+`segments`, it takes a config object, not JSX, so `ToolPage` renders the row
+(and its icons) itself:
+
+```tsx
+<ToolPage
+  page="Image Blur"
+  icon={BlurIcon}
+  footer={
+    activeJob && {
+      zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
+      slider: { label: "Blur", value: blur, onValueChange: onBlurChange, min: 1, max: 50 },
+      actions: [
+        pendingRect && { label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost" },
+        { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
+      ],
+      download: { onDownload: download, disabled: !activeJob.hasEdits, onDownloadAll: downloadAll },
+    }
+  }
+>
+```
+
+`zoom` and `slider` are each optional single-instance blocks; `actions` is an
+array (falsy entries are filtered, so conditional buttons — like "Cancel
+selection" only while a selection is pending — are just `condition && {...}`);
+`download` renders the Download button and, only when `onDownloadAll` is set,
+its "Download all" dropdown. See `app/image-blur/page.tsx`.
+
+The footer also has config primitives for a few other recurring controls —
+still config objects, never JSX, so `ToolPage` renders them itself:
+
+- `color` — a settable/clearable color swatch (e.g. a background fill for
+  transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
+  clearLabel?, clearIcon?, onPickFromImage? }`. `value: null` shows `nullLabel`
+  as muted text instead of the clear button. See `app/image-converter/page.tsx`
+  and `app/image-crop/page.tsx`.
+- `toggle` — a pressable button (e.g. "Remove background") that reveals its
+  own nested `color` and/or `slider` only while pressed: `{ label, icon,
+  pressed, onPressedChange, color?, slider? }`. See
+  `app/image-converter/page.tsx`.
+- `inputs` — an array of labeled text/number/password fields rendered
+  label-above-input (e.g. resize width/height, a PDF password): `{ label,
+  value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. See
+  `app/image-resize/page.tsx` and `app/pdf-unlock/page.tsx`.
+
+Render order in the footer row is `color`, `toggle`, `inputs`, `zoom`,
+`slider`, then `actions`/`download` right-aligned together. Don't add a new
+primitive for a one-off control — reuse `actions` (e.g. an icon+label toggle
+button computed from page state, like Image Resize's aspect-ratio lock) unless
+the control is genuinely reusable across tools.
+
 ## Copy
 
 Never use the `→` arrow character in tool names, page copy, or code comments
@@ -64,7 +117,59 @@ Never use the `→` arrow character in tool names, page copy, or code comments
 `->` in code comments where an arrow is genuinely useful (e.g. describing a
 before/after transform).
 
-## Canvas rect selection
+## Preview surface
+
+For a tool's main content area — the bordered, centered box that shows the
+picked file (a canvas, an `<img>`, or a status placeholder) — use the shared
+`PreviewCard` component (`components/preview-card.tsx`) instead of
+hand-rolling a `Card` plus a centering/checkerboard wrapper div:
+
+```tsx
+import { PreviewCard } from "@/components/preview-card"
+
+<PreviewCard
+  fill
+  checkerboard
+  title="Converted"
+  layer={
+    activeJob.result
+      // An image layer (`kind: "image"`) — e.g. a converted result that's
+      // already a decoded blob URL and doesn't need a canvas draw at all.
+      ? { kind: "image", src: activeJob.result.url, alt: activeJob.result.name }
+      // Or a status layer (`kind: "status"`) — a centered icon/message for
+      // the loading/error/idle states, so the whole preview (picked file
+      // *and* its fallback) is one data-driven `layer` with no JSX children
+      // at all.
+      : activeJob.status === "converting"
+        ? { kind: "status", icon: Loading03Icon, spin: true }
+        : { kind: "status", message: "Pick a format and hit Convert" }
+  }
+/>
+```
+
+`layer` takes a single layer object (the common case) or an array of layers
+that stack on top of each other, positioned/sized identically so they line
+up (e.g. a base image canvas plus a separate selection-overlay canvas). It
+filters falsy values — same convention as `ToolPage`'s `footer.actions` —
+so inline a layer's own readiness check (`condition ? {...} : {...}`)
+instead of reaching for `children`. `children` still exists as an escape
+hatch for content none of `canvas`/`image`/`status` fits — it's shown only
+once `layer` resolves to no truthy layers. See Image Converter: its
+Original pane is a canvas layer (so its color-picker click can sample
+pixels) with a status layer for the invalid-file case, and its Converted
+pane switches between an image layer and a status layer for
+converting/error/idle — no `children` on either.
+
+Pass `fill` for a viewport that grows to the available height (Image Blur's
+pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed
+`max-h-[60vh]` centered preview (Image Crop, Image Rotate). Pass
+`checkerboard` so PNG/WebP transparency (and the effect of a background
+colour) is visible against it. `viewportRef` exposes the inner viewport node
+for wheel/gesture listeners or fit-to-screen math (see Image Blur's zoom/pan).
+Pass `title` for a muted label above the box (e.g. "Original", "Converted")
+instead of hand-rolling a `<span>` above the `PreviewCard` — it accepts any
+`ReactNode`, so a dynamic hint (Image Converter's color-picker prompt) works
+too.
 
 For tools that let the user select a rectangular region on a canvas (crop,
 blur), use the shared `useRectSelection` hook (`hooks/use-rect-selection.ts`)
@@ -80,7 +185,7 @@ const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
   render: (rect) => renderDisplay(rect), // repaint with the selection (null = none)
 })
 
-<canvas ref={displayCanvasRef} {...selectionHandlers} className="… cursor-crosshair touch-none select-none" />
+<PreviewCard layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }} />
 ```
 
 The hook owns the selection state: read `pendingRect` to enable Apply-style
@@ -224,27 +329,27 @@ receives the raw `FileList`; use `Array.from(fileList)` to iterate — see
 `app/image-converter/page.tsx`).
 
 For tools that keep the dropzone around after a file's been picked so the
-header's "Add file" button can still open the same picker (see the `actions`
-example above), don't unmount `Dropzone` — its hidden `<input>` needs to stay
-mounted for the ref to work. Instead render it unconditionally and pass
-`hidden` to hide just the card, and reach it via a `DropzoneHandle` ref:
+header's "Add file" button can still open the same picker, don't unmount
+`Dropzone` — its hidden `<input>` needs to stay mounted for the ref to work.
+Instead render it unconditionally and pass `hidden` to hide just the card, and
+reach it via a `DropzoneHandle` ref. Wire the button itself through
+`ToolPage`'s `onAddFile` prop rather than hand-rolling it in `actions` — every
+tool page that keeps a dropzone around does this identically, so `ToolPage`
+renders the button itself once `onAddFile` is set:
 
 ```tsx
 const dropzoneRef = useRef<DropzoneHandle>(null)
 
 <ToolPage
-  actions={file && (
-    <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-      <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-      Add file
-    </Button>
-  )}
+  onAddFile={file ? () => dropzoneRef.current?.open() : undefined}
   ...
 >
   <Dropzone ref={dropzoneRef} hidden={!!file} ... />
 ```
 
-See `app/image-resize/page.tsx` and `app/video-to-audio/page.tsx`.
+Reserve `actions` for buttons that aren't this pattern (e.g. the JSON Parser's
+Format/Minify buttons). See `app/image-resize/page.tsx` and
+`app/video-to-audio/page.tsx`.
 
 ## Overriding component default styles
 

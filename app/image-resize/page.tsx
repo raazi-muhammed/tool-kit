@@ -1,6 +1,5 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
   AlertCircleIcon,
   CloudUploadIcon,
@@ -14,8 +13,6 @@ import { useRef, useState } from "react"
 import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { isImageFile, loadImage } from "@/lib/image-file"
@@ -235,15 +232,48 @@ export default function ImageResizePage() {
     <ToolPage
       page="Image Resize"
       icon={Resize02Icon}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        jobs.length > 0
+          ? {
+              inputs: [
+                {
+                  label: "Width",
+                  type: "number",
+                  min: 1,
+                  value: width,
+                  onChange: onWidthChange,
+                  disabled: anyBusy,
+                },
+                {
+                  label: "Height",
+                  type: "number",
+                  min: 1,
+                  value: height,
+                  onChange: onHeightChange,
+                  disabled: anyBusy,
+                },
+              ],
+              actions: [
+                {
+                  label: lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio",
+                  icon: LinkIcon,
+                  onClick: toggleLockAspect,
+                  disabled: anyBusy,
+                  variant: lockAspect ? "secondary" : "outline",
+                },
+                jobs.some((job) => job.result) && {
+                  label: "Download all",
+                  icon: Download04Icon,
+                  onClick: downloadAll,
+                  variant: "outline",
+                },
+                { label: "Resize", icon: Resize02Icon, onClick: resize, disabled: anyBusy },
+              ],
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {/* One row per file: source (left) and its output (right), side by side. */}
@@ -295,59 +325,6 @@ export default function ImageResizePage() {
           hidden={jobs.length > 0}
           onFiles={addFiles}
         />
-
-        {/* Width/height, aspect-ratio lock, and the explicit Resize trigger. */}
-        {jobs.length > 0 && (
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm text-muted-foreground">Width</span>
-              <Input
-                type="number"
-                min={1}
-                value={width}
-                onChange={(e) => onWidthChange(e.target.value)}
-                disabled={anyBusy}
-                className="w-28"
-              />
-            </div>
-            <Button
-              size="icon"
-              variant={lockAspect ? "secondary" : "ghost"}
-              aria-pressed={lockAspect}
-              aria-label={
-                lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio"
-              }
-              title={lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio"}
-              onClick={toggleLockAspect}
-              disabled={anyBusy}
-            >
-              <HugeiconsIcon icon={LinkIcon} aria-hidden />
-            </Button>
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm text-muted-foreground">Height</span>
-              <Input
-                type="number"
-                min={1}
-                value={height}
-                onChange={(e) => onHeightChange(e.target.value)}
-                disabled={anyBusy}
-                className="w-28"
-              />
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {jobs.some((job) => job.result) && (
-                <Button variant="outline" onClick={downloadAll}>
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download all
-                </Button>
-              )}
-              <Button onClick={resize} disabled={anyBusy}>
-                <HugeiconsIcon icon={Resize02Icon} aria-hidden />
-                Resize
-              </Button>
-            </div>
-          </div>
-        )}
 
         {formError && <p className="text-sm text-destructive">{formError}</p>}
       </div>

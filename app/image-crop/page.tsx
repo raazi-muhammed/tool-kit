@@ -1,13 +1,10 @@
 "use client"
 
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowDown01Icon,
   AspectRatioIcon,
   Cancel01Icon,
   CloudUploadIcon,
   CropIcon,
-  Download04Icon,
   ImageCropIcon,
   RectangularIcon,
   SmartPhone01Icon,
@@ -16,19 +13,10 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { ColorPicker } from "@/components/color-picker"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Button } from "@/components/ui/button"
-import { ButtonGroup } from "@/components/ui/button-group"
-import { Card } from "@/components/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { useEditorQueue } from "@/hooks/use-editor-queue"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
@@ -283,15 +271,45 @@ export default function ImageCropPage() {
           { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
         ],
       }}
-      actions={
-        jobs.length > 0 && (
-          <Button variant="outline" onClick={() => dropzoneRef.current?.open()}>
-            <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-            Add file
-          </Button>
-        )
-      }
+      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      footer={
+        activeJob
+          ? {
+              color: isPng
+                ? {
+                    label: "Background",
+                    value: activeJob.bgColor,
+                    onChange: onColorChange,
+                    fallback: "#ffffff",
+                    nullLabel: "transparent",
+                    clearLabel: "Transparent",
+                    clearIcon: Cancel01Icon,
+                  }
+                : undefined,
+              actions: [
+                pendingRect && {
+                  label: "Cancel selection",
+                  icon: Cancel01Icon,
+                  onClick: clearSelection,
+                  variant: "ghost",
+                },
+                { label: "Crop", icon: CropIcon, onClick: applyCrop, disabled: !pendingRect },
+                jobs.length > 1 && {
+                  label: "Crop all",
+                  icon: CropIcon,
+                  onClick: applyCropToAll,
+                  disabled: !pendingRect,
+                  variant: "outline",
+                },
+              ],
+              download: {
+                onDownload: download,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+              },
+            }
+          : undefined
+      }
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
@@ -303,92 +321,10 @@ export default function ImageCropPage() {
               onRemove={removeJob}
             />
 
-            <Card className="overflow-hidden p-2">
-              <div className="flex max-h-[60vh] items-center justify-center">
-                {/* Checkerboard behind the canvas so PNG transparency (and
-                    the effect of the background colour) is visible. */}
-                <div className="max-h-full rounded-md bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]">
-                  <canvas
-                    ref={displayCanvasRef}
-                    {...selectionHandlers}
-                    className="block max-h-[calc(60vh-1rem)] max-w-full cursor-crosshair touch-none select-none"
-                  />
-                </div>
-              </div>
-            </Card>
-
-            <div className="flex flex-wrap items-center gap-4">
-              {isPng && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">
-                    Background
-                  </span>
-                  <ColorPicker
-                    value={activeJob.bgColor ?? "#ffffff"}
-                    onChange={onColorChange}
-                    label="Background color"
-                  />
-                  {activeJob.bgColor ? (
-                    <Button variant="ghost" onClick={() => onColorChange(null)}>
-                      <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                      Transparent
-                    </Button>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">
-                      transparent
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div className="ml-auto flex items-center gap-2">
-                {pendingRect && (
-                  <Button variant="ghost" onClick={clearSelection}>
-                    <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-                    Cancel selection
-                  </Button>
-                )}
-                <Button onClick={applyCrop} disabled={!pendingRect}>
-                  <HugeiconsIcon icon={CropIcon} aria-hidden />
-                  Crop
-                </Button>
-                {jobs.length > 1 && (
-                  <Button
-                    variant="outline"
-                    onClick={applyCropToAll}
-                    disabled={!pendingRect}
-                  >
-                    <HugeiconsIcon icon={CropIcon} aria-hidden />
-                    Crop all
-                  </Button>
-                )}
-                <ButtonGroup>
-                  <Button variant="secondary" onClick={download}>
-                    <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                    Download
-                  </Button>
-                  {jobs.length > 1 && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          aria-label="More download options"
-                        >
-                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={downloadAll}>
-                          <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                          Download all
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </ButtonGroup>
-              </div>
-            </div>
+            <PreviewCard
+              checkerboard
+              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
+            />
           </div>
         )}
 
