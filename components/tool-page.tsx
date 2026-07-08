@@ -120,6 +120,8 @@ type Footer = {
   inputs?: FooterInput[]
   zoom?: FooterZoom
   slider?: FooterSlider
+  /** Muted contextual text (e.g. "No transparent margin to trim.") shown inline with the footer, left of the right-aligned actions/download group. */
+  hint?: ReactNode
   actions?: (FooterAction | false | null | undefined)[]
   download?: FooterDownload
 }
@@ -347,6 +349,8 @@ export function ToolPage({
               />
             </div>
           )}
+
+          {footer.hint && <span className="text-sm text-muted-foreground">{footer.hint}</span>}
 
           <div className="ml-auto flex flex-wrap items-center gap-4">
             {footer.actions

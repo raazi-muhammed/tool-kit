@@ -210,6 +210,8 @@ export default function ImageTrimPage() {
       footer={
         activeJob
           ? {
+              hint:
+                !pendingRect && !activeJob.trimmed ? "No transparent margin to trim." : undefined,
               actions: [
                 {
                   label: "Trim",
@@ -262,11 +264,6 @@ export default function ImageTrimPage() {
         />
 
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {activeJob && !pendingRect && !activeJob.trimmed && (
-          <p className="text-sm text-muted-foreground">
-            No transparent margin to trim.
-          </p>
-        )}
       </div>
     </ToolPage>
   )

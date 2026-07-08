@@ -103,12 +103,15 @@ still config objects, never JSX, so `ToolPage` renders them itself:
   label-above-input (e.g. resize width/height, a PDF password): `{ label,
   value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. See
   `app/image-resize/page.tsx` and `app/pdf-unlock/page.tsx`.
+- `hint` — muted contextual text shown inline with the footer buttons instead
+  of a separate paragraph below the preview (e.g. "No transparent margin to
+  trim."): just a `ReactNode`. See `app/image-trim/page.tsx`.
 
 Render order in the footer row is `color`, `toggle`, `inputs`, `zoom`,
-`slider`, then `actions`/`download` right-aligned together. Don't add a new
-primitive for a one-off control — reuse `actions` (e.g. an icon+label toggle
-button computed from page state, like Image Resize's aspect-ratio lock) unless
-the control is genuinely reusable across tools.
+`slider`, `hint`, then `actions`/`download` right-aligned together. Don't add
+a new primitive for a one-off control — reuse `actions` (e.g. an icon+label
+toggle button computed from page state, like Image Resize's aspect-ratio
+lock) unless the control is genuinely reusable across tools.
 
 ## Copy
 
