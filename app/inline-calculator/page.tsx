@@ -5,7 +5,7 @@ import { Calculator01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-i
 import { useMemo, useRef, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
-import { annotateLines, listVariableNames, resolveText } from "@/lib/calculator"
+import { annotateLines, listVariableNames } from "@/lib/calculator"
 
 function longestCommonPrefix(strings: string[]): string {
   return strings.reduce((prefix, s) => {
@@ -14,15 +14,6 @@ function longestCommonPrefix(strings: string[]): string {
     return prefix.slice(0, i)
   })
 }
-
-const SAMPLE = `12 + 8 =
-150 / 3 =
-(4 + 2) * 5
-2 ^ 10 =
-notes and other non-math lines are left untouched
-100 - 37.5 =
-a = 3
-a + 3 =`
 
 export default function InlineCalculatorPage() {
   const [text, setText] = useState("")
@@ -43,10 +34,6 @@ export default function InlineCalculatorPage() {
     setCaret(el.selectionStart === el.selectionEnd ? el.selectionStart : null)
   }
 
-  async function copy() {
-    await navigator.clipboard.writeText(resolveText(text))
-  }
-
   async function copyValue(value: string, line: number) {
     await navigator.clipboard.writeText(value)
     setCopiedLine(line)
@@ -57,10 +44,6 @@ export default function InlineCalculatorPage() {
 
   function clear() {
     setText("")
-  }
-
-  function loadSample() {
-    setText(SAMPLE)
   }
 
   const lines = text.split("\n")
@@ -108,8 +91,6 @@ export default function InlineCalculatorPage() {
     <ToolPage
       page="Inline Calculator"
       icon={Calculator01Icon}
-      onCopy={copy}
-      onLoadSample={loadSample}
       onClear={clear}
     >
       <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-md border bg-card/40">
