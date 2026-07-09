@@ -12,6 +12,7 @@ import {
   Resize02Icon,
   ScissorRectangleIcon,
   SquareIcon,
+  SquareRoundCornerIcon,
 } from "@hugeicons/core-free-icons"
 
 export type Tool = {
@@ -99,5 +100,11 @@ export const TOOLS: Tool[] = [
     icon: SquareIcon,
     name: "Square Image Generator",
     description: "Fit any image into a square canvas at any size, in your browser.",
+  },
+  {
+    href: "/image-round-corners",
+    icon: SquareRoundCornerIcon,
+    name: "Image Round Corners",
+    description: "Round an image's corners to any radius, in your browser.",
   },
 ]

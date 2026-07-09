@@ -420,6 +420,47 @@ export function blurRegion(
   destCtx.restore()
 }
 
+/**
+ * Copy `source` onto a new same-size canvas, clipped to rounded corners of
+ * `radius` (clamped to half the smaller dimension). The cut-away corners are
+ * filled with `bgColor`, or left transparent when null.
+ */
+export function roundCorners(
+  source: HTMLCanvasElement,
+  radius: number,
+  bgColor: string | null
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas")
+  canvas.width = source.width
+  canvas.height = source.height
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return canvas
+  const { width, height } = canvas
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2))
+
+  if (bgColor) {
+    ctx.fillStyle = bgColor
+    ctx.fillRect(0, 0, width, height)
+  }
+
+  ctx.save()
+  ctx.beginPath()
+  ctx.moveTo(r, 0)
+  ctx.lineTo(width - r, 0)
+  ctx.arcTo(width, 0, width, r, r)
+  ctx.lineTo(width, height - r)
+  ctx.arcTo(width, height, width - r, height, r)
+  ctx.lineTo(r, height)
+  ctx.arcTo(0, height, 0, height - r, r)
+  ctx.lineTo(0, r)
+  ctx.arcTo(0, 0, r, 0, r)
+  ctx.closePath()
+  ctx.clip()
+  ctx.drawImage(source, 0, 0)
+  ctx.restore()
+  return canvas
+}
+
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const num = parseInt(hex.replace("#", ""), 16)
   return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 }
