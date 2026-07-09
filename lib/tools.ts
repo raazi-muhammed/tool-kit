@@ -9,6 +9,7 @@ import {
   ImageCropIcon,
   ImageRotationClockwiseIcon,
   Resize02Icon,
+  ScanIcon,
   ScissorRectangleIcon,
 } from "@hugeicons/core-free-icons"
 
@@ -78,6 +79,13 @@ export const TOOLS: Tool[] = [
     icon: ImageRotationClockwiseIcon,
     name: "Image Rotate",
     description: "Rotate images in 90° steps, in your browser.",
+  },
+  {
+    href: "/image-scan",
+    icon: ScanIcon,
+    name: "Image Scan",
+    description:
+      "Drag a photographed document's corners to straighten it into a flat scan, in your browser.",
   },
   {
     href: "/pdf-unlock",
