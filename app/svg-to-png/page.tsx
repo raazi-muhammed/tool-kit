@@ -7,10 +7,10 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
-import { downloadFile, downloadStagger } from "@/lib/download"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
+import { useLockedSize } from "@/hooks/use-locked-size"
+import { downloadCanvas, downloadStagger } from "@/lib/download"
 import { loadImage } from "@/lib/image-file"
-import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/svg+xml,.svg"
 
@@ -45,7 +45,7 @@ export default function SvgToPngPage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLImageElement>({
+  } = useFiles<Job, HTMLImageElement>({
     loadResource,
     createJob: (file, id) => ({
       id,
@@ -57,9 +57,6 @@ export default function SvgToPngPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const [width, setWidth] = useState("")
-  const [height, setHeight] = useState("")
-  const [lockAspect, setLockAspect] = useState(true)
   const [bgColor, setBgColor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -73,6 +70,8 @@ export default function SvgToPngPage() {
   const referenceOriginal = activeResource
     ? { width: activeResource.naturalWidth, height: activeResource.naturalHeight }
     : null
+  const { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed, reset } =
+    useLockedSize(referenceOriginal)
 
   function paintConverted(source: HTMLCanvasElement | HTMLImageElement | undefined) {
     const canvas = convertedCanvasRef.current
@@ -97,73 +96,25 @@ export default function SvgToPngPage() {
   useEffect(() => {
     if (activeId == null) return
     paintConverted(activeJob?.result?.canvas ?? activeResource)
-    if (!width && !height && referenceOriginal) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWidth(String(referenceOriginal.width))
-      setHeight(String(referenceOriginal.height))
-    }
+    seed()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
   function clear() {
     clearQueue()
-    setWidth("")
-    setHeight("")
+    reset()
     setBgColor(null)
     setFormError(null)
     setError(null)
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as SVGs."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as SVGs.",
+      setError
     )
-  }
-
-  function onWidthChange(value: string) {
-    setWidth(value)
-    const parsed = Number(value)
-    if (lockAspect && referenceOriginal && parsed > 0) {
-      setHeight(
-        String(
-          Math.max(1, Math.round(parsed * (referenceOriginal.height / referenceOriginal.width)))
-        )
-      )
-    }
-  }
-
-  function onHeightChange(value: string) {
-    setHeight(value)
-    const parsed = Number(value)
-    if (lockAspect && referenceOriginal && parsed > 0) {
-      setWidth(
-        String(
-          Math.max(1, Math.round(parsed * (referenceOriginal.width / referenceOriginal.height)))
-        )
-      )
-    }
-  }
-
-  function toggleLockAspect() {
-    // Re-derive height from the current width so re-locking snaps back to
-    // the reference ratio instead of carrying over a distorted size.
-    if (!lockAspect && referenceOriginal) {
-      const parsedWidth = Number(width)
-      if (parsedWidth > 0) {
-        setHeight(
-          String(
-            Math.max(
-              1,
-              Math.round(parsedWidth * (referenceOriginal.height / referenceOriginal.width))
-            )
-          )
-        )
-      }
-    }
-    setLockAspect(!lockAspect)
   }
 
   function convertJob(
@@ -208,14 +159,7 @@ export default function SvgToPngPage() {
 
   async function downloadJob(job: Job) {
     if (!job.result) return
-    const blob: Blob | null = await new Promise((resolve) =>
-      job.result!.canvas.toBlob(resolve, "image/png")
-    )
-    if (!blob) return
-    const name = replaceExtension(job.name, "png")
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
-    URL.revokeObjectURL(url)
+    await downloadCanvas(job.result.canvas, job.name, "image/png")
   }
 
   function download() {

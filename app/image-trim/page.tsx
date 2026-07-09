@@ -7,11 +7,10 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { drawSelectionRect, findOpaqueBounds, type Rect } from "@/lib/canvas"
-import { downloadFile, downloadStagger } from "@/lib/download"
-import { imageToCanvas, loadImage } from "@/lib/image-file"
-import { replaceExtension } from "@/lib/wav"
+import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
 
@@ -24,15 +23,6 @@ type Job = {
   // Download button, since an untrimmed job would just hand back the
   // original file.
   trimmed: boolean
-}
-
-async function loadResource(file: File): Promise<HTMLCanvasElement> {
-  const url = URL.createObjectURL(file)
-  try {
-    return imageToCanvas(await loadImage(url))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
 }
 
 /** Null once the image is already tight to its content — nothing to trim. */
@@ -55,8 +45,8 @@ export default function ImageTrimPage() {
     clear: clearQueue,
     getResource,
     setResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
-    loadResource,
+  } = useFiles<Job, HTMLCanvasElement>({
+    loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
       id,
       file,
@@ -121,12 +111,12 @@ export default function ImageTrimPage() {
     setError(null)
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as images."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as images.",
+      setError
     )
   }
 
@@ -172,19 +162,7 @@ export default function ImageTrimPage() {
   async function downloadJob(job: Job) {
     const image = getResource(job.id)
     if (!image) return
-    const mime =
-      job.file.type && job.file.type.startsWith("image/")
-        ? job.file.type
-        : "image/png"
-    const blob: Blob | null = await new Promise((resolve) =>
-      image.toBlob(resolve, mime)
-    )
-    if (!blob) return
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(job.name, ext)
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
-    URL.revokeObjectURL(url)
+    await downloadCanvas(image, job.name, outputMime(job.file.type))
   }
 
   function download() {

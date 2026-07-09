@@ -16,8 +16,10 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useQuadSelection } from "@/hooks/use-quad-selection"
+import { useZoomPan } from "@/hooks/use-zoom-pan"
 import {
   defaultQuad,
   drawQuadSelection,
@@ -27,40 +29,22 @@ import {
   type Quad,
 } from "@/lib/canvas"
 import { detectDocumentQuad } from "@/lib/document-detect"
-import { downloadFile, downloadStagger } from "@/lib/download"
-import { imageToCanvas, loadImage } from "@/lib/image-file"
+import { downloadFile, downloadStagger, extensionForMime } from "@/lib/download"
+import { loadImageAsCanvas } from "@/lib/image-file"
 import { applyScanFilter, type ScanFilter } from "@/lib/image-filter"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
-const MIN_ZOOM = 1
-const MAX_ZOOM = 8
 // Formats a <canvas> can actually encode to via toBlob — a source file's own
 // MIME (HEIC off an iPhone, TIFF, AVIF, ...) may not be one of these even
 // though the browser could decode it to draw it in the first place.
 const ENCODABLE_MIME = new Set(["image/png", "image/jpeg", "image/webp"])
-
-// Safari's trackpad pinch arrives as gesture* events, not ctrl+wheel.
-type SafariGestureEvent = Event & {
-  scale?: number
-  clientX?: number
-  clientY?: number
-}
 
 type Job = {
   id: number
   file: File
   name: string
   previewUrl: string
-}
-
-async function loadResource(file: File): Promise<HTMLCanvasElement> {
-  const url = URL.createObjectURL(file)
-  try {
-    return imageToCanvas(await loadImage(url))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
 }
 
 export default function ImageScanPage() {
@@ -73,8 +57,8 @@ export default function ImageScanPage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
-    loadResource,
+  } = useFiles<Job, HTMLCanvasElement>({
+    loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
       id,
       file,
@@ -99,7 +83,7 @@ export default function ImageScanPage() {
   const dropzoneRef = useRef<DropzoneHandle>(null)
   // The warped (unfiltered) output of the last "Scan" per job — kept
   // separate from the job's own resource (the original photo, via
-  // useEditorQueue), which is never mutated, so the corner selection can
+  // useFiles), which is never mutated, so the corner selection can
   // always be re-adjusted and re-scanned against the untouched original
   // instead of the original being lost the moment a scan is applied.
   const scanResultsRef = useRef<Map<number, HTMLCanvasElement>>(new Map())
@@ -109,66 +93,11 @@ export default function ImageScanPage() {
     render: (quad) => renderDisplay(quad),
   })
 
-  // Zoom/pan (Original pane only — the Scanned pane is a plain fit-to-box
-  // preview) is a pure CSS transform on the canvas inside a clipped
-  // viewport — corner-drag hit testing is unaffected because
-  // getBoundingClientRect already reflects the transform. Kept in refs (not
-  // state) so wheel/pinch events don't re-render React on every tick;
-  // `zoomPct` mirrors it for the footer's readout.
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const viewRef = useRef({ scale: 1, x: 0, y: 0 })
-  const fitSizeRef = useRef({ width: 0, height: 0 })
-  const [zoomPct, setZoomPct] = useState(100)
-
-  function applyView() {
-    const canvas = displayCanvasRef.current
-    const viewport = viewportRef.current
-    if (!canvas || !viewport) return
-    const view = viewRef.current
-    // Clamp so the image stays inside the viewport (centered when smaller).
-    const vw = viewport.clientWidth
-    const vh = viewport.clientHeight
-    const w = fitSizeRef.current.width * view.scale
-    const h = fitSizeRef.current.height * view.scale
-    view.x = w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, view.x))
-    view.y = h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, view.y))
-    canvas.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
-    setZoomPct(Math.round(view.scale * 100))
-  }
-
-  /** Size the canvas to fit the viewport (object-contain) and reset the view. */
-  function fitView() {
-    const canvas = displayCanvasRef.current
-    const viewport = viewportRef.current
-    const base = getResource()
-    if (!canvas || !viewport || !base) return
-    const fit = Math.min(
-      viewport.clientWidth / base.width,
-      viewport.clientHeight / base.height
-    )
-    fitSizeRef.current = { width: base.width * fit, height: base.height * fit }
-    canvas.style.width = `${fitSizeRef.current.width}px`
-    canvas.style.height = `${fitSizeRef.current.height}px`
-    viewRef.current = { scale: 1, x: 0, y: 0 }
-    applyView()
-  }
-
-  /** Zoom by `factor` keeping the viewport point (px, py) fixed. */
-  function zoomAt(px: number, py: number, factor: number) {
-    const view = viewRef.current
-    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, view.scale * factor))
-    const applied = next / view.scale
-    view.x = px - (px - view.x) * applied
-    view.y = py - (py - view.y) * applied
-    view.scale = next
-    applyView()
-  }
-
-  function zoomFromButton(factor: number) {
-    const viewport = viewportRef.current
-    if (!viewport) return
-    zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, factor)
-  }
+  // Zoom/pan (Original pane only — the Scanned pane is a plain fit-to-box preview).
+  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } = useZoomPan({
+    canvasRef: displayCanvasRef,
+    getBaseSize: () => getResource(),
+  })
 
   /** Repaint the Original pane: the untouched source image plus the quad overlay. */
   function renderDisplay(quad: Quad | null) {
@@ -216,70 +145,11 @@ export default function ImageScanPage() {
 
   // Paint + fit the Original pane whenever the active job changes — it only
   // exists in the DOM once a file has been picked, so this can't happen
-  // synchronously when a file is added. Also wires zoom/pan listeners
-  // natively: React registers wheel handlers as passive, which would make
-  // preventDefault (needed to stop page scroll and browser pinch-zoom) a
-  // no-op.
+  // synchronously when a file is added.
   useEffect(() => {
     if (activeId == null) return
     reseedQuad(activeId)
     fitView()
-
-    const viewport = viewportRef.current
-    if (!viewport) return
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault()
-      if (e.ctrlKey || e.metaKey) {
-        // Pinch on Chrome/Firefox trackpads, or ctrl/cmd + scroll wheel.
-        const box = viewport.getBoundingClientRect()
-        zoomAt(
-          e.clientX - box.left,
-          e.clientY - box.top,
-          Math.exp(-e.deltaY * 0.01)
-        )
-      } else {
-        const view = viewRef.current
-        view.x -= e.deltaX
-        view.y -= e.deltaY
-        applyView()
-      }
-    }
-
-    // Safari trackpad pinch fires gesture* events instead of ctrl+wheel.
-    let gestureStartScale = 1
-    const onGestureStart = (e: Event) => {
-      e.preventDefault()
-      gestureStartScale = viewRef.current.scale
-    }
-    const onGestureChange = (e: Event) => {
-      e.preventDefault()
-      const gesture = e as SafariGestureEvent
-      if (!gesture.scale) return
-      const box = viewport.getBoundingClientRect()
-      const target = Math.min(
-        MAX_ZOOM,
-        Math.max(MIN_ZOOM, gestureStartScale * gesture.scale)
-      )
-      zoomAt(
-        (gesture.clientX ?? box.left + box.width / 2) - box.left,
-        (gesture.clientY ?? box.top + box.height / 2) - box.top,
-        target / viewRef.current.scale
-      )
-    }
-
-    const onResize = () => fitView()
-
-    viewport.addEventListener("wheel", onWheel, { passive: false })
-    viewport.addEventListener("gesturestart", onGestureStart)
-    viewport.addEventListener("gesturechange", onGestureChange)
-    window.addEventListener("resize", onResize)
-    return () => {
-      viewport.removeEventListener("wheel", onWheel)
-      viewport.removeEventListener("gesturestart", onGestureStart)
-      viewport.removeEventListener("gesturechange", onGestureChange)
-      window.removeEventListener("resize", onResize)
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
@@ -297,11 +167,7 @@ export default function ImageScanPage() {
   // changes, instead of requiring an explicit apply click — debounced so
   // dragging the threshold slider (many onValueChange updates a second)
   // doesn't re-filter the whole image on every tick, only once it settles.
-  useEffect(() => {
-    const timeout = setTimeout(renderResult, 200)
-    return () => clearTimeout(timeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, bwThreshold])
+  useDebouncedEffect(renderResult, [filter, bwThreshold], 200)
 
   function clear() {
     clearQueue()
@@ -324,12 +190,12 @@ export default function ImageScanPage() {
     removeJob(id)
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as images."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as images.",
+      setError
     )
   }
 
@@ -394,8 +260,7 @@ export default function ImageScanPage() {
       filtered.toBlob(resolve, mime)
     )
     if (!blob) throw new Error(`Couldn't encode "${job.name}" for download.`)
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1]
-    const name = replaceExtension(job.name, ext)
+    const name = replaceExtension(job.name, extensionForMime(mime))
     const url = URL.createObjectURL(blob)
     downloadFile(url, name)
     URL.revokeObjectURL(url)

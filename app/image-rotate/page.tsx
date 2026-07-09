@@ -12,11 +12,10 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { rotateCanvas } from "@/lib/canvas"
-import { downloadFile, downloadStagger } from "@/lib/download"
-import { imageToCanvas, loadImage } from "@/lib/image-file"
-import { replaceExtension } from "@/lib/wav"
+import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
 
@@ -34,15 +33,6 @@ function normalizeRotation(degrees: number): 0 | 90 | 180 | 270 {
   return (((degrees % 360) + 360) % 360) as 0 | 90 | 180 | 270
 }
 
-async function loadResource(file: File): Promise<HTMLCanvasElement> {
-  const url = URL.createObjectURL(file)
-  try {
-    return imageToCanvas(await loadImage(url))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 export default function ImageRotatePage() {
   const {
     jobs,
@@ -54,8 +44,8 @@ export default function ImageRotatePage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
-    loadResource,
+  } = useFiles<Job, HTMLCanvasElement>({
+    loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
       id,
       file,
@@ -99,12 +89,12 @@ export default function ImageRotatePage() {
     setError(null)
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as images."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as images.",
+      setError
     )
   }
 
@@ -129,19 +119,7 @@ export default function ImageRotatePage() {
     const base = getResource(job.id)
     if (!base) return
     const rotated = rotateCanvas(base, job.rotation)
-    const mime =
-      job.file.type && job.file.type.startsWith("image/")
-        ? job.file.type
-        : "image/png"
-    const blob: Blob | null = await new Promise((resolve) =>
-      rotated.toBlob(resolve, mime)
-    )
-    if (!blob) return
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(job.name, ext)
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
-    URL.revokeObjectURL(url)
+    await downloadCanvas(rotated, job.name, outputMime(job.file.type))
   }
 
   function download() {

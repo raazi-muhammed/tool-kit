@@ -7,10 +7,10 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
-import { downloadFile, downloadStagger } from "@/lib/download"
-import { imageToCanvas, loadImage } from "@/lib/image-file"
-import { replaceExtension } from "@/lib/wav"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
+import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
 
@@ -25,15 +25,6 @@ type Job = {
   result: Result | null
 }
 
-async function loadResource(file: File): Promise<HTMLCanvasElement> {
-  const url = URL.createObjectURL(file)
-  try {
-    return imageToCanvas(await loadImage(url))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 export default function SquareImageGeneratorPage() {
   const {
     jobs,
@@ -45,8 +36,8 @@ export default function SquareImageGeneratorPage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
-    loadResource,
+  } = useFiles<Job, HTMLCanvasElement>({
+    loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
       id,
       file,
@@ -133,22 +124,17 @@ export default function SquareImageGeneratorPage() {
   // explicit Generate click. Debounced so dragging the color picker or
   // typing a size (many updates a second) doesn't redraw on every tick —
   // only once the value settles.
-  useEffect(() => {
+  useDebouncedEffect(() => {
     if (jobs.length === 0 || sizeError || !parsedSize) return
     const transparent = !bgColor
-
-    const timeout = setTimeout(() => {
-      let activeCanvas: HTMLCanvasElement | null = null
-      jobs.forEach((job) => {
-        const canvas = squareJob(job, parsedSize)
-        if (!canvas) return
-        updateJob(job.id, { result: { canvas, size: parsedSize, transparent } })
-        if (job.id === activeId) activeCanvas = canvas
-      })
-      if (activeCanvas) renderDisplay(activeCanvas)
-    }, 300)
-    return () => clearTimeout(timeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let activeCanvas: HTMLCanvasElement | null = null
+    jobs.forEach((job) => {
+      const canvas = squareJob(job, parsedSize)
+      if (!canvas) return
+      updateJob(job.id, { result: { canvas, size: parsedSize, transparent } })
+      if (job.id === activeId) activeCanvas = canvas
+    })
+    if (activeCanvas) renderDisplay(activeCanvas)
   }, [parsedSize, sizeError, bgColor, jobs.length])
 
   function clear() {
@@ -157,31 +143,19 @@ export default function SquareImageGeneratorPage() {
     setError(null)
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as images."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as images.",
+      setError
     )
   }
 
   async function downloadJob(job: Job) {
     if (!job.result) return
-    const mime = job.result.transparent
-      ? "image/png"
-      : job.file.type && job.file.type.startsWith("image/")
-        ? job.file.type
-        : "image/png"
-    const blob: Blob | null = await new Promise((resolve) =>
-      job.result!.canvas.toBlob(resolve, mime)
-    )
-    if (!blob) return
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(job.name, ext)
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
-    URL.revokeObjectURL(url)
+    const mime = job.result.transparent ? "image/png" : outputMime(job.file.type)
+    await downloadCanvas(job.result.canvas, job.name, mime)
   }
 
   function download() {
