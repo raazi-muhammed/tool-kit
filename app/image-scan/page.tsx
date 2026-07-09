@@ -1,8 +1,8 @@
 "use client"
 
 import {
+  AiScanIcon,
   CloudUploadIcon,
-  ReloadIcon,
   ScanIcon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
@@ -21,6 +21,7 @@ import {
   warpQuadToRect,
   type Quad,
 } from "@/lib/canvas"
+import { detectDocumentQuad } from "@/lib/document-detect"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { imageToCanvas, loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
@@ -92,16 +93,18 @@ export default function ImageScanPage() {
     if (quad) drawQuadSelection(display, quad)
   }
 
-  // Seed a fresh default quad whenever the active image changes — either a
-  // newly picked/switched job, or the same job right after its resource was
-  // just replaced by a warped result.
+  // Seed the quad whenever the active image changes — either a newly
+  // picked/switched job, or the same job right after its resource was just
+  // replaced by a warped result. Tries auto-detecting the document's
+  // corners first, falling back to a plain inset default if detection
+  // didn't find anything plausible.
   function reseedQuad(id: number | null) {
     const image = getResource(id ?? undefined)
     if (!image) {
       resetQuad(null)
       return
     }
-    resetQuad(defaultQuad(image.width, image.height))
+    resetQuad(detectDocumentQuad(image) ?? defaultQuad(image.width, image.height))
   }
 
   useEffect(() => {
@@ -163,7 +166,7 @@ export default function ImageScanPage() {
     setProcessingId(null)
   }
 
-  function resetCorners() {
+  function autoDetectCorners() {
     reseedQuad(activeId)
   }
 
@@ -209,9 +212,9 @@ export default function ImageScanPage() {
           ? {
               actions: [
                 {
-                  label: "Reset corners",
-                  icon: ReloadIcon,
-                  onClick: resetCorners,
+                  label: "Auto detect",
+                  icon: AiScanIcon,
+                  onClick: autoDetectCorners,
                   variant: "ghost",
                   disabled: anyProcessing,
                 },
@@ -265,7 +268,7 @@ export default function ImageScanPage() {
           ref={dropzoneRef}
           icon={CloudUploadIcon}
           title="Drag and drop a photo of a document to upload"
-          description="or, click to browse · drag the corners onto the document's edges · in-browser only"
+          description="or, click to browse · corners are auto-detected, drag to fine-tune · in-browser only"
           accept={ACCEPTED}
           multiple
           hidden={jobs.length > 0}
