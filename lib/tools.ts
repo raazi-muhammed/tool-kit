@@ -11,6 +11,7 @@ import {
   Png01Icon,
   Resize02Icon,
   ScissorRectangleIcon,
+  SquareIcon,
 } from "@hugeicons/core-free-icons"
 
 export type Tool = {
@@ -92,5 +93,11 @@ export const TOOLS: Tool[] = [
     icon: Png01Icon,
     name: "SVG to PNG",
     description: "Convert SVG files to PNG at any resolution, in your browser.",
+  },
+  {
+    href: "/square-image-generator",
+    icon: SquareIcon,
+    name: "Square Image Generator",
+    description: "Fit any image into a square canvas at any size, in your browser.",
   },
 ]

@@ -144,6 +144,35 @@ a new primitive for a one-off control — reuse `actions` (e.g. an icon+label
 toggle button computed from page state, like Image Resize's aspect-ratio
 lock) unless the control is genuinely reusable across tools.
 
+## Live vs explicit apply
+
+When a tool's output is a pure function of its settings — applied uniformly
+to every queued job, with no interactive per-job step to commit (unlike a
+drawn crop/blur selection) — default to regenerating automatically instead
+of gating it behind an action button. Rerun the transform in a `useEffect`
+keyed on the relevant settings state (plus `jobs.length`, so newly added
+files regenerate too), debounced so dragging a color picker or typing a
+number doesn't redraw on every keystroke:
+
+```tsx
+useEffect(() => {
+  if (jobs.length === 0) return
+  const timeout = setTimeout(() => {
+    jobs.forEach((job) => regenerate(job, settings))
+  }, 300)
+  return () => clearTimeout(timeout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [settingA, settingB, jobs.length])
+```
+
+`footer.actions` simply isn't set in this case — the footer is just
+`color`/`inputs`/`slider` (the settings) plus `download`. Derive any
+validation message (e.g. "Enter a size of at least 1 pixel") straight from
+the settings state in the render body instead of `useState` + effect —
+`eslint-plugin-react-hooks` flags a synchronous `setState` inside an effect
+body. See `app/image-converter/page.tsx` (format/quality/background) and
+`app/square-image-generator/page.tsx` (size/background).
+
 ## Copy
 
 Never use the `→` arrow character in tool names, page copy, or code comments
