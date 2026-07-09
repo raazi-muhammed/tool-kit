@@ -485,6 +485,223 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`
 }
 
+export type Point = { x: number; y: number }
+/** Corners in order: top-left, top-right, bottom-right, bottom-left. */
+export type Quad = [Point, Point, Point, Point]
+
+/** A quad inset from the canvas edges by `insetRatio`, so it starts fully visible and easy to grab. */
+export function defaultQuad(width: number, height: number, insetRatio = 0.08): Quad {
+  const ix = width * insetRatio
+  const iy = height * insetRatio
+  return [
+    { x: ix, y: iy },
+    { x: width - ix, y: iy },
+    { x: width - ix, y: height - iy },
+    { x: ix, y: height - iy },
+  ]
+}
+
+/** Clamp a point so it stays fully inside a `width` x `height` canvas. */
+export function clampPoint(point: Point, width: number, height: number): Point {
+  return {
+    x: Math.max(0, Math.min(point.x, width)),
+    y: Math.max(0, Math.min(point.y, height)),
+  }
+}
+
+/** Index of the quad corner within `tol` (canvas px) of (x, y), or null. */
+export function hitQuadCorner(x: number, y: number, quad: Quad, tol: number): number | null {
+  for (let i = 0; i < quad.length; i++) {
+    const dx = x - quad[i].x
+    const dy = y - quad[i].y
+    if (Math.sqrt(dx * dx + dy * dy) <= tol) return i
+  }
+  return null
+}
+
+/**
+ * Scale a quad from one canvas's coordinate space to another — e.g. to apply
+ * a corner selection made on one queued image to a different image of
+ * another size (see `scaleRect`, its rectangle equivalent).
+ */
+export function scaleQuad(
+  quad: Quad,
+  from: { width: number; height: number },
+  to: { width: number; height: number }
+): Quad {
+  return quad.map((p) => ({
+    x: (p.x / from.width) * to.width,
+    y: (p.y / from.height) * to.height,
+  })) as Quad
+}
+
+/**
+ * Draw the quad selection chrome onto `canvas`: everything outside the quad
+ * dimmed, a solid outline connecting the 4 corners, and a round grab handle
+ * at each one.
+ */
+export function drawQuadSelection(canvas: HTMLCanvasElement, quad: Quad) {
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return
+
+  ctx.save()
+  ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
+  ctx.beginPath()
+  ctx.rect(0, 0, canvas.width, canvas.height)
+  ctx.moveTo(quad[0].x, quad[0].y)
+  ctx.lineTo(quad[1].x, quad[1].y)
+  ctx.lineTo(quad[2].x, quad[2].y)
+  ctx.lineTo(quad[3].x, quad[3].y)
+  ctx.closePath()
+  ctx.fill("evenodd")
+  ctx.restore()
+
+  ctx.save()
+  ctx.strokeStyle = "#3b82f6"
+  ctx.lineWidth = Math.max(1, canvas.width / 400)
+  ctx.beginPath()
+  ctx.moveTo(quad[0].x, quad[0].y)
+  ctx.lineTo(quad[1].x, quad[1].y)
+  ctx.lineTo(quad[2].x, quad[2].y)
+  ctx.lineTo(quad[3].x, quad[3].y)
+  ctx.closePath()
+  ctx.stroke()
+
+  const radius = ctx.lineWidth * 2.5
+  ctx.fillStyle = "#3b82f6"
+  for (const point of quad) {
+    ctx.beginPath()
+    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+function pointDistance(a: Point, b: Point): number {
+  return Math.hypot(a.x - b.x, a.y - b.y)
+}
+
+/** A reasonable output size for de-skewing `quad`: the average of each pair of opposite edge lengths. */
+export function quadOutputSize(quad: Quad): { width: number; height: number } {
+  const [tl, tr, br, bl] = quad
+  return {
+    width: Math.max(1, Math.round((pointDistance(tl, tr) + pointDistance(bl, br)) / 2)),
+    height: Math.max(1, Math.round((pointDistance(tl, bl) + pointDistance(tr, br)) / 2)),
+  }
+}
+
+/**
+ * Bilinear-sample `data` (a `sw` x `sh` RGBA buffer) at floating-point (x, y),
+ * clamping to the edge outside its bounds.
+ */
+function sampleBilinear(
+  data: Uint8ClampedArray,
+  sw: number,
+  sh: number,
+  x: number,
+  y: number
+): [number, number, number, number] {
+  const x0 = Math.floor(x)
+  const y0 = Math.floor(y)
+  const tx = x - x0
+  const ty = y - y0
+  const cx0 = Math.min(sw - 1, Math.max(0, x0))
+  const cy0 = Math.min(sh - 1, Math.max(0, y0))
+  const cx1 = Math.min(sw - 1, Math.max(0, x0 + 1))
+  const cy1 = Math.min(sh - 1, Math.max(0, y0 + 1))
+  const i00 = (cy0 * sw + cx0) * 4
+  const i10 = (cy0 * sw + cx1) * 4
+  const i01 = (cy1 * sw + cx0) * 4
+  const i11 = (cy1 * sw + cx1) * 4
+
+  const result: [number, number, number, number] = [0, 0, 0, 0]
+  for (let c = 0; c < 4; c++) {
+    const top = data[i00 + c] * (1 - tx) + data[i10 + c] * tx
+    const bottom = data[i01 + c] * (1 - tx) + data[i11 + c] * tx
+    result[c] = top * (1 - ty) + bottom * ty
+  }
+  return result
+}
+
+/**
+ * Warp the `quad` region of `source` into a flat `outWidth` x `outHeight`
+ * rectangle — a projective (perspective) transform, not just an affine crop,
+ * so a document photographed at an angle comes out straightened. Maps each
+ * destination pixel back to its source position via the classic "unit
+ * square to quadrilateral" homography (Heckbert), then bilinear-samples the
+ * source there — an inverse mapping, so every destination pixel gets a
+ * value with no gaps.
+ */
+export function warpQuadToRect(
+  source: HTMLCanvasElement,
+  quad: Quad,
+  outWidth: number,
+  outHeight: number
+): HTMLCanvasElement {
+  const out = document.createElement("canvas")
+  out.width = outWidth
+  out.height = outHeight
+  const srcCtx = source.getContext("2d")
+  const outCtx = out.getContext("2d")
+  if (!srcCtx || !outCtx) return out
+
+  const sw = source.width
+  const sh = source.height
+  const src = srcCtx.getImageData(0, 0, sw, sh).data
+  const outData = outCtx.createImageData(outWidth, outHeight)
+  const dst = outData.data
+
+  const [p0, p1, p2, p3] = quad
+  const dx1 = p1.x - p2.x
+  const dx2 = p3.x - p2.x
+  const dx3 = p0.x - p1.x + p2.x - p3.x
+  const dy1 = p1.y - p2.y
+  const dy2 = p3.y - p2.y
+  const dy3 = p0.y - p1.y + p2.y - p3.y
+
+  let a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number
+  if (Math.abs(dx3) < 1e-9 && Math.abs(dy3) < 1e-9) {
+    // Already a parallelogram (dx3/dy3 ~ 0): a pure affine map, no perspective term.
+    a = p1.x - p0.x
+    b = p3.x - p0.x
+    c = p0.x
+    d = p1.y - p0.y
+    e = p3.y - p0.y
+    f = p0.y
+    g = 0
+    h = 0
+  } else {
+    const denom = dx1 * dy2 - dx2 * dy1
+    g = denom === 0 ? 0 : (dx3 * dy2 - dx2 * dy3) / denom
+    h = denom === 0 ? 0 : (dx1 * dy3 - dx3 * dy1) / denom
+    a = p1.x - p0.x + g * p1.x
+    b = p3.x - p0.x + h * p3.x
+    c = p0.x
+    d = p1.y - p0.y + g * p1.y
+    e = p3.y - p0.y + h * p3.y
+    f = p0.y
+  }
+
+  for (let dy = 0; dy < outHeight; dy++) {
+    const v = dy / outHeight
+    for (let dx = 0; dx < outWidth; dx++) {
+      const u = dx / outWidth
+      const w = g * u + h * v + 1
+      const x = (a * u + b * v + c) / w
+      const y = (d * u + e * v + f) / w
+      const [r, gCol, bCol, aCol] = sampleBilinear(src, sw, sh, x, y)
+      const di = (dy * outWidth + dx) * 4
+      dst[di] = r
+      dst[di + 1] = gCol
+      dst[di + 2] = bCol
+      dst[di + 3] = aCol
+    }
+  }
+
+  outCtx.putImageData(outData, 0, 0)
+  return out
+}
+
 /**
  * Sample the color at (clientX, clientY) — viewport coordinates, e.g. from a
  * click event — on a `<canvas>` whose intrinsic bitmap is scaled down to fit
