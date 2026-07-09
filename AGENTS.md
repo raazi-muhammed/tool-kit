@@ -115,8 +115,16 @@ still config objects, never JSX, so `ToolPage` renders them itself:
 
 - `color` — a settable/clearable color swatch (e.g. a background fill for
   transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
-  clearLabel?, clearIcon?, onPickFromImage? }`. `value: null` shows `nullLabel`
-  as muted text instead of the clear button. See `app/image-converter/page.tsx`
+  clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
+  instead of the clear button. `ColorPicker` itself (`components/color-picker.tsx`)
+  always offers both a "Pick from screen" native `EyeDropper` button (where
+  the browser supports it — Chrome/Edge) and a "Pick from image" fallback
+  that works everywhere (including Safari/Firefox): it consumes the next
+  click anywhere on the page and samples whatever canvas/image is under the
+  cursor via `sampleColorAtPoint` (`lib/canvas.ts`). Both are unconditional —
+  no per-tool wiring, callback, or prop is needed or should be added; don't
+  reintroduce a page-owned "pick mode" (state, an `onClick` on the preview
+  canvas, a cursor override) to support this. See `app/image-converter/page.tsx`
   and `app/image-crop/page.tsx`.
 - `toggle` — a pressable button (e.g. "Remove background") that reveals its
   own nested `color` and/or `slider` only while pressed: `{ label, icon,
@@ -135,6 +143,35 @@ Render order in the footer row is `color`, `toggle`, `inputs`, `zoom`,
 a new primitive for a one-off control — reuse `actions` (e.g. an icon+label
 toggle button computed from page state, like Image Resize's aspect-ratio
 lock) unless the control is genuinely reusable across tools.
+
+## Live vs explicit apply
+
+When a tool's output is a pure function of its settings — applied uniformly
+to every queued job, with no interactive per-job step to commit (unlike a
+drawn crop/blur selection) — default to regenerating automatically instead
+of gating it behind an action button. Rerun the transform in a `useEffect`
+keyed on the relevant settings state (plus `jobs.length`, so newly added
+files regenerate too), debounced so dragging a color picker or typing a
+number doesn't redraw on every keystroke:
+
+```tsx
+useEffect(() => {
+  if (jobs.length === 0) return
+  const timeout = setTimeout(() => {
+    jobs.forEach((job) => regenerate(job, settings))
+  }, 300)
+  return () => clearTimeout(timeout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [settingA, settingB, jobs.length])
+```
+
+`footer.actions` simply isn't set in this case — the footer is just
+`color`/`inputs`/`slider` (the settings) plus `download`. Derive any
+validation message (e.g. "Enter a size of at least 1 pixel") straight from
+the settings state in the render body instead of `useState` + effect —
+`eslint-plugin-react-hooks` flags a synchronous `setState` inside an effect
+body. See `app/image-converter/page.tsx` (format/quality/background) and
+`app/square-image-generator/page.tsx` (size/background).
 
 ## Copy
 
@@ -206,6 +243,31 @@ reliably bound a large canvas, since intermediate flex containers don't
 uniformly force a definite height, so the canvas renders at its native pixel
 size and pushes the page past the viewport. Pass `checkerboard` so PNG/WebP
 transparency (and the effect of a background colour) is visible against it.
+
+**This exact mistake has recurred repeatedly: a `fill` canvas/image layer
+whose intrinsic pixel size doesn't match its container gets built without
+anything to scale its content down, so it renders at native pixel size and
+the checkerboard viewport (`overflow-hidden`) clips it to a zoomed-in corner
+instead of showing the whole thing shrunk to fit.** This bites hardest when
+the output size is user-controlled (a typed resize/convert target width and
+height) rather than just whatever the source file happened to be.
+
+Passing `max-h-full max-w-full` on the layer's `className` (what Image
+Converter does) is **not** a reliable fix — it depends on the `fill`
+container having already resolved to a definite height, which intermediate
+flex containers don't uniformly guarantee, so it only "works" there because
+those images are typically modest in practice. The robust fix is to make the
+layer's CSS box actually fill the container and let `object-fit` do the
+scaling: `className: "h-full w-full object-contain"` on the layer (works
+for both a canvas `ref` layer and an `image` layer — `object-fit` applies to
+both as replaced elements). `h-full`/`w-full` resolve against the `fill`
+container's own explicit sizing (`min-h-[60vh] flex-1`, a definite box on its
+own terms) rather than depending on percentage-height resolution through
+intermediate wrappers, and `object-contain` scales the content to fit inside
+that box without cropping, preserving aspect ratio. See `app/svg-to-png/page.tsx`.
+Reach for real fit-to-screen JS (Image Blur's zoom/pan) instead only when the
+tool needs actual pixel-precise sizing (e.g. for pointer math against the
+canvas) — a plain preview pane doesn't.
 `viewportRef` exposes the inner viewport node for wheel/gesture listeners or
 fit-to-screen math (see Image Blur's zoom/pan).
 Pass `title` for a muted label above the box (e.g. "Original", "Converted")

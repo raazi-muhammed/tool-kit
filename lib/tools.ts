@@ -8,9 +8,12 @@ import {
   Image01Icon,
   ImageCropIcon,
   ImageRotationClockwiseIcon,
+  Png01Icon,
   Resize02Icon,
   ScanIcon,
   ScissorRectangleIcon,
+  SquareIcon,
+  SquareRoundCornerIcon,
 } from "@hugeicons/core-free-icons"
 
 export type Tool = {
@@ -93,5 +96,23 @@ export const TOOLS: Tool[] = [
     name: "PDF Unlock",
     description:
       "Remove a PDF's password and download an unlocked copy, in your browser.",
+  },
+  {
+    href: "/svg-to-png",
+    icon: Png01Icon,
+    name: "SVG to PNG",
+    description: "Convert SVG files to PNG at any resolution, in your browser.",
+  },
+  {
+    href: "/square-image-generator",
+    icon: SquareIcon,
+    name: "Square Image Generator",
+    description: "Fit any image into a square canvas at any size, in your browser.",
+  },
+  {
+    href: "/image-round-corners",
+    icon: SquareRoundCornerIcon,
+    name: "Image Round Corners",
+    description: "Round an image's corners to any radius, in your browser.",
   },
 ]

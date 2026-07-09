@@ -16,9 +16,8 @@ import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useJobQueue } from "@/hooks/use-job-queue"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
-import { removeBackgroundColor, sampleCanvasColorAtPoint } from "@/lib/canvas"
+import { removeBackgroundColor } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
-import { loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
@@ -94,53 +93,12 @@ export default function ImageConverterPage() {
   const [removeBg, setRemoveBg] = useState(false)
   const [keyColor, setKeyColor] = useState("#ffffff")
   const [tolerance, setTolerance] = useState(32)
-  // Which color control is waiting for a click on the Original preview.
-  const [pickTarget, setPickTarget] = useState<"bg" | "key" | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
-  const originalCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const activeJob = jobs.find((job) => job.id === activeId) ?? null
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
   const supportsAlpha = format === "png" || format === "webp"
-
-  useEffect(() => {
-    if (!pickTarget) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPickTarget(null)
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [pickTarget])
-
-  // Paint the Original preview canvas whenever the active job's source
-  // image changes — it only exists in the DOM once a valid image has been
-  // picked, so this can't happen synchronously when a file is added.
-  useEffect(() => {
-    const canvas = originalCanvasRef.current
-    const previewUrl = activeJob?.previewUrl
-    if (!canvas || !previewUrl) return
-    let cancelled = false
-    loadImage(previewUrl).then((img) => {
-      if (cancelled) return
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      canvas.getContext("2d")?.drawImage(img, 0, 0)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [activeJob?.previewUrl])
-
-  function pickColorFromCanvas(e: React.MouseEvent<HTMLCanvasElement>) {
-    if (!pickTarget) return
-    const color = sampleCanvasColorAtPoint(e.currentTarget, e.clientX, e.clientY)
-    if (color) {
-      if (pickTarget === "bg") setBgColor(color)
-      else setKeyColor(color)
-    }
-    setPickTarget(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     const created = addFilesToQueue(fileList)
@@ -286,7 +244,6 @@ export default function ImageConverterPage() {
                     value: bgColor,
                     onChange: setBgColor,
                     fallback: "#ffffff",
-                    onPickFromImage: () => setPickTarget("bg"),
                     nullLabel: "transparent",
                     clearLabel: "Transparent",
                     clearIcon: Cancel01Icon,
@@ -302,7 +259,6 @@ export default function ImageConverterPage() {
                       label: "Background color to remove",
                       value: keyColor,
                       onChange: setKeyColor,
-                      onPickFromImage: () => setPickTarget("key"),
                     },
                     slider: {
                       label: "Tolerance",
@@ -349,17 +305,14 @@ export default function ImageConverterPage() {
               <PreviewCard
                 fill
                 checkerboard
-                title={
-                  pickTarget
-                    ? "Click on the image to pick a color · Esc to cancel"
-                    : "Original"
-                }
+                title="Original"
                 layer={
                   activeJob.previewUrl
                     ? {
-                        ref: originalCanvasRef,
-                        onClick: pickColorFromCanvas,
-                        className: `relative max-h-full max-w-full ${pickTarget ? "cursor-crosshair" : ""}`,
+                        kind: "image",
+                        src: activeJob.previewUrl,
+                        alt: activeJob.name,
+                        className: "relative max-h-full max-w-full",
                       }
                     : { kind: "status", icon: AlertCircleIcon, message: activeJob.error }
                 }
