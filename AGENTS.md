@@ -115,8 +115,16 @@ still config objects, never JSX, so `ToolPage` renders them itself:
 
 - `color` — a settable/clearable color swatch (e.g. a background fill for
   transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
-  clearLabel?, clearIcon?, onPickFromImage? }`. `value: null` shows `nullLabel`
-  as muted text instead of the clear button. See `app/image-converter/page.tsx`
+  clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
+  instead of the clear button. `ColorPicker` itself (`components/color-picker.tsx`)
+  always offers both a "Pick from screen" native `EyeDropper` button (where
+  the browser supports it — Chrome/Edge) and a "Pick from image" fallback
+  that works everywhere (including Safari/Firefox): it consumes the next
+  click anywhere on the page and samples whatever canvas/image is under the
+  cursor via `sampleColorAtPoint` (`lib/canvas.ts`). Both are unconditional —
+  no per-tool wiring, callback, or prop is needed or should be added; don't
+  reintroduce a page-owned "pick mode" (state, an `onClick` on the preview
+  canvas, a cursor override) to support this. See `app/image-converter/page.tsx`
   and `app/image-crop/page.tsx`.
 - `toggle` — a pressable button (e.g. "Remove background") that reveals its
   own nested `color` and/or `slider` only while pressed: `{ label, icon,

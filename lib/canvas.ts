@@ -486,34 +486,83 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Sample the color at (clientX, clientY) — viewport coordinates, e.g. from a
- * click event — on a `<canvas>` whose intrinsic bitmap is scaled down to fit
- * its box (preserving aspect ratio, e.g. via `max-h`/`max-w`). Returns null
- * if the point falls in the box's letterbox padding rather than on the
- * canvas content itself.
+ * Map (clientX, clientY) — viewport coordinates, e.g. from a click event —
+ * onto pixel coordinates within content of `naturalWidth`x`naturalHeight`
+ * rendered scaled-to-fit inside `box` (preserving aspect ratio, e.g. via
+ * `object-contain` or `max-h`/`max-w`). Returns null if the point falls in
+ * the box's letterbox padding rather than on the content itself.
  */
-export function sampleCanvasColorAtPoint(
-  canvas: HTMLCanvasElement,
+function mapPointToContent(
+  box: DOMRect,
+  naturalWidth: number,
+  naturalHeight: number,
   clientX: number,
   clientY: number
-): string | null {
-  const box = canvas.getBoundingClientRect()
-  const scale = Math.min(box.width / canvas.width, box.height / canvas.height)
-  const renderedWidth = canvas.width * scale
-  const renderedHeight = canvas.height * scale
+): { x: number; y: number } | null {
+  const scale = Math.min(box.width / naturalWidth, box.height / naturalHeight)
+  const renderedWidth = naturalWidth * scale
+  const renderedHeight = naturalHeight * scale
   const localX = clientX - box.left - (box.width - renderedWidth) / 2
   const localY = clientY - box.top - (box.height - renderedHeight) / 2
   if (localX < 0 || localY < 0 || localX > renderedWidth || localY > renderedHeight) {
     return null
   }
+  return {
+    x: Math.min(naturalWidth - 1, Math.floor(localX / scale)),
+    y: Math.min(naturalHeight - 1, Math.floor(localY / scale)),
+  }
+}
 
-  const ctx = canvas.getContext("2d")
-  if (!ctx) return null
-  const [r, g, b] = ctx.getImageData(
-    Math.min(canvas.width - 1, Math.floor(localX / scale)),
-    Math.min(canvas.height - 1, Math.floor(localY / scale)),
-    1,
-    1
-  ).data
-  return rgbToHex(r, g, b)
+/**
+ * Sample the color at (clientX, clientY) directly off a `<canvas>` or `<img>`
+ * element on the page — used for a generic "pick a color from anywhere on
+ * the page" eyedropper (`ColorPicker`'s screen-eyedropper fallback) that
+ * doesn't need to know in advance which element holds the relevant preview.
+ * Returns null if the element isn't a canvas/image, or the point misses its
+ * rendered content (e.g. letterbox padding).
+ */
+export function sampleColorAtPoint(
+  target: Element,
+  clientX: number,
+  clientY: number
+): string | null {
+  if (target instanceof HTMLCanvasElement) {
+    const point = mapPointToContent(
+      target.getBoundingClientRect(),
+      target.width,
+      target.height,
+      clientX,
+      clientY
+    )
+    if (!point) return null
+    const ctx = target.getContext("2d")
+    if (!ctx) return null
+    const [r, g, b] = ctx.getImageData(point.x, point.y, 1, 1).data
+    return rgbToHex(r, g, b)
+  }
+
+  if (target instanceof HTMLImageElement) {
+    const point = mapPointToContent(
+      target.getBoundingClientRect(),
+      target.naturalWidth,
+      target.naturalHeight,
+      clientX,
+      clientY
+    )
+    if (!point) return null
+    const canvas = document.createElement("canvas")
+    canvas.width = target.naturalWidth
+    canvas.height = target.naturalHeight
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return null
+    try {
+      ctx.drawImage(target, 0, 0)
+      const [r, g, b] = ctx.getImageData(point.x, point.y, 1, 1).data
+      return rgbToHex(r, g, b)
+    } catch {
+      return null // tainted canvas — e.g. a cross-origin image without CORS
+    }
+  }
+
+  return null
 }

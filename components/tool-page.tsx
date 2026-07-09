@@ -89,7 +89,6 @@ type FooterColor = {
   value: string | null
   onChange: (value: string | null) => void
   fallback: string
-  onPickFromImage?: () => void
   nullLabel?: string
   clearLabel?: string
   clearIcon?: IconSvgElement
@@ -106,7 +105,6 @@ type FooterToggle = {
     label: string
     value: string
     onChange: (value: string) => void
-    onPickFromImage?: () => void
   }
   slider?: FooterSlider
 }
@@ -225,7 +223,6 @@ export function ToolPage({
                 value={footer.color.value ?? footer.color.fallback}
                 onChange={(value) => footer.color!.onChange(value)}
                 label={footer.color.label}
-                onPickFromImage={footer.color.onPickFromImage}
               />
               {footer.color.value ? (
                 <Button variant="ghost" onClick={() => footer.color!.onChange(null)}>
@@ -257,7 +254,6 @@ export function ToolPage({
                   value={footer.toggle.color.value}
                   onChange={footer.toggle.color.onChange}
                   label={footer.toggle.color.label}
-                  onPickFromImage={footer.toggle.color.onPickFromImage}
                 />
               )}
               {footer.toggle.pressed && footer.toggle.slider && (

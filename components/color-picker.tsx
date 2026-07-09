@@ -7,6 +7,7 @@ import { ColorPickerIcon, DropperIcon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { sampleColorAtPoint } from "@/lib/canvas"
 
 // Not yet in the TS DOM lib — Chrome/Edge only, feature-detected below.
 type EyeDropperResult = { sRGBHex: string }
@@ -28,27 +29,39 @@ function normalizeHex(value: string): string | null {
   return withHash.toLowerCase()
 }
 
+// Walk up from the exact element under the cursor to find the nearest
+// canvas/image — every tool preview renders its canvas/img as a direct,
+// unwrapped layer, so this is mostly a small safety net.
+function findSampleable(el: Element | null): Element | null {
+  let node = el
+  for (let i = 0; node && i < 4; i++) {
+    if (node instanceof HTMLCanvasElement || node instanceof HTMLImageElement) return node
+    node = node.parentElement
+  }
+  return null
+}
+
 /**
  * A color swatch button that opens a popover with a hex input, a native
  * color input (for the OS picker's full palette/sliders), a screen
- * eyedropper where the browser supports it (Chrome/Edge), and — when the
- * caller wires up `onPickFromImage` — a button to sample a color directly
- * from an in-page preview, which works everywhere including Safari.
+ * eyedropper where the browser supports it (Chrome/Edge), and a "pick from
+ * image" fallback that works everywhere (including Safari/Firefox): it
+ * samples whatever canvas/image is under the next click anywhere on the
+ * page, so no caller has to wire up how to sample its own preview — it's
+ * always available, not something a page opts into.
  */
 export function ColorPicker({
   value,
   onChange,
   label = "Pick color",
-  onPickFromImage,
 }: {
   value: string
   onChange: (color: string) => void
   label?: string
-  /** Enter "pick from image" mode; call `onChange` once the caller samples a color. */
-  onPickFromImage?: () => void
 }) {
   const [open, setOpen] = React.useState(false)
   const [text, setText] = React.useState(value)
+  const [picking, setPicking] = React.useState(false)
   // Adjust local text when `value` changes from outside (e.g. a reset) —
   // done during render, per React's guidance, instead of in an effect.
   const [prevValue, setPrevValue] = React.useState(value)
@@ -76,6 +89,40 @@ export function ColorPicker({
     }
     setOpen(false)
   }
+
+  // Consumes the next click anywhere on the page — capture phase, so it can
+  // intercept (and cancel the effects of) the click before it reaches
+  // whatever it landed on — and samples a color if that's a canvas or image.
+  React.useEffect(() => {
+    if (!picking) return
+    const prevCursor = document.body.style.cursor
+    document.body.style.cursor = "crosshair"
+
+    function finish(color: string | null) {
+      if (color) onChange(color)
+      setPicking(false)
+    }
+
+    function onClick(e: MouseEvent) {
+      e.preventDefault()
+      e.stopPropagation()
+      const target = findSampleable(document.elementFromPoint(e.clientX, e.clientY))
+      finish(target ? sampleColorAtPoint(target, e.clientX, e.clientY) : null)
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") finish(null)
+    }
+
+    document.addEventListener("click", onClick, true)
+    document.addEventListener("keydown", onKeyDown, true)
+    return () => {
+      document.body.style.cursor = prevCursor
+      document.removeEventListener("click", onClick, true)
+      document.removeEventListener("keydown", onKeyDown, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picking])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -110,18 +157,16 @@ export function ColorPicker({
             aria-label="Hex color code"
           />
         </div>
-        {onPickFromImage && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              onPickFromImage()
-              setOpen(false)
-            }}
-          >
-            <HugeiconsIcon icon={ColorPickerIcon} aria-hidden />
-            Pick from image
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          onClick={() => {
+            setOpen(false)
+            setPicking(true)
+          }}
+        >
+          <HugeiconsIcon icon={ColorPickerIcon} aria-hidden />
+          Pick from image
+        </Button>
         {supportsEyeDropper && (
           <Button variant="outline" onClick={pickFromScreen}>
             <HugeiconsIcon icon={DropperIcon} aria-hidden />
