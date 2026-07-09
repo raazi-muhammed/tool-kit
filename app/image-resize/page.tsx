@@ -7,10 +7,10 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useFiles } from "@/hooks/use-files"
-import { downloadFile, downloadStagger } from "@/lib/download"
-import { imageToCanvas, loadImage } from "@/lib/image-file"
-import { replaceExtension } from "@/lib/wav"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
+import { useLockedSize } from "@/hooks/use-locked-size"
+import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
 
@@ -25,15 +25,6 @@ type Job = {
   result: Result | null
 }
 
-async function loadResource(file: File): Promise<HTMLCanvasElement> {
-  const url = URL.createObjectURL(file)
-  try {
-    return imageToCanvas(await loadImage(url))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 export default function ImageResizePage() {
   const {
     jobs,
@@ -46,7 +37,7 @@ export default function ImageResizePage() {
     clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
-    loadResource,
+    loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
       id,
       file,
@@ -57,9 +48,6 @@ export default function ImageResizePage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const [width, setWidth] = useState("")
-  const [height, setHeight] = useState("")
-  const [lockAspect, setLockAspect] = useState(true)
   const [formError, setFormError] = useState<string | null>(null)
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -72,6 +60,8 @@ export default function ImageResizePage() {
   const referenceOriginal = activeOriginal
     ? { width: activeOriginal.width, height: activeOriginal.height }
     : null
+  const { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed, reset } =
+    useLockedSize(referenceOriginal)
 
   function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
     const display = displayCanvasRef.current
@@ -94,80 +84,24 @@ export default function ImageResizePage() {
   useEffect(() => {
     if (activeId == null) return
     renderDisplay()
-    if (!width && !height && referenceOriginal) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWidth(String(referenceOriginal.width))
-      setHeight(String(referenceOriginal.height))
-    }
+    seed()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
   function clear() {
     clearQueue()
-    setWidth("")
-    setHeight("")
+    reset()
     setFormError(null)
     setError(null)
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as images."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as images.",
+      setError
     )
-  }
-
-  function onWidthChange(value: string) {
-    setWidth(value)
-    const parsed = Number(value)
-    if (lockAspect && referenceOriginal && parsed > 0) {
-      setHeight(
-        String(
-          Math.max(
-            1,
-            Math.round(parsed * (referenceOriginal.height / referenceOriginal.width))
-          )
-        )
-      )
-    }
-  }
-
-  function onHeightChange(value: string) {
-    setHeight(value)
-    const parsed = Number(value)
-    if (lockAspect && referenceOriginal && parsed > 0) {
-      setWidth(
-        String(
-          Math.max(
-            1,
-            Math.round(parsed * (referenceOriginal.width / referenceOriginal.height))
-          )
-        )
-      )
-    }
-  }
-
-  function toggleLockAspect() {
-    // Re-derive height from the current width so re-locking snaps back to
-    // the reference ratio instead of carrying over a distorted size.
-    if (!lockAspect && referenceOriginal) {
-      const parsedWidth = Number(width)
-      if (parsedWidth > 0) {
-        setHeight(
-          String(
-            Math.max(
-              1,
-              Math.round(
-                parsedWidth * (referenceOriginal.height / referenceOriginal.width)
-              )
-            )
-          )
-        )
-      }
-    }
-    setLockAspect(!lockAspect)
   }
 
   function resizeJob(job: Job, targetWidth: number, targetHeight: number): HTMLCanvasElement | null {
@@ -205,19 +139,7 @@ export default function ImageResizePage() {
 
   async function downloadJob(job: Job) {
     if (!job.result) return
-    const mime =
-      job.file.type && job.file.type.startsWith("image/")
-        ? job.file.type
-        : "image/png"
-    const blob: Blob | null = await new Promise((resolve) =>
-      job.result!.canvas.toBlob(resolve, mime)
-    )
-    if (!blob) return
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(job.name, ext)
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
-    URL.revokeObjectURL(url)
+    await downloadCanvas(job.result.canvas, job.name, outputMime(job.file.type))
   }
 
   function download() {

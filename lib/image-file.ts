@@ -25,3 +25,13 @@ export function imageToCanvas(img: HTMLImageElement): HTMLCanvasElement {
   ctx.drawImage(img, 0, 0)
   return canvas
 }
+
+/** A picked file's `loadResource` for editor tools that work on a decoded canvas. */
+export async function loadImageAsCanvas(file: File): Promise<HTMLCanvasElement> {
+  const url = URL.createObjectURL(file)
+  try {
+    return imageToCanvas(await loadImage(url))
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}

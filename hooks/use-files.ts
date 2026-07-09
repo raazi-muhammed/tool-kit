@@ -111,3 +111,18 @@ export function useFiles<TJob extends { id: number; file: File }, TResource = ne
     setResource,
   }
 }
+
+/**
+ * Wraps a `useFiles().addFiles` call to surface a message via `setError`
+ * when every picked file was skipped (`loadResource` threw for all of
+ * them), clearing it otherwise.
+ */
+export async function addFilesReportingErrors(
+  addFiles: (fileList: FileList | null | undefined) => Promise<{ addedCount: number; failedCount: number }>,
+  fileList: FileList | null | undefined,
+  message: string,
+  setError: (error: string | null) => void
+) {
+  const { addedCount, failedCount } = await addFiles(fileList)
+  setError(addedCount === 0 && failedCount > 0 ? message : null)
+}

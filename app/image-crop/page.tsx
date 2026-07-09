@@ -18,12 +18,11 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useFiles } from "@/hooks/use-files"
+import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
-import { downloadFile, downloadStagger } from "@/lib/download"
-import { imageToCanvas, loadImage } from "@/lib/image-file"
-import { replaceExtension } from "@/lib/wav"
+import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
 type Aspect = "free" | "1:1" | "4:3" | "3:4" | "16:9" | "9:16"
@@ -49,15 +48,6 @@ type Job = {
   bgColor: string | null
 }
 
-async function loadResource(file: File): Promise<HTMLCanvasElement> {
-  const url = URL.createObjectURL(file)
-  try {
-    return imageToCanvas(await loadImage(url))
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 export default function ImageCropPage() {
   const {
     jobs,
@@ -71,7 +61,7 @@ export default function ImageCropPage() {
     getResource,
     setResource,
   } = useFiles<Job, HTMLCanvasElement>({
-    loadResource,
+    loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
       id,
       file,
@@ -146,12 +136,12 @@ export default function ImageCropPage() {
     clearSelection()
   }
 
-  async function addFiles(fileList: FileList | null | undefined) {
-    const { addedCount, failedCount } = await addFilesToQueue(fileList)
-    setError(
-      addedCount === 0 && failedCount > 0
-        ? "None of the selected files could be loaded as images."
-        : null
+  function addFiles(fileList: FileList | null | undefined) {
+    return addFilesReportingErrors(
+      addFilesToQueue,
+      fileList,
+      "None of the selected files could be loaded as images.",
+      setError
     )
   }
 
@@ -231,19 +221,7 @@ export default function ImageCropPage() {
     }
     ctx.drawImage(image, 0, 0)
 
-    const mime =
-      job.file.type && job.file.type.startsWith("image/")
-        ? job.file.type
-        : "image/png"
-    const blob: Blob | null = await new Promise((resolve) =>
-      out.toBlob(resolve, mime)
-    )
-    if (!blob) return
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
-    const name = replaceExtension(job.name, ext)
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
-    URL.revokeObjectURL(url)
+    await downloadCanvas(out, job.name, outputMime(job.file.type))
   }
 
   function download() {

@@ -8,12 +8,13 @@ import {
   Image01Icon,
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { removeBackgroundColor } from "@/lib/canvas"
@@ -166,16 +167,12 @@ export default function ImageConverterPage() {
   // changes, instead of requiring an explicit Convert click. Debounced so
   // dragging the quality/tolerance sliders (many onValueChange updates a
   // second) doesn't re-encode on every tick — only once the value settles.
-  useEffect(() => {
+  useDebouncedEffect(() => {
     if (jobs.length === 0) return
-    const timeout = setTimeout(() => {
-      jobs.forEach((job) => {
-        if (job.status !== "converting")
-          void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
-      })
-    }, 300)
-    return () => clearTimeout(timeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    jobs.forEach((job) => {
+      if (job.status !== "converting")
+        void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
+    })
   }, [format, quality, bgColor, removeBg, keyColor, tolerance, jobs.length])
 
   function downloadActive() {
