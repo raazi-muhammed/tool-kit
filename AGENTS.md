@@ -206,6 +206,31 @@ reliably bound a large canvas, since intermediate flex containers don't
 uniformly force a definite height, so the canvas renders at its native pixel
 size and pushes the page past the viewport. Pass `checkerboard` so PNG/WebP
 transparency (and the effect of a background colour) is visible against it.
+
+**This exact mistake has recurred repeatedly: a `fill` canvas/image layer
+whose intrinsic pixel size doesn't match its container gets built without
+anything to scale its content down, so it renders at native pixel size and
+the checkerboard viewport (`overflow-hidden`) clips it to a zoomed-in corner
+instead of showing the whole thing shrunk to fit.** This bites hardest when
+the output size is user-controlled (a typed resize/convert target width and
+height) rather than just whatever the source file happened to be.
+
+Passing `max-h-full max-w-full` on the layer's `className` (what Image
+Converter does) is **not** a reliable fix — it depends on the `fill`
+container having already resolved to a definite height, which intermediate
+flex containers don't uniformly guarantee, so it only "works" there because
+those images are typically modest in practice. The robust fix is to make the
+layer's CSS box actually fill the container and let `object-fit` do the
+scaling: `className: "h-full w-full object-contain"` on the layer (works
+for both a canvas `ref` layer and an `image` layer — `object-fit` applies to
+both as replaced elements). `h-full`/`w-full` resolve against the `fill`
+container's own explicit sizing (`min-h-[60vh] flex-1`, a definite box on its
+own terms) rather than depending on percentage-height resolution through
+intermediate wrappers, and `object-contain` scales the content to fit inside
+that box without cropping, preserving aspect ratio. See `app/svg-to-png/page.tsx`.
+Reach for real fit-to-screen JS (Image Blur's zoom/pan) instead only when the
+tool needs actual pixel-precise sizing (e.g. for pointer math against the
+canvas) — a plain preview pane doesn't.
 `viewportRef` exposes the inner viewport node for wheel/gesture listeners or
 fit-to-screen math (see Image Blur's zoom/pan).
 Pass `title` for a muted label above the box (e.g. "Original", "Converted")

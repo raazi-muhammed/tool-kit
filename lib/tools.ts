@@ -8,6 +8,7 @@ import {
   Image01Icon,
   ImageCropIcon,
   ImageRotationClockwiseIcon,
+  Png01Icon,
   Resize02Icon,
   ScissorRectangleIcon,
 } from "@hugeicons/core-free-icons"
@@ -85,5 +86,11 @@ export const TOOLS: Tool[] = [
     name: "PDF Unlock",
     description:
       "Remove a PDF's password and download an unlocked copy, in your browser.",
+  },
+  {
+    href: "/svg-to-png",
+    icon: Png01Icon,
+    name: "SVG to PNG",
+    description: "Convert SVG files to PNG at any resolution, in your browser.",
   },
 ]
