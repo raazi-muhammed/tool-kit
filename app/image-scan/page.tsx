@@ -6,6 +6,7 @@ import {
   ContrastIcon,
   DropletOffIcon,
   Image01Icon,
+  Loading03Icon,
   MagicWand01Icon,
   ScanIcon,
 } from "@hugeicons/core-free-icons"
@@ -68,7 +69,6 @@ export default function ImageScanPage() {
     removeJob,
     clear: clearQueue,
     getResource,
-    setResource,
   } = useEditorQueue<Job, HTMLCanvasElement>({
     loadResource,
     createJob: (file, id) => ({
@@ -83,28 +83,31 @@ export default function ImageScanPage() {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [filter, setFilter] = useState<ScanFilter>("original")
   const [bwThreshold, setBwThreshold] = useState(160)
+  // Which job ids currently have a committed scan result — mirrors
+  // `scanResultsRef` as real state so the render body (which layer to show,
+  // whether Download is enabled) can read it without touching a ref during
+  // render. Reassigned to a new Set on every change (even a re-scan of an
+  // already-scanned job) so effects keyed on it always re-fire.
+  const [scannedIds, setScannedIds] = useState<Set<number>>(new Set())
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
+  const resultCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
-  // The current filter applied to the active job's resource — recomputed
-  // whenever the resource, filter, or threshold changes, and reused as-is on
-  // every quad-drag repaint so dragging a corner doesn't re-run a filter
-  // over the whole image on every pointer move.
-  const filteredRef = useRef<HTMLCanvasElement | null>(null)
+  // The warped (unfiltered) output of the last "Scan" per job — kept
+  // separate from the job's own resource (the original photo, via
+  // useEditorQueue), which is never mutated, so the corner selection can
+  // always be re-adjusted and re-scanned against the untouched original
+  // instead of the original being lost the moment a scan is applied.
+  const scanResultsRef = useRef<Map<number, HTMLCanvasElement>>(new Map())
 
   const { quad, resetQuad, quadHandlers } = useQuadSelection({
     canvasRef: displayCanvasRef,
     render: (quad) => renderDisplay(quad),
   })
 
-  /** Recompute `filteredRef` from the active job's current resource. */
-  function updateFiltered(f: ScanFilter = filter, threshold: number = bwThreshold) {
-    const image = getResource()
-    filteredRef.current = image ? applyScanFilter(image, f, threshold) : null
-  }
-
-  // Zoom/pan is a pure CSS transform on the canvas inside a clipped
-  // viewport — selection/corner-drag hit testing is unaffected because
+  // Zoom/pan (Original pane only — the Scanned pane is a plain fit-to-box
+  // preview) is a pure CSS transform on the canvas inside a clipped
+  // viewport — corner-drag hit testing is unaffected because
   // getBoundingClientRect already reflects the transform. Kept in refs (not
   // state) so wheel/pinch events don't re-render React on every tick;
   // `zoomPct` mirrors it for the footer's readout.
@@ -163,6 +166,7 @@ export default function ImageScanPage() {
     zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, factor)
   }
 
+  /** Repaint the Original pane: the untouched source image plus the quad overlay. */
   function renderDisplay(quad: Quad | null) {
     const image = getResource()
     const display = displayCanvasRef.current
@@ -176,15 +180,27 @@ export default function ImageScanPage() {
     }
 
     ctx.clearRect(0, 0, display.width, display.height)
-    ctx.drawImage(filteredRef.current ?? image, 0, 0)
+    ctx.drawImage(image, 0, 0)
     if (quad) drawQuadSelection(display, quad)
   }
 
+  /** Repaint the Scanned pane from the active job's last scan result, with the current filter applied. */
+  function renderResult() {
+    const canvas = resultCanvasRef.current
+    const scanned = activeId != null ? scanResultsRef.current.get(activeId) : undefined
+    if (!canvas || !scanned) return
+    const filtered = applyScanFilter(scanned, filter, bwThreshold)
+    if (canvas.width !== filtered.width || canvas.height !== filtered.height) {
+      canvas.width = filtered.width
+      canvas.height = filtered.height
+    }
+    canvas.getContext("2d")?.drawImage(filtered, 0, 0)
+  }
+
   // Seed the quad whenever the active image changes — either a newly
-  // picked/switched job, or the same job right after its resource was just
-  // replaced by a warped result. Tries auto-detecting the document's
-  // corners first, falling back to a plain inset default if detection
-  // didn't find anything plausible.
+  // picked/switched job, or the same job after "Auto detect" is clicked
+  // again. Tries auto-detecting the document's corners first, falling back
+  // to a plain inset default if detection didn't find anything plausible.
   function reseedQuad(id: number | null) {
     const image = getResource(id ?? undefined)
     if (!image) {
@@ -194,7 +210,7 @@ export default function ImageScanPage() {
     resetQuad(detectDocumentQuad(image) ?? defaultQuad(image.width, image.height))
   }
 
-  // Paint + fit the visible canvas whenever the active job changes — it only
+  // Paint + fit the Original pane whenever the active job changes — it only
   // exists in the DOM once a file has been picked, so this can't happen
   // synchronously when a file is added. Also wires zoom/pan listeners
   // natively: React registers wheel handlers as passive, which would make
@@ -202,7 +218,6 @@ export default function ImageScanPage() {
   // no-op.
   useEffect(() => {
     if (activeId == null) return
-    updateFiltered()
     reseedQuad(activeId)
     fitView()
 
@@ -264,26 +279,45 @@ export default function ImageScanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
+  // Repaint the Scanned pane after switching jobs or committing a new scan —
+  // `scannedIds` changing (always a fresh Set, even for a re-scan of the
+  // *same* job) is what catches that case, since `activeId` alone wouldn't
+  // change. Runs after React commits, so a first-ever scan's freshly-mounted
+  // canvas ref is already attached by the time this fires.
+  useEffect(() => {
+    renderResult()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, scannedIds])
+
   // Re-run the filter automatically whenever it (or the B&W threshold)
   // changes, instead of requiring an explicit apply click — debounced so
   // dragging the threshold slider (many onValueChange updates a second)
   // doesn't re-filter the whole image on every tick, only once it settles.
   useEffect(() => {
-    if (activeId == null) return
-    const timeout = setTimeout(() => {
-      updateFiltered()
-      renderDisplay(quad)
-    }, 200)
+    const timeout = setTimeout(renderResult, 200)
     return () => clearTimeout(timeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, bwThreshold])
 
   function clear() {
     clearQueue()
+    scanResultsRef.current.clear()
+    setScannedIds(new Set())
     setError(null)
     setProcessingId(null)
     setFilter("original")
     setBwThreshold(160)
+  }
+
+  function removeJobAndScan(id: number) {
+    scanResultsRef.current.delete(id)
+    setScannedIds((prev) => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+    removeJob(id)
   }
 
   async function addFiles(fileList: FileList | null | undefined) {
@@ -299,8 +333,7 @@ export default function ImageScanPage() {
     const image = getResource(id)
     if (!image) return
     const { width, height } = quadOutputSize(cornerQuad)
-    const warped = warpQuadToRect(image, cornerQuad, width, height)
-    setResource(id, warped)
+    scanResultsRef.current.set(id, warpQuadToRect(image, cornerQuad, width, height))
   }
 
   async function applyScan() {
@@ -310,11 +343,7 @@ export default function ImageScanPage() {
     // (synchronous, potentially slow) per-pixel warp runs.
     await new Promise((resolve) => setTimeout(resolve, 0))
     scanJob(activeId, quad)
-    updateFiltered()
-    reseedQuad(activeId)
-    // The warped result is a different size than the original photo, so the
-    // previous fit no longer applies.
-    fitView()
+    setScannedIds((prev) => new Set(prev).add(activeId))
     setProcessingId(null)
   }
 
@@ -328,15 +357,19 @@ export default function ImageScanPage() {
 
     setProcessingId(activeId)
     await new Promise((resolve) => setTimeout(resolve, 0))
+    const scannedNow: number[] = []
     jobs.forEach((job) => {
       const image = getResource(job.id)
       if (!image) return
       const jobQuad = job.id === activeId ? quad : scaleQuad(quad, activeImage, image)
       scanJob(job.id, jobQuad)
+      scannedNow.push(job.id)
     })
-    updateFiltered()
-    reseedQuad(activeId)
-    fitView()
+    setScannedIds((prev) => {
+      const next = new Set(prev)
+      scannedNow.forEach((id) => next.add(id))
+      return next
+    })
     setProcessingId(null)
   }
 
@@ -345,9 +378,9 @@ export default function ImageScanPage() {
   }
 
   async function downloadJob(job: Job) {
-    const image = getResource(job.id)
-    if (!image) return
-    const filtered = applyScanFilter(image, filter, bwThreshold)
+    const scanned = scanResultsRef.current.get(job.id)
+    if (!scanned) return
+    const filtered = applyScanFilter(scanned, filter, bwThreshold)
     const mime =
       job.file.type && job.file.type.startsWith("image/")
         ? job.file.type
@@ -367,14 +400,18 @@ export default function ImageScanPage() {
     if (activeJob) void downloadJob(activeJob)
   }
 
+  // Skips jobs with no committed scan — downloading them would just hand
+  // back the unwarped original.
   async function downloadAll() {
     for (const job of jobs) {
+      if (!scanResultsRef.current.has(job.id)) continue
       await downloadJob(job)
       await downloadStagger()
     }
   }
 
   const anyProcessing = processingId != null
+  const hasActiveScan = activeId != null && scannedIds.has(activeId)
 
   return (
     <ToolPage
@@ -441,7 +478,9 @@ export default function ImageScanPage() {
               ],
               download: {
                 onDownload: download,
+                disabled: !hasActiveScan,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => scannedIds.has(job.id)),
               },
             }
           : undefined
@@ -454,17 +493,39 @@ export default function ImageScanPage() {
               jobs={jobs}
               activeId={activeId}
               onSelect={setActiveId}
-              onRemove={removeJob}
+              onRemove={removeJobAndScan}
             />
-            <PreviewCard
-              fill
-              viewportRef={viewportRef}
-              layer={{
-                ref: displayCanvasRef,
-                ...quadHandlers,
-                className: "touch-none",
-              }}
-            />
+
+            {/* Original (left, editable) and Scanned (right, read-only)
+                preview, side by side — the original is never mutated by a
+                scan, so the corner selection can always be re-adjusted and
+                re-scanned without losing the source photo. */}
+            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+              <PreviewCard
+                fill
+                title="Original"
+                viewportRef={viewportRef}
+                layer={{
+                  ref: displayCanvasRef,
+                  ...quadHandlers,
+                  className: "touch-none",
+                }}
+              />
+              <PreviewCard
+                fill
+                title="Scanned"
+                layer={
+                  hasActiveScan
+                    ? {
+                        ref: resultCanvasRef,
+                        className: "relative max-h-full max-w-full pointer-events-none",
+                      }
+                    : anyProcessing
+                      ? { kind: "status", icon: Loading03Icon, spin: true }
+                      : { kind: "status", message: "Hit Scan to see the flattened result" }
+                }
+              />
+            </div>
           </div>
         )}
 
