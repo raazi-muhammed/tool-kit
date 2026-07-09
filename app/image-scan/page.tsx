@@ -35,6 +35,10 @@ import { replaceExtension } from "@/lib/wav"
 const ACCEPTED = "image/*"
 const MIN_ZOOM = 1
 const MAX_ZOOM = 8
+// Formats a <canvas> can actually encode to via toBlob — a source file's own
+// MIME (HEIC off an iPhone, TIFF, AVIF, ...) may not be one of these even
+// though the browser could decode it to draw it in the first place.
+const ENCODABLE_MIME = new Set(["image/png", "image/jpeg", "image/webp"])
 
 // Safari's trackpad pinch arrives as gesture* events, not ctrl+wheel.
 type SafariGestureEvent = Event & {
@@ -379,17 +383,18 @@ export default function ImageScanPage() {
 
   async function downloadJob(job: Job) {
     const scanned = scanResultsRef.current.get(job.id)
-    if (!scanned) return
+    if (!scanned) throw new Error(`"${job.name}" hasn't been scanned yet.`)
     const filtered = applyScanFilter(scanned, filter, bwThreshold)
-    const mime =
-      job.file.type && job.file.type.startsWith("image/")
-        ? job.file.type
-        : "image/png"
+    // Only reuse the source file's MIME as the *output* encoding when a
+    // canvas can actually produce it — formats a browser can merely decode
+    // (HEIC/HEIF off an iPhone, TIFF, AVIF, ...) make `toBlob` resolve with
+    // null and silently abort the download otherwise.
+    const mime = ENCODABLE_MIME.has(job.file.type) ? job.file.type : "image/png"
     const blob: Blob | null = await new Promise((resolve) =>
       filtered.toBlob(resolve, mime)
     )
-    if (!blob) return
-    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1] || "png"
+    if (!blob) throw new Error(`Couldn't encode "${job.name}" for download.`)
+    const ext = mime === "image/jpeg" ? "jpg" : mime.split("/")[1]
     const name = replaceExtension(job.name, ext)
     const url = URL.createObjectURL(blob)
     downloadFile(url, name)
@@ -397,16 +402,30 @@ export default function ImageScanPage() {
   }
 
   function download() {
-    if (activeJob) void downloadJob(activeJob)
+    if (!activeJob) return
+    setError(null)
+    downloadJob(activeJob).catch((err) => {
+      setError(err instanceof Error ? err.message : "Something went wrong while downloading.")
+    })
   }
 
   // Skips jobs with no committed scan — downloading them would just hand
-  // back the unwarped original.
+  // back the unwarped original. Keeps going past a failed job instead of
+  // aborting the rest of the batch, then reports every failure together.
   async function downloadAll() {
+    setError(null)
+    const failed: string[] = []
     for (const job of jobs) {
       if (!scanResultsRef.current.has(job.id)) continue
-      await downloadJob(job)
+      try {
+        await downloadJob(job)
+      } catch {
+        failed.push(job.name)
+      }
       await downloadStagger()
+    }
+    if (failed.length > 0) {
+      setError(`Couldn't download: ${failed.join(", ")}`)
     }
   }
 
