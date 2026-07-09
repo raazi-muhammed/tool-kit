@@ -13,7 +13,7 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { useFiles } from "@/hooks/use-files"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
@@ -79,7 +79,7 @@ export default function ImageBlurPage() {
     clear: clearQueue,
     getResource,
     setResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
+  } = useFiles<Job, HTMLCanvasElement>({
     loadResource,
     createJob: (file, id) => ({
       id,

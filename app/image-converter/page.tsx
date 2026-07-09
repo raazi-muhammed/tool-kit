@@ -14,7 +14,7 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useJobQueue } from "@/hooks/use-job-queue"
+import { useFiles } from "@/hooks/use-files"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { removeBackgroundColor } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
@@ -62,8 +62,8 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number):
 }
 
 export default function ImageConverterPage() {
-  const { jobs, setJobs, addFiles: addFilesToQueue, updateJob, removeJob, clear: clearQueue } =
-    useJobQueue<Job>({
+  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear } =
+    useFiles<Job>({
       createJob: (file, id) => {
         const valid = isImageFile(file)
         return {
@@ -82,7 +82,6 @@ export default function ImageConverterPage() {
         if (job.result) URL.revokeObjectURL(job.result.url)
       },
     })
-  const [activeId, setActiveId] = useState<number | null>(null)
   const [format, setFormat] = useState<Format>("png")
   const [quality, setQuality] = useState(92)
   // Fill for transparent PNGs; null keeps transparency (where the target
@@ -95,27 +94,9 @@ export default function ImageConverterPage() {
   const [tolerance, setTolerance] = useState(32)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const activeJob = jobs.find((job) => job.id === activeId) ?? null
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
   const supportsAlpha = format === "png" || format === "webp"
-
-  function addFiles(fileList: FileList | null | undefined) {
-    const created = addFilesToQueue(fileList)
-    if (created.length) setActiveId((prev) => prev ?? created[0].id)
-  }
-
-  function removeAndReselect(id: number) {
-    removeJob(id)
-    if (activeId !== id) return
-    const remaining = jobs.filter((job) => job.id !== id)
-    setActiveId(remaining.length ? remaining[0].id : null)
-  }
-
-  function clear() {
-    clearQueue()
-    setActiveId(null)
-  }
 
   async function convertJob(
     job: Job,
@@ -168,19 +149,10 @@ export default function ImageConverterPage() {
           : await canvasToBlob(canvas, FORMAT_MIME[fmt], q / 100)
 
       const name = replaceExtension(job.name, fmt === "jpeg" ? "jpg" : fmt)
-      setJobs((prev) => {
-        if (!prev.some((j) => j.id === job.id)) return prev // job was removed mid-convert
+      updateJob(job.id, (j) => {
+        if (j.result) URL.revokeObjectURL(j.result.url)
         const url = URL.createObjectURL(blob)
-        return prev.map((j) => {
-          if (j.id !== job.id) return j
-          if (j.result) URL.revokeObjectURL(j.result.url)
-          return {
-            ...j,
-            status: "done",
-            error: null,
-            result: { url, name, size: blob.size },
-          }
-        })
+        return { status: "done", error: null, result: { url, name, size: blob.size } }
       })
     } catch (err) {
       updateJob(job.id, {
@@ -297,7 +269,7 @@ export default function ImageConverterPage() {
               jobs={jobs}
               activeId={activeId}
               onSelect={setActiveId}
-              onRemove={removeAndReselect}
+              onRemove={removeJob}
             />
 
             {/* Original (left) and converted (right) preview, side by side. */}

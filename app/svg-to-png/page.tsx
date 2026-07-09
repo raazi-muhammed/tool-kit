@@ -7,7 +7,7 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { useFiles } from "@/hooks/use-files"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { loadImage } from "@/lib/image-file"
 import { replaceExtension } from "@/lib/wav"
@@ -45,7 +45,7 @@ export default function SvgToPngPage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLImageElement>({
+  } = useFiles<Job, HTMLImageElement>({
     loadResource,
     createJob: (file, id) => ({
       id,

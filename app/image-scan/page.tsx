@@ -16,7 +16,7 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { useFiles } from "@/hooks/use-files"
 import { useQuadSelection } from "@/hooks/use-quad-selection"
 import {
   defaultQuad,
@@ -73,7 +73,7 @@ export default function ImageScanPage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
+  } = useFiles<Job, HTMLCanvasElement>({
     loadResource,
     createJob: (file, id) => ({
       id,
@@ -99,7 +99,7 @@ export default function ImageScanPage() {
   const dropzoneRef = useRef<DropzoneHandle>(null)
   // The warped (unfiltered) output of the last "Scan" per job — kept
   // separate from the job's own resource (the original photo, via
-  // useEditorQueue), which is never mutated, so the corner selection can
+  // useFiles), which is never mutated, so the corner selection can
   // always be re-adjusted and re-scanned against the untouched original
   // instead of the original being lost the moment a scan is applied.
   const scanResultsRef = useRef<Map<number, HTMLCanvasElement>>(new Map())

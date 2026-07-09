@@ -12,7 +12,7 @@ import { useRef, useState } from "react"
 import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import { useJobQueue } from "@/hooks/use-job-queue"
+import { useFiles } from "@/hooks/use-files"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
 
@@ -44,7 +44,7 @@ function unlockedName(name: string): string {
 }
 
 export default function PdfUnlockPage() {
-  const { jobs, setJobs, addFiles, updateJob, removeJob, clear: clearQueue } = useJobQueue<Job>({
+  const { jobs, addFiles, updateJob, removeJob, clear: clearQueue } = useFiles<Job>({
     createJob: (file, id) => {
       const valid = isPdfFile(file)
       return {
@@ -79,19 +79,14 @@ export default function PdfUnlockPage() {
         type: "application/pdf",
       })
 
-      setJobs((prev) => {
-        if (!prev.some((j) => j.id === job.id)) return prev
+      updateJob(job.id, (j) => {
+        if (j.result) URL.revokeObjectURL(j.result.url)
         const url = URL.createObjectURL(blob)
-        return prev.map((j) => {
-          if (j.id !== job.id) return j
-          if (j.result) URL.revokeObjectURL(j.result.url)
-          return {
-            ...j,
-            status: "done",
-            error: null,
-            result: { url, name: unlockedName(j.name), size: blob.size },
-          }
-        })
+        return {
+          status: "done",
+          error: null,
+          result: { url, name: unlockedName(j.name), size: blob.size },
+        }
       })
     } catch (err) {
       updateJob(job.id, {

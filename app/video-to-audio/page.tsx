@@ -12,7 +12,7 @@ import { useRef, useState } from "react"
 import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
-import { useJobQueue } from "@/hooks/use-job-queue"
+import { useFiles } from "@/hooks/use-files"
 import {
   decodeAudioData,
   encodeWav,
@@ -52,7 +52,7 @@ const isBusy = (status: JobStatus) =>
   status === "reading" || status === "decoding" || status === "encoding"
 
 export default function VideoToAudioPage() {
-  const { jobs, setJobs, addFiles, updateJob, removeJob, clear } = useJobQueue<Job>({
+  const { jobs, addFiles, updateJob, removeJob, clear } = useFiles<Job>({
     createJob: (file, id) => ({
       id,
       file,
@@ -91,14 +91,10 @@ export default function VideoToAudioPage() {
       const name = replaceExtension(source.baseName, fmt)
       const meta =
         fmt === "mp3" ? `MP3 · ${MP3_KBPS} kbps · mono` : "WAV · 16-bit PCM · mono"
-      setJobs((prev) => {
-        if (!prev.some((job) => job.id === id)) return prev // job was removed mid-encode
+      updateJob(id, (job) => {
+        if (job.result) URL.revokeObjectURL(job.result.url)
         const url = URL.createObjectURL(blob)
-        return prev.map((job) => {
-          if (job.id !== id) return job
-          if (job.result) URL.revokeObjectURL(job.result.url)
-          return { ...job, status: "done", error: null, result: { url, name, size: blob.size, meta } }
-        })
+        return { status: "done", error: null, result: { url, name, size: blob.size, meta } }
       })
     }, 0)
   }

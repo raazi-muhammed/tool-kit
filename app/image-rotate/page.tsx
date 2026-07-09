@@ -12,7 +12,7 @@ import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useEditorQueue } from "@/hooks/use-editor-queue"
+import { useFiles } from "@/hooks/use-files"
 import { rotateCanvas } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { imageToCanvas, loadImage } from "@/lib/image-file"
@@ -54,7 +54,7 @@ export default function ImageRotatePage() {
     removeJob,
     clear: clearQueue,
     getResource,
-  } = useEditorQueue<Job, HTMLCanvasElement>({
+  } = useFiles<Job, HTMLCanvasElement>({
     loadResource,
     createJob: (file, id) => ({
       id,
