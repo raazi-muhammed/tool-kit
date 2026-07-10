@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { CommandMenuTrigger } from "@/components/command-menu"
+import { ModeToggle } from "@/components/mode-toggle"
 import { TOOLS } from "@/lib/tools"
 
 export default function Page() {
@@ -16,7 +17,10 @@ export default function Page() {
         <h1 className="flex items-center gap-3 font-[family-name:var(--font-display)] text-xl font-bold">
           Tool Kit
         </h1>
-        <CommandMenuTrigger />
+        <div className="flex items-center gap-2">
+          <ModeToggle />
+          <CommandMenuTrigger />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
