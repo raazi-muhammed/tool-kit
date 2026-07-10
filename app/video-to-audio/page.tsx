@@ -168,6 +168,7 @@ export default function VideoToAudioPage() {
       segments={{
         value: format,
         onValueChange: (value) => changeFormat(value as Format),
+        label: "Format",
         options: [
           { value: "mp3", label: "MP3", icon: MusicNote01Icon },
           { value: "wav", label: "WAV", icon: AudioWave01Icon },

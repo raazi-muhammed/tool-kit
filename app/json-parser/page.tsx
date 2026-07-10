@@ -70,6 +70,7 @@ export default function JsonParserPage() {
       segments={{
         value: tab,
         onValueChange: (value) => setTab(value as Tab),
+        placement: "inline",
         options: [
           { value: "text", label: "Text", icon: TextIcon },
           { value: "viewer", label: "Viewer", icon: EyeIcon },

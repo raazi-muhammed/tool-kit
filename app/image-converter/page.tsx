@@ -194,6 +194,7 @@ export default function ImageConverterPage() {
       segments={{
         value: format,
         onValueChange: (value) => setFormat(value as Format),
+        label: "Format",
         options: [
           { value: "png", label: "PNG", icon: Image01Icon },
           { value: "jpeg", label: "JPEG", icon: Image01Icon },
@@ -204,6 +205,11 @@ export default function ImageConverterPage() {
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         jobs.length > 0
           ? {
@@ -235,6 +241,7 @@ export default function ImageConverterPage() {
                       onValueChange: setTolerance,
                       min: 0,
                       max: 100,
+                      unit: "%",
                     },
                   }
                 : undefined,
@@ -247,6 +254,7 @@ export default function ImageConverterPage() {
                       min: 0,
                       max: 100,
                       disabled: anyBusy,
+                      unit: "%",
                     }
                   : undefined,
               download: {
@@ -262,13 +270,6 @@ export default function ImageConverterPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
             {/* Original (left) and converted (right) preview, side by side. */}
             <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
               <PreviewCard

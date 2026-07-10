@@ -7,9 +7,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## Tool page conventions
 
 Each tool lives under `app/<tool-name>/page.tsx`. Every tool page is wrapped in
-the shared `ToolPage` component instead of hand-rolling the breadcrumb and the
-Copy/Load sample/Clear button row — those three actions are common to every
-tool, so they live in the wrapper, not in each page:
+the shared `ToolPage` component instead of hand-rolling the breadcrumb, the
+right-hand settings sidebar, and the Copy/Load sample/Clear button row — those
+are common to every tool, so they live in the wrapper, not in each page:
 
 ```tsx
 import { ToolPage } from "@/components/tool-page"
@@ -26,10 +26,24 @@ import { ToolPage } from "@/components/tool-page"
 </ToolPage>
 ```
 
+`ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
+and a bottom bar for zoom controls/file strip/Add file), and — only once there's
+something to put in it — a fixed-width right sidebar for settings, stacked
+top to bottom, with the primary action button(s) and Download pinned to its
+bottom edge. See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
+
 For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
 `segments` prop instead of hand-rolling a button group — the wrapper renders it
-as a shadcn `Tabs` segmented control, matching the look used elsewhere (e.g. the
-JSON Parser's Viewer/Text tabs):
+as a shadcn `Tabs` segmented control. `segments` takes an optional `label`
+(shown as a heading above the control once it's in the sidebar, e.g. "Blur
+Type", "Format") and an optional `placement`:
+
+- `"sidebar"` (the default) — for a setting that configures a transform (blur
+  type, aspect ratio, output format). Renders in the settings sidebar.
+- `"inline"` — for a *view* switch that changes what `children` renders (e.g.
+  JSON Parser's Text/Viewer tabs). Renders inline above `children`, right next
+  to the content it swaps, exactly like today — don't move a view switch 320px
+  away from what it controls just for consistency with the settings case.
 
 ```tsx
 <ToolPage
@@ -39,6 +53,7 @@ JSON Parser's Viewer/Text tabs):
     value: format,
     onValueChange: (value) => changeFormat(value as Format),
     disabled: busy,
+    label: "Format",
     options: [
       { value: "mp3", label: "MP3", icon: MusicNote01Icon },
       { value: "wav", label: "WAV", icon: AudioWave01Icon },
@@ -50,29 +65,30 @@ JSON Parser's Viewer/Text tabs):
 >
 ```
 
-See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
-
 For an output-format picker specifically (MP3/WAV, PNG/JPEG/WebP/BMP, etc.),
-use `segments` in the header as shown above — don't hand-roll it as a `Select`
-placed next to the dropzone. See `app/video-to-audio/page.tsx` and
-`app/image-converter/page.tsx`.
+use `segments` as shown above — don't hand-roll it as a `Select` placed next to
+the dropzone. See `app/video-to-audio/page.tsx` and `app/image-converter/page.tsx`.
 
-For a tool's bottom control bar (zoom controls, a single strength/setting
-slider, the primary action button(s), and the Download button), pass the
-`footer` prop instead of hand-rolling that row inside `children` — like
-`segments`, it takes a config object, not JSX, so `ToolPage` renders the row
-(and its icons) itself:
+For a tool's settings — zoom controls, a strength/setting slider, the primary
+action button(s), and the Download button — pass the `footer` prop instead of
+hand-rolling them inside `children`. `zoom` still renders in the main column's
+bottom bar (it's about navigating the preview, not a setting); everything else
+in `footer` renders in the sidebar. Like `segments`, `footer` takes a config
+object, not JSX, so `ToolPage` renders the controls (and their icons) itself:
 
 ```tsx
 <ToolPage
   page="Image Blur"
   icon={BlurIcon}
+  fileStrip={jobs.length > 1 && (
+    <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+  )}
   footer={
     activeJob && {
       zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
-      slider: { label: "Blur", value: blur, onValueChange: onBlurChange, min: 1, max: 50 },
+      slider: { label: "Amount", value: blur, onValueChange: onBlurChange, min: 1, max: 50, unit: "px" },
       actions: [
-        pendingRect && { label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost" },
+        pendingRect && { label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost", emphasis: "secondary" },
         { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
       ],
       download: { onDownload: download, disabled: !activeJob.hasEdits, onDownloadAll: downloadAll },
@@ -81,18 +97,32 @@ slider, the primary action button(s), and the Download button), pass the
 >
 ```
 
-`zoom` and `slider` are each optional single-instance blocks; `actions` is an
+`zoom` and `slider` are each optional single-instance blocks (`slider`'s
+optional `unit`, e.g. `"px"`, is shown next to its live value); `actions` is an
 array (falsy entries are filtered, so conditional buttons — like "Cancel
 selection" only while a selection is pending — are just `condition && {...}`);
 `download` renders the Download button and, only when `onDownloadAll` is set,
 its "Download all" dropdown. See `app/image-blur/page.tsx`.
 
+Every `FooterAction` also takes an optional `emphasis`: `"primary"` (the
+default) renders full-width, stacked in the sidebar's pinned bottom block
+alongside Download — reserve this for the tool's actual call(s) to action
+(Crop, Scan, Resize, Apply blur, Convert, Unlock, …). `emphasis: "secondary"`
+renders smaller, at natural width, in a row above that stack — use it for a
+momentary/conditional helper (Cancel selection, Delete rectangle, Clear all,
+Auto detect) or a toggle-styled button (Image Resize's aspect-ratio lock).
+Set `emphasis` explicitly per action rather than inferring it from `variant` —
+a toggle's `variant` itself flips between `"secondary"`/`"outline"` depending
+on its pressed state, so inferring tier from `variant` would make the button
+jump between the two positions as state changes.
+
 For a primary action that also has a "do this to every job" variant (e.g.
 Image Blur's "Apply blur" / "Apply blur to all", Image Crop's "Crop" / "Crop
 all"), give that `FooterAction` a `more: { label, icon, onClick, disabled? }`
 instead of adding a second button — `ToolPage` renders it as the same
-Download-style `ButtonGroup` + dropdown chevron, only once `more` is set (so
-gate it on the same `jobs.length > 1` check as `onDownloadAll`):
+Download-style `ButtonGroup` + dropdown chevron, stretched full-width, only
+once `more` is set (so gate it on the same `jobs.length > 1` check as
+`onDownloadAll`):
 
 ```tsx
 actions: [
@@ -111,7 +141,8 @@ See `app/image-crop/page.tsx`, `app/image-trim/page.tsx`, and
 its own `more`).
 
 The footer also has config primitives for a few other recurring controls —
-still config objects, never JSX, so `ToolPage` renders them itself:
+still config objects, never JSX, so `ToolPage` renders them itself, all in the
+sidebar:
 
 - `color` — a settable/clearable color swatch (e.g. a background fill for
   transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
@@ -132,17 +163,27 @@ still config objects, never JSX, so `ToolPage` renders them itself:
   `app/image-converter/page.tsx`.
 - `inputs` — an array of labeled text/number/password fields rendered
   label-above-input (e.g. resize width/height, a PDF password): `{ label,
-  value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. See
-  `app/image-resize/page.tsx` and `app/pdf-unlock/page.tsx`.
-- `hint` — muted contextual text shown inline with the footer buttons instead
-  of a separate paragraph below the preview (e.g. "No transparent margin to
-  trim."): just a `ReactNode`. See `app/image-trim/page.tsx`.
+  value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
+  give each a real label — it's stacked alone in the sidebar column, not
+  side-by-side with a neighboring field, so a blank label (fine in a horizontal
+  row) reads as broken here. See `app/image-resize/page.tsx` and
+  `app/pdf-unlock/page.tsx`.
+- `hint` — muted contextual text shown in the sidebar instead of a separate
+  paragraph below the preview (e.g. "No transparent margin to trim."): just a
+  `ReactNode`. See `app/image-trim/page.tsx`.
 
-Render order in the footer row is `color`, `toggle`, `inputs`, `zoom`,
-`slider`, `hint`, then `actions`/`download` right-aligned together. Don't add
+Render order in the sidebar is `segments`, `color`, `toggle`, `inputs`,
+`slider`, `hint`, then the pinned-bottom `actions`/`download` block. Don't add
 a new primitive for a one-off control — reuse `actions` (e.g. an icon+label
 toggle button computed from page state, like Image Resize's aspect-ratio
-lock) unless the control is genuinely reusable across tools.
+lock, marked `emphasis: "secondary"`) unless the control is genuinely reusable
+across tools.
+
+For a tool that queues multiple files (crop, blur, …), pass the same
+`<JobStrip .../>` element you'd have rendered inline above `PreviewCard` via
+`ToolPage`'s `fileStrip` prop instead — `ToolPage` renders it in the main
+column's bottom bar, next to zoom controls and the "Add file" button, rather
+than stacking it as its own row above the preview.
 
 ## Live vs explicit apply
 
@@ -227,14 +268,14 @@ Pass `fill` for a viewport that grows to the available height (Image Blur's
 pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed,
 viewport-relative preview (Image Crop, Image Rotate) capped at
 `PreviewCard`'s own `MAX_HEIGHT` constant (`max-h-[calc(100dvh-220px)]`) —
-derived from, and documented alongside, the fixed chrome ToolPage typically
-stacks around it (padding, breadcrumb/toolbar/footer rows, gaps, the Card's
-own padding), so preview tools use the actual available space instead of an
-arbitrary `vh` guess. A page with a taller header than that (e.g. a wrapped
-toolbar) can raise the cap via `className`. Pass `jobStrip` once the page
-actually renders a `JobStrip` above it (`jobs.length > 1`) so the cap shrinks
-further to make room for that row instead of pushing the page past the
-viewport.
+derived from, and documented alongside, the worst-case fixed chrome ToolPage's
+main column can stack around it (padding, breadcrumb/header-action row, the
+bottom bar, gaps, the Card's own padding), so preview tools use the actual
+available space instead of an arbitrary `vh` guess. A page with a taller
+header than that (e.g. a wrapped toolbar) can raise the cap via `className`.
+A `JobStrip` no longer stacks as its own row above the preview — it renders in
+the bottom bar via `ToolPage`'s `fileStrip` prop instead — so there's no
+separate cap to opt into for it.
 Note that `fill` only avoids overflowing the viewport where there's JS logic
 actively constraining the rendered size to the available space (Image Blur's
 fit-to-screen zoom math; Image Converter's panes are typically small enough

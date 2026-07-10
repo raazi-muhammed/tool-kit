@@ -185,6 +185,11 @@ export default function ImageTrimPage() {
       icon={ScissorRectangleIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         activeJob
           ? {
@@ -219,14 +224,7 @@ export default function ImageTrimPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
-            <PreviewCard checkerboard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
+            <PreviewCard checkerboard layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

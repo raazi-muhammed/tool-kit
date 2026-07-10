@@ -242,6 +242,7 @@ export default function ImageCropPage() {
       segments={{
         value: aspect,
         onValueChange: (value) => onAspectChange(value as Aspect),
+        label: "Aspect ratio",
         options: [
           { value: "free", label: "Free", icon: AspectRatioIcon },
           { value: "1:1", label: "1:1", icon: SquareIcon },
@@ -253,6 +254,11 @@ export default function ImageCropPage() {
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         activeJob
           ? {
@@ -273,6 +279,7 @@ export default function ImageCropPage() {
                   icon: Cancel01Icon,
                   onClick: clearSelection,
                   variant: "ghost",
+                  emphasis: "secondary",
                 },
                 {
                   label: "Crop",
@@ -301,15 +308,8 @@ export default function ImageCropPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
             <PreviewCard
               checkerboard
-              jobStrip={jobs.length > 1}
               layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
             />
           </div>

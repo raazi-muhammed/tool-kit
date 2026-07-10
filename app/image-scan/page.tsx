@@ -304,6 +304,7 @@ export default function ImageScanPage() {
       segments={{
         value: filter,
         onValueChange: (value) => setFilter(value as ScanFilter),
+        label: "Filter",
         options: [
           { value: "original", label: "Original", icon: Image01Icon },
           { value: "grayscale", label: "Grayscale", icon: DropletOffIcon },
@@ -314,6 +315,11 @@ export default function ImageScanPage() {
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJobAndScan} />
+        )
+      }
       footer={
         activeJob
           ? {
@@ -342,6 +348,7 @@ export default function ImageScanPage() {
                   icon: AiScanIcon,
                   onClick: autoDetectCorners,
                   variant: "ghost",
+                  emphasis: "secondary",
                   disabled: anyProcessing,
                 },
                 {
@@ -373,13 +380,6 @@ export default function ImageScanPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJobAndScan}
-            />
-
             {/* Original (left, editable) and Scanned (right, read-only)
                 preview, side by side — the original is never mutated by a
                 scan, so the corner selection can always be re-adjusted and

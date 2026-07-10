@@ -162,12 +162,17 @@ export default function ImageResizePage() {
       icon={Resize02Icon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         activeJob
           ? {
               inputs: [
-                { label: "", type: "number", min: 1, value: width, onChange: onWidthChange },
-                { label: "", type: "number", min: 1, value: height, onChange: onHeightChange },
+                { label: "Width", type: "number", min: 1, value: width, onChange: onWidthChange },
+                { label: "Height", type: "number", min: 1, value: height, onChange: onHeightChange },
               ],
               actions: [
                 {
@@ -175,6 +180,7 @@ export default function ImageResizePage() {
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
+                  emphasis: "secondary",
                 },
                 { label: "Resize", icon: Resize02Icon, onClick: resize },
               ],
@@ -191,14 +197,7 @@ export default function ImageResizePage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
-            <PreviewCard checkerboard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
+            <PreviewCard checkerboard layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

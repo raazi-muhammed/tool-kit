@@ -1,36 +1,25 @@
 "use client"
 
+import { useSyncExternalStore } from "react"
 import { useTheme } from "next-themes"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons"
 
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { IconTooltip } from "@/components/icon-tooltip"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const noopSubscribe = () => () => {}
 
 export function ModeToggle() {
-  const { setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
+  // Avoids a hydration mismatch: the server always renders before
+  // localStorage's theme is known, so the active segment can only reflect
+  // `resolvedTheme` once mounted on the client.
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false)
 
   return (
-    <DropdownMenu>
-      <IconTooltip label="Toggle theme">
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Toggle theme">
-            <HugeiconsIcon icon={Sun03Icon} className="dark:hidden" aria-hidden />
-            <HugeiconsIcon icon={Moon02Icon} className="hidden dark:block" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-      </IconTooltip>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Tabs value={mounted ? resolvedTheme : "light"} onValueChange={setTheme}>
+      <TabsList>
+        <TabsTrigger value="light">Light</TabsTrigger>
+        <TabsTrigger value="dark">Dark</TabsTrigger>
+      </TabsList>
+    </Tabs>
   )
 }

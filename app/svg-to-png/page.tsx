@@ -181,6 +181,11 @@ export default function SvgToPngPage() {
       icon={Png01Icon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         activeJob
           ? {
@@ -194,8 +199,8 @@ export default function SvgToPngPage() {
                 clearIcon: Cancel01Icon,
               },
               inputs: [
-                { label: "", type: "number", min: 1, value: width, onChange: onWidthChange },
-                { label: "", type: "number", min: 1, value: height, onChange: onHeightChange },
+                { label: "Width", type: "number", min: 1, value: width, onChange: onWidthChange },
+                { label: "Height", type: "number", min: 1, value: height, onChange: onHeightChange },
               ],
               actions: [
                 {
@@ -203,6 +208,7 @@ export default function SvgToPngPage() {
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
+                  emphasis: "secondary",
                 },
                 { label: "Convert", icon: Png01Icon, onClick: convert },
               ],
@@ -219,13 +225,6 @@ export default function SvgToPngPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
             {/* Original SVG (left) and rasterized PNG preview (right), side by
                 side. The converted canvas is rendered at the user's target
                 width/height (which can be far bigger than the viewport), so

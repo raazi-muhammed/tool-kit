@@ -35,8 +35,8 @@ export function PageBreadcrumb({ page, icon }: { page: string; icon: IconSvgElem
         </BreadcrumbList>
       </Breadcrumb>
       <div className="flex items-center gap-2">
-        <ModeToggle />
         <CommandMenuTrigger />
+        <ModeToggle />
       </div>
     </div>
   )

@@ -141,6 +141,11 @@ export default function ImageRoundCornersPage() {
       icon={SquareRoundCornerIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         activeJob
           ? {
@@ -159,6 +164,7 @@ export default function ImageRoundCornersPage() {
                 onValueChange: setRadiusPercent,
                 min: 0,
                 max: 100,
+                unit: "%",
               },
               download: {
                 onDownload: download,
@@ -173,14 +179,7 @@ export default function ImageRoundCornersPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
-            <PreviewCard checkerboard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
+            <PreviewCard checkerboard layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

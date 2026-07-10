@@ -291,6 +291,7 @@ export default function ImageBlurPage() {
       segments={{
         value: mode,
         onValueChange: (value) => onModeChange(value as BlurMode),
+        label: "Blur Type",
         options: [
           { value: "pixelate", label: "Blocky", icon: GridViewIcon },
           { value: "gaussian", label: "Gaussian", icon: BlurIcon },
@@ -298,6 +299,11 @@ export default function ImageBlurPage() {
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 1 && (
+          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+        )
+      }
       footer={
         activeJob
           ? {
@@ -310,11 +316,12 @@ export default function ImageBlurPage() {
                 zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
               },
               slider: {
-                label: "Blur",
+                label: "Amount",
                 value: blur,
                 onValueChange: onBlurChange,
                 min: 1,
                 max: 50,
+                unit: "px",
               },
               actions: [
                 pendingRect && {
@@ -322,12 +329,14 @@ export default function ImageBlurPage() {
                   icon: RemoveSquareIcon,
                   onClick: clearSelection,
                   variant: "ghost",
+                  emphasis: "secondary",
                 },
                 rects.length > 0 && {
                   label: "Clear all",
                   icon: Cancel01Icon,
                   onClick: clearAllRects,
                   variant: "ghost",
+                  emphasis: "secondary",
                 },
                 {
                   label:
@@ -359,13 +368,6 @@ export default function ImageBlurPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob ? (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
             <PreviewCard
               fill
               viewportRef={viewportRef}

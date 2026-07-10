@@ -37,6 +37,16 @@ type Segments = {
   onValueChange: (value: string) => void
   options: { value: string; label: string; icon: IconSvgElement }[]
   disabled?: boolean
+  /** Heading shown above the control once it renders in the sidebar (e.g. "Blur Type"). */
+  label?: string
+  /**
+   * Where the control renders. `"sidebar"` (default) is for a setting that
+   * configures a transform (blur type, aspect ratio, format). `"inline"` is
+   * for a view switch that changes what `children` renders (e.g. JSON
+   * Parser's Text/Viewer) — keeping it next to the content it swaps instead
+   * of moving it into the sidebar, away from what it controls.
+   */
+  placement?: "sidebar" | "inline"
 }
 
 type FooterZoom = {
@@ -56,6 +66,8 @@ type FooterSlider = {
   max: number
   step?: number
   disabled?: boolean
+  /** Suffix shown next to the live value readout (e.g. "px"). */
+  unit?: string
 }
 
 type FooterAction = {
@@ -73,6 +85,15 @@ type FooterAction = {
     onClick: () => void
     disabled?: boolean
   }
+  /**
+   * `"primary"` (default) renders full-width in the sidebar's pinned action
+   * stack, alongside Download. `"secondary"` renders smaller, at natural
+   * width, in a row above that stack (e.g. a momentary "Cancel selection" or
+   * a pressed/unpressed toggle button) — set explicitly per action rather
+   * than inferred from `variant`, since a toggle's `variant` can itself
+   * change between "secondary"/"outline" depending on its pressed state.
+   */
+  emphasis?: "primary" | "secondary"
 }
 
 type FooterDownload = {
@@ -128,10 +149,18 @@ type Footer = {
   inputs?: FooterInput[]
   zoom?: FooterZoom
   slider?: FooterSlider
-  /** Muted contextual text (e.g. "No transparent margin to trim.") shown inline with the footer, left of the right-aligned actions/download group. */
+  /** Muted contextual text (e.g. "No transparent margin to trim.") shown in the sidebar. */
   hint?: ReactNode
   actions?: (FooterAction | false | null | undefined)[]
   download?: FooterDownload
+}
+
+function SidebarLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+      {children}
+    </span>
+  )
 }
 
 export function ToolPage({
@@ -143,6 +172,7 @@ export function ToolPage({
   onClear,
   segments,
   actions,
+  fileStrip,
   footer,
   children,
 }: {
@@ -154,6 +184,8 @@ export function ToolPage({
   onClear?: () => void
   segments?: Segments
   actions?: ReactNode
+  /** A `JobStrip` (or similar) element, rendered in the bottom bar next to zoom controls and Add file. */
+  fileStrip?: ReactNode
   footer?: Footer
   children: ReactNode
 }) {
@@ -165,16 +197,28 @@ export function ToolPage({
     setTimeout(() => setCopied(false), 1000)
   }
 
-  return (
-    <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
-      <PageBreadcrumb page={page} icon={icon} />
+  const inlineSegments = segments?.placement === "inline" ? segments : undefined
+  const sidebarSegments = segments && segments.placement !== "inline" ? segments : undefined
 
-      <div className="flex flex-wrap items-center gap-2">
-        {segments && (
-          <Tabs value={segments.value} onValueChange={segments.onValueChange}>
+  const hasHeaderRow = !!(actions || onCopy || onLoadSample || onClear)
+  const hasBottomBar = !!(footer?.zoom || fileStrip || onAddFile)
+  const hasSidebar = !!(sidebarSegments || footer)
+
+  const allActions = (footer?.actions ?? []).filter((action): action is FooterAction => !!action)
+  const secondaryActions = allActions.filter((action) => action.emphasis === "secondary")
+  const primaryActions = allActions.filter((action) => action.emphasis !== "secondary")
+  const hasSidebarFooterBlock = allActions.length > 0 || !!footer?.download
+
+  return (
+    <div className="flex min-h-svh">
+      <div className="mx-auto flex min-w-0 flex-1 flex-col gap-4 p-6">
+        <PageBreadcrumb page={page} icon={icon} />
+
+        {inlineSegments && (
+          <Tabs value={inlineSegments.value} onValueChange={inlineSegments.onValueChange}>
             <TabsList>
-              {segments.options.map((option) => (
-                <TabsTrigger key={option.value} value={option.value} disabled={segments.disabled}>
+              {inlineSegments.options.map((option) => (
+                <TabsTrigger key={option.value} value={option.value} disabled={inlineSegments.disabled}>
                   <HugeiconsIcon icon={option.icon} aria-hidden />
                   {option.label}
                 </TabsTrigger>
@@ -182,210 +226,295 @@ export function ToolPage({
             </TabsList>
           </Tabs>
         )}
-        {actions}
-        <div className="ml-auto flex items-center gap-2">
-          {onCopy && (
-            <Button variant="secondary" onClick={handleCopy}>
-              <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} aria-hidden />
-              Copy
-            </Button>
-          )}
-          {onLoadSample && (
-            <Button variant="secondary" onClick={onLoadSample}>
-              <HugeiconsIcon icon={SparklesIcon} aria-hidden />
-              Load sample
-            </Button>
-          )}
-          {onAddFile && (
-            <Button variant="secondary" onClick={onAddFile}>
-              <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-              Add file
-            </Button>
-          )}
-          {onClear && (
-            <IconTooltip label="Clear">
-              <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear">
-                <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+
+        {hasHeaderRow && (
+          <div className="flex flex-wrap items-center gap-2">
+            {actions}
+            <div className="ml-auto flex items-center gap-2">
+              {onCopy && (
+                <Button variant="secondary" onClick={handleCopy}>
+                  <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} aria-hidden />
+                  Copy
+                </Button>
+              )}
+              {onLoadSample && (
+                <Button variant="secondary" onClick={onLoadSample}>
+                  <HugeiconsIcon icon={SparklesIcon} aria-hidden />
+                  Load sample
+                </Button>
+              )}
+              {onClear && (
+                <IconTooltip label="Clear">
+                  <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear">
+                    <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+                  </Button>
+                </IconTooltip>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex min-h-0 flex-1 flex-col gap-4">{children}</div>
+
+        {hasBottomBar && (
+          <div className="flex min-h-11 items-center gap-4">
+            {footer?.zoom && (
+              <div className="flex items-center gap-1">
+                <IconTooltip label="Zoom out">
+                  <Button
+                    variant="ghost"
+                    onClick={footer.zoom.onZoomOut}
+                    disabled={footer.zoom.zoomOutDisabled}
+                    aria-label="Zoom out"
+                  >
+                    <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                  </Button>
+                </IconTooltip>
+                <span className="w-12 text-center text-sm text-muted-foreground">
+                  {footer.zoom.percent}%
+                </span>
+                <IconTooltip label="Zoom in">
+                  <Button
+                    variant="ghost"
+                    onClick={footer.zoom.onZoomIn}
+                    disabled={footer.zoom.zoomInDisabled}
+                    aria-label="Zoom in"
+                  >
+                    <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                  </Button>
+                </IconTooltip>
+                <IconTooltip label="Fit to screen">
+                  <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
+                    <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                  </Button>
+                </IconTooltip>
+              </div>
+            )}
+
+            {fileStrip && <div className="min-w-0 flex-1">{fileStrip}</div>}
+
+            {onAddFile && (
+              <Button variant="secondary" onClick={onAddFile} className="ml-auto">
+                <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+                Add file
               </Button>
-            </IconTooltip>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {children}
+      {hasSidebar && (
+        <div className="flex w-80 shrink-0 flex-col border-l bg-card">
+          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+            {sidebarSegments && (
+              <div className="flex flex-col gap-3">
+                {sidebarSegments.label && <SidebarLabel>{sidebarSegments.label}</SidebarLabel>}
+                {/* A handful of options (Blur Type, Format, …) should split the
+                    row evenly, matching the mockup and the default Tabs look
+                    used elsewhere — only a crowded row (image-crop's 6-option
+                    aspect picker) needs to wrap to natural-width chips instead
+                    of being squeezed into equal slices. */}
+                {sidebarSegments.options.length > 3 ? (
+                  <Tabs value={sidebarSegments.value} onValueChange={sidebarSegments.onValueChange}>
+                    <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1">
+                      {sidebarSegments.options.map((option) => (
+                        <TabsTrigger
+                          key={option.value}
+                          value={option.value}
+                          disabled={sidebarSegments.disabled}
+                          className="flex-none"
+                        >
+                          <HugeiconsIcon icon={option.icon} aria-hidden />
+                          {option.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                ) : (
+                  <Tabs value={sidebarSegments.value} onValueChange={sidebarSegments.onValueChange}>
+                    <TabsList className="w-full">
+                      {sidebarSegments.options.map((option) => (
+                        <TabsTrigger
+                          key={option.value}
+                          value={option.value}
+                          disabled={sidebarSegments.disabled}
+                        >
+                          <HugeiconsIcon icon={option.icon} aria-hidden />
+                          {option.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                )}
+              </div>
+            )}
 
-      {footer && (
-        <div className="flex flex-wrap items-center gap-4">
-          {footer.color && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{footer.color.label}</span>
-              <ColorPicker
-                value={footer.color.value ?? footer.color.fallback}
-                onChange={(value) => footer.color!.onChange(value)}
-                label={footer.color.label}
-              />
-              {footer.color.value ? (
-                <Button variant="ghost" onClick={() => footer.color!.onChange(null)}>
-                  {footer.color.clearIcon && (
-                    <HugeiconsIcon icon={footer.color.clearIcon} aria-hidden />
+            {footer?.color && (
+              <div className="flex flex-col gap-3">
+                <SidebarLabel>{footer.color.label}</SidebarLabel>
+                <div className="flex items-center gap-2">
+                  <ColorPicker
+                    value={footer.color.value ?? footer.color.fallback}
+                    onChange={(value) => footer.color!.onChange(value)}
+                    label={footer.color.label}
+                  />
+                  {footer.color.value ? (
+                    <Button variant="ghost" onClick={() => footer.color!.onChange(null)}>
+                      {footer.color.clearIcon && (
+                        <HugeiconsIcon icon={footer.color.clearIcon} aria-hidden />
+                      )}
+                      {footer.color.clearLabel ?? "Clear"}
+                    </Button>
+                  ) : (
+                    footer.color.nullLabel && (
+                      <span className="text-sm text-muted-foreground">{footer.color.nullLabel}</span>
+                    )
                   )}
-                  {footer.color.clearLabel ?? "Clear"}
-                </Button>
-              ) : (
-                footer.color.nullLabel && (
-                  <span className="text-sm text-muted-foreground">{footer.color.nullLabel}</span>
-                )
-              )}
-            </div>
-          )}
+                </div>
+              </div>
+            )}
 
-          {footer.toggle && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant={footer.toggle.pressed ? "secondary" : "outline"}
-                aria-pressed={footer.toggle.pressed}
-                onClick={() => footer.toggle!.onPressedChange(!footer.toggle!.pressed)}
-              >
-                <HugeiconsIcon icon={footer.toggle.icon} aria-hidden />
-                {footer.toggle.label}
-              </Button>
-              {footer.toggle.pressed && footer.toggle.color && (
-                <ColorPicker
-                  value={footer.toggle.color.value}
-                  onChange={footer.toggle.color.onChange}
-                  label={footer.toggle.color.label}
+            {footer?.toggle && (
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant={footer.toggle.pressed ? "secondary" : "outline"}
+                  aria-pressed={footer.toggle.pressed}
+                  onClick={() => footer.toggle!.onPressedChange(!footer.toggle!.pressed)}
+                  className="w-full"
+                >
+                  <HugeiconsIcon icon={footer.toggle.icon} aria-hidden />
+                  {footer.toggle.label}
+                </Button>
+                {footer.toggle.pressed && footer.toggle.color && (
+                  <ColorPicker
+                    value={footer.toggle.color.value}
+                    onChange={footer.toggle.color.onChange}
+                    label={footer.toggle.color.label}
+                  />
+                )}
+                {footer.toggle.pressed && footer.toggle.slider && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {footer.toggle.slider.label}
+                      </span>
+                      <Input
+                        type="number"
+                        value={footer.toggle.slider.value}
+                        onChange={(e) => {
+                          const parsed = Number(e.target.value)
+                          if (!Number.isFinite(parsed)) return
+                          const { min, max } = footer.toggle!.slider!
+                          footer.toggle!.slider!.onValueChange(Math.min(max, Math.max(min, parsed)))
+                        }}
+                        min={footer.toggle.slider.min}
+                        max={footer.toggle.slider.max}
+                        step={footer.toggle.slider.step ?? 1}
+                        className="h-8 w-14 px-2 text-right"
+                      />
+                    </div>
+                    <Slider
+                      value={[footer.toggle.slider.value]}
+                      onValueChange={([value]) => footer.toggle!.slider!.onValueChange(value)}
+                      min={footer.toggle.slider.min}
+                      max={footer.toggle.slider.max}
+                      step={footer.toggle.slider.step ?? 1}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {footer?.inputs?.map((input, index) => (
+              <div key={index} className="flex flex-col gap-1.5">
+                <SidebarLabel>{input.label}</SidebarLabel>
+                <Input
+                  type={input.type ?? "text"}
+                  min={input.min}
+                  value={input.value}
+                  onChange={(e) => input.onChange(e.target.value)}
+                  disabled={input.disabled}
+                  autoComplete="off"
+                  onKeyDown={
+                    input.onEnter
+                      ? (e) => {
+                          if (e.key === "Enter") input.onEnter!()
+                        }
+                      : undefined
+                  }
+                  className={input.className ?? "w-full"}
                 />
-              )}
-              {footer.toggle.pressed && footer.toggle.slider && (
-                <>
-                  <span className="text-sm text-muted-foreground">
-                    {footer.toggle.slider.label}
+              </div>
+            ))}
+
+            {footer?.slider && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <SidebarLabel>{footer.slider.label}</SidebarLabel>
+                  <span className="flex items-baseline gap-0.5">
+                    <input
+                      type="number"
+                      value={footer.slider.value}
+                      onChange={(e) => {
+                        const parsed = Number(e.target.value)
+                        if (!Number.isFinite(parsed)) return
+                        footer.slider!.onValueChange(
+                          Math.min(footer.slider!.max, Math.max(footer.slider!.min, parsed))
+                        )
+                      }}
+                      min={footer.slider.min}
+                      max={footer.slider.max}
+                      step={footer.slider.step ?? 1}
+                      disabled={footer.slider.disabled}
+                      className="w-10 border-none bg-transparent p-0 text-right text-sm font-medium text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    {footer.slider.unit && (
+                      <span className="text-sm text-muted-foreground">{footer.slider.unit}</span>
+                    )}
                   </span>
-                  <Slider
-                    value={[footer.toggle.slider.value]}
-                    onValueChange={([value]) => footer.toggle!.slider!.onValueChange(value)}
-                    min={footer.toggle.slider.min}
-                    max={footer.toggle.slider.max}
-                    step={footer.toggle.slider.step ?? 1}
-                    className="min-w-24 max-w-32"
-                  />
-                  <Input
-                    type="number"
-                    value={footer.toggle.slider.value}
-                    onChange={(e) => {
-                      const parsed = Number(e.target.value)
-                      if (!Number.isFinite(parsed)) return
-                      const { min, max } = footer.toggle!.slider!
-                      footer.toggle!.slider!.onValueChange(Math.min(max, Math.max(min, parsed)))
-                    }}
-                    min={footer.toggle.slider.min}
-                    max={footer.toggle.slider.max}
-                    step={footer.toggle.slider.step ?? 1}
-                    className="h-8 w-14 px-2 text-right"
-                  />
-                </>
+                </div>
+                <Slider
+                  value={[footer.slider.value]}
+                  onValueChange={([value]) => footer.slider!.onValueChange(value)}
+                  min={footer.slider.min}
+                  max={footer.slider.max}
+                  step={footer.slider.step ?? 1}
+                  disabled={footer.slider.disabled}
+                  className="w-full"
+                />
+              </div>
+            )}
+
+            {footer?.hint && <span className="text-sm text-muted-foreground">{footer.hint}</span>}
+          </div>
+
+          {hasSidebarFooterBlock && (
+            <div className="flex shrink-0 flex-col gap-3 border-t p-6">
+              {secondaryActions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {secondaryActions.map((action, index) => (
+                    <Button
+                      key={index}
+                      variant={action.variant}
+                      onClick={action.onClick}
+                      disabled={action.disabled}
+                    >
+                      <HugeiconsIcon icon={action.icon} aria-hidden />
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
               )}
-            </div>
-          )}
 
-          {footer.inputs?.map((input, index) => (
-            <div key={index} className="flex flex-col gap-1.5">
-              <span className="text-sm text-muted-foreground">{input.label}</span>
-              <Input
-                type={input.type ?? "text"}
-                min={input.min}
-                value={input.value}
-                onChange={(e) => input.onChange(e.target.value)}
-                disabled={input.disabled}
-                autoComplete="off"
-                onKeyDown={
-                  input.onEnter
-                    ? (e) => {
-                        if (e.key === "Enter") input.onEnter!()
-                      }
-                    : undefined
-                }
-                className={input.className ?? "w-28"}
-              />
-            </div>
-          ))}
-
-          {footer.zoom && (
-            <div className="flex items-center gap-1">
-              <IconTooltip label="Zoom out">
-                <Button
-                  variant="ghost"
-                  onClick={footer.zoom.onZoomOut}
-                  disabled={footer.zoom.zoomOutDisabled}
-                  aria-label="Zoom out"
-                >
-                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-                </Button>
-              </IconTooltip>
-              <span className="w-12 text-center text-sm text-muted-foreground">
-                {footer.zoom.percent}%
-              </span>
-              <IconTooltip label="Zoom in">
-                <Button
-                  variant="ghost"
-                  onClick={footer.zoom.onZoomIn}
-                  disabled={footer.zoom.zoomInDisabled}
-                  aria-label="Zoom in"
-                >
-                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-                </Button>
-              </IconTooltip>
-              <IconTooltip label="Fit to screen">
-                <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
-                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-                </Button>
-              </IconTooltip>
-            </div>
-          )}
-
-          {footer.slider && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">{footer.slider.label}</span>
-              <Slider
-                value={[footer.slider.value]}
-                onValueChange={([value]) => footer.slider!.onValueChange(value)}
-                min={footer.slider.min}
-                max={footer.slider.max}
-                step={footer.slider.step ?? 1}
-                disabled={footer.slider.disabled}
-                className="min-w-32 max-w-32"
-              />
-              <Input
-                type="number"
-                value={footer.slider.value}
-                onChange={(e) => {
-                  const parsed = Number(e.target.value)
-                  if (!Number.isFinite(parsed)) return
-                  footer.slider!.onValueChange(
-                    Math.min(footer.slider!.max, Math.max(footer.slider!.min, parsed))
-                  )
-                }}
-                min={footer.slider.min}
-                max={footer.slider.max}
-                step={footer.slider.step ?? 1}
-                disabled={footer.slider.disabled}
-                className="h-8 w-14 px-2 text-right"
-              />
-            </div>
-          )}
-
-          {footer.hint && <span className="text-sm text-muted-foreground">{footer.hint}</span>}
-
-          <div className="ml-auto flex flex-wrap items-center gap-4">
-            {footer.actions
-              ?.filter((action): action is FooterAction => !!action)
-              .map((action, index) =>
+              {primaryActions.map((action, index) =>
                 action.more ? (
-                  <ButtonGroup key={index}>
+                  <ButtonGroup key={index} className="w-full">
                     <Button
                       variant={action.variant}
                       onClick={action.onClick}
                       disabled={action.disabled}
+                      className="flex-1"
                     >
                       <HugeiconsIcon icon={action.icon} aria-hidden />
                       {action.label}
@@ -417,6 +546,7 @@ export function ToolPage({
                     variant={action.variant}
                     onClick={action.onClick}
                     disabled={action.disabled}
+                    className="w-full"
                   >
                     <HugeiconsIcon icon={action.icon} aria-hidden />
                     {action.label}
@@ -424,37 +554,39 @@ export function ToolPage({
                 )
               )}
 
-            {footer.download && (
-              <ButtonGroup>
-                <Button
-                  variant="secondary"
-                  onClick={footer.download.onDownload}
-                  disabled={footer.download.disabled}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
-                {footer.download.onDownloadAll && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" aria-label="More download options">
-                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-max">
-                      <DropdownMenuItem
-                        onClick={footer.download.onDownloadAll}
-                        disabled={footer.download.downloadAllDisabled}
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download all
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </ButtonGroup>
-            )}
-          </div>
+              {footer?.download && (
+                <ButtonGroup className="w-full">
+                  <Button
+                    variant="secondary"
+                    onClick={footer.download.onDownload}
+                    disabled={footer.download.disabled}
+                    className="flex-1"
+                  >
+                    <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                    Download
+                  </Button>
+                  {footer.download.onDownloadAll && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="icon" aria-label="More download options">
+                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-max">
+                        <DropdownMenuItem
+                          onClick={footer.download.onDownloadAll}
+                          disabled={footer.download.downloadAllDisabled}
+                        >
+                          <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                          Download all
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </ButtonGroup>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
