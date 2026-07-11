@@ -22,7 +22,13 @@ const attachmentVariants = cva(
       orientation: {
         horizontal: "min-w-40 items-center",
         vertical: "w-24 flex-col has-data-[slot=attachment-content]:w-30",
-        dropzone: "w-full flex-col items-center bg-card/40 px-8 py-36 text-center",
+        // `grow` (not `flex-1`) so it only adds flex-grow — the base
+        // `shrink-0` above stays intact, and content-based `flex-basis: auto`
+        // means the box still sizes up from its content before growing to
+        // fill whatever extra space its flex column parent has (every tool
+        // page's `children` wrapper is a `flex flex-1 flex-col`), instead of
+        // the old fixed `py-36` leaving empty space below it on tall screens.
+        dropzone: "w-full grow flex-col items-center justify-center bg-card/40 px-8 py-12 text-center",
       },
     },
   }
