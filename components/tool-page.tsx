@@ -7,7 +7,6 @@ import {
   ArrowDown01Icon,
   Copy01Icon,
   Download04Icon,
-  Eraser01Icon,
   FitToScreenIcon,
   SparklesIcon,
   Tick02Icon,
@@ -54,6 +53,19 @@ type Segments = {
    * of moving it into the sidebar, away from what it controls.
    */
   placement?: "sidebar" | "inline"
+}
+
+// A segmented picker rendered inside the footer sidebar alongside a tool's
+// other settings — use this instead of the top-level `segments` prop when
+// the value is per-job (e.g. Image Converter's per-file output format)
+// rather than one shared page-level setting.
+type FooterSegments = {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string; icon: IconSvgElement }[]
+  disabled?: boolean
+  /** Heading shown above the control (e.g. "Format"). */
+  label?: string
 }
 
 type FooterZoom = {
@@ -151,6 +163,7 @@ type FooterInput = {
 }
 
 type Footer = {
+  segments?: FooterSegments
   color?: FooterColor
   toggle?: FooterToggle
   inputs?: FooterInput[]
@@ -203,7 +216,8 @@ export function ToolPage({
   }
 
   const inlineSegments = segments?.placement === "inline" ? segments : undefined
-  const sidebarSegments = segments && segments.placement !== "inline" ? segments : undefined
+  const sidebarSegments =
+    (segments && segments.placement !== "inline" ? segments : undefined) ?? footer?.segments
 
   const hasHeaderRow = !!(actions || onCopy || onLoadSample)
   const hasBottomBar = !!(fileStrip || onAddFile)

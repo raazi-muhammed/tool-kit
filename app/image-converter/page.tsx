@@ -36,6 +36,8 @@ type Job = {
   status: Status
   error: string | null
   result: Result | null
+  // Independent per file, like image-crop's bgColor or image-rotate's rotation.
+  format: Format
 }
 
 const FORMAT_MIME: Record<Format, string> = {
@@ -76,6 +78,7 @@ export default function ImageConverterPage() {
           status: valid ? "idle" : "error",
           error: valid ? null : "This file doesn't look like a recognised image format.",
           result: null,
+          format: "png",
         }
       },
       cleanupJob: (job) => {
@@ -83,7 +86,6 @@ export default function ImageConverterPage() {
         if (job.result) URL.revokeObjectURL(job.result.url)
       },
     })
-  const [format, setFormat] = useState<Format>("png")
   const [quality, setQuality] = useState(92)
   // Fill for transparent PNGs; null keeps transparency (where the target
   // format supports it — JPEG/BMP fall back to the browser's own default).
@@ -97,12 +99,11 @@ export default function ImageConverterPage() {
 
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
-  const supportsAlpha = format === "png" || format === "webp"
+  const supportsAlpha = activeJob?.format === "png" || activeJob?.format === "webp"
 
   async function convertJob(
     job: Job,
     opts: {
-      format: Format
       quality: number
       bgColor: string | null
       removeBg: boolean
@@ -110,7 +111,8 @@ export default function ImageConverterPage() {
       tolerance: number
     }
   ) {
-    const { format: fmt, quality: q } = opts
+    const fmt = job.format
+    const { quality: q } = opts
     if (fmt === "webp" && !supportsWebp()) {
       updateJob(job.id, {
         status: "error",
@@ -163,17 +165,25 @@ export default function ImageConverterPage() {
     }
   }
 
-  // Re-run the conversion automatically whenever the format or any setting
-  // changes, instead of requiring an explicit Convert click. Debounced so
-  // dragging the quality/tolerance sliders (many onValueChange updates a
-  // second) doesn't re-encode on every tick — only once the value settles.
+  // Each job carries its own target format, so `jobs.length` alone (the
+  // usual dep for this effect elsewhere in the codebase) won't notice an
+  // existing job's format changing. This key changes only when a job is
+  // added/removed or a format actually changes, not on every status/result
+  // write `updateJob` makes during conversion — which would otherwise loop.
+  const formatsKey = jobs.map((job) => `${job.id}:${job.format}`).join(",")
+
+  // Re-run the conversion automatically whenever a job's format or any
+  // shared setting changes, instead of requiring an explicit Convert click.
+  // Debounced so dragging the quality/tolerance sliders (many onValueChange
+  // updates a second) doesn't re-encode on every tick — only once the value
+  // settles.
   useDebouncedEffect(() => {
     if (jobs.length === 0) return
     jobs.forEach((job) => {
       if (job.status !== "converting")
-        void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
+        void convertJob(job, { quality, bgColor, removeBg, keyColor, tolerance })
     })
-  }, [format, quality, bgColor, removeBg, keyColor, tolerance, jobs.length])
+  }, [formatsKey, quality, bgColor, removeBg, keyColor, tolerance])
 
   function downloadActive() {
     if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
@@ -191,18 +201,6 @@ export default function ImageConverterPage() {
     <ToolPage
       page="Image Converter"
       icon={Image01Icon}
-      segments={{
-        value: format,
-        onValueChange: (value) => setFormat(value as Format),
-        label: "Format",
-        options: [
-          { value: "png", label: "PNG", icon: Image01Icon },
-          { value: "jpeg", label: "JPEG", icon: Image01Icon },
-          { value: "webp", label: "WebP", icon: Image01Icon },
-          { value: "bmp", label: "BMP", icon: Image01Icon },
-        ],
-        disabled: anyBusy,
-      }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       fileStrip={
         jobs.length > 0 && (
@@ -212,6 +210,20 @@ export default function ImageConverterPage() {
       footer={
         jobs.length > 0
           ? {
+              segments: activeJob
+                ? {
+                    value: activeJob.format,
+                    onValueChange: (value) => updateJob(activeJob.id, { format: value as Format }),
+                    label: "Format",
+                    options: [
+                      { value: "png", label: "PNG", icon: Image01Icon },
+                      { value: "jpeg", label: "JPEG", icon: Image01Icon },
+                      { value: "webp", label: "WebP", icon: Image01Icon },
+                      { value: "bmp", label: "BMP", icon: Image01Icon },
+                    ],
+                    disabled: anyBusy,
+                  }
+                : undefined,
               color: anyPng
                 ? {
                     label: "Background",
@@ -245,7 +257,7 @@ export default function ImageConverterPage() {
                   }
                 : undefined,
               slider:
-                format === "jpeg" || format === "webp"
+                activeJob?.format === "jpeg" || activeJob?.format === "webp"
                   ? {
                       label: "Quality",
                       value: quality,
