@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { TOOLS } from "@/lib/tools"
+import { cn } from "@/lib/utils"
 
 const CommandMenuContext = React.createContext<{
   setOpen: (open: boolean) => void
@@ -75,7 +76,7 @@ export function CommandMenuProvider({
   )
 }
 
-export function CommandMenuTrigger() {
+export function CommandMenuTrigger({ className }: { className?: string }) {
   const context = React.useContext(CommandMenuContext)
   if (!context) {
     throw new Error(
@@ -84,7 +85,11 @@ export function CommandMenuTrigger() {
   }
 
   return (
-    <Button variant="secondary" onClick={() => context.setOpen(true)}>
+    <Button
+      variant="secondary"
+      onClick={() => context.setOpen(true)}
+      className={cn("justify-between", className)}
+    >
       <span className="flex items-center gap-1.5">
         <HugeiconsIcon icon={SearchIcon} aria-hidden />
         Search

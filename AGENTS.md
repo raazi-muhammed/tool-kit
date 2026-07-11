@@ -412,20 +412,27 @@ in `lib/tools.ts` (`TOOLS: Tool[]`) — the homepage grid in `app/page.tsx`
 reads from the same array, so a new tool only needs to be added there once.
 
 `components/command-menu.tsx` exports a `CommandMenuProvider` (mounted once
-in `app/layout.tsx`, wrapping `children`) that owns the open state, binds the
-global keydown listener, and renders the `CommandDialog`, plus a
-`CommandMenuTrigger` button that any page can render to open it:
+in `app/layout.tsx`, wrapping `children`, so the global ⌘K/Ctrl+K shortcut
+works everywhere regardless of whether the trigger button is visible on the
+current page) that owns the open state, binds the global keydown listener,
+and renders the `CommandDialog`, plus a `CommandMenuTrigger` button that opens
+it on click. It takes an optional `className` (merged in after its own
+`justify-between`, so widening it — e.g. the homepage's `w-72` — still keeps
+"Search" and the `⌘K` hint pinned to opposite edges instead of clumping
+together in the middle):
 
 ```tsx
 import { CommandMenuTrigger } from "@/components/command-menu"
 
-<CommandMenuTrigger />
+<CommandMenuTrigger className="w-72" />
 ```
 
-`PageBreadcrumb` already renders a `CommandMenuTrigger`, so every tool page
-gets it for free — don't add another one on individual tool pages. When
-adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
-`app/page.tsx`) so it shows up in both the grid and the command menu.
+Only `app/page.tsx` (the homepage) renders it — `PageBreadcrumb` (used by
+every tool page via `ToolPage`) deliberately doesn't, so the search trigger
+only shows up on the homescreen. Don't add it back to `PageBreadcrumb` or to
+an individual tool page. When adding a new tool, add it to `TOOLS` in
+`lib/tools.ts` (not inline in `app/page.tsx`) so it shows up in both the grid
+and the command menu.
 
 ## Button styling
 

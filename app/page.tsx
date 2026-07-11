@@ -31,7 +31,7 @@ export default function Page() {
         </h1>
         <div className="flex items-center gap-2">
           <ModeToggle />
-          <CommandMenuTrigger />
+          <CommandMenuTrigger className="w-72" />
         </div>
       </div>
 
