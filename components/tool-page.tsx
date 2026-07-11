@@ -116,6 +116,23 @@ type SidebarAction = {
   emphasis?: "primary" | "secondary"
 }
 
+// Groups a row of `SidebarAction`s under an optional muted label (e.g.
+// "This image" over "Rotate left"/"Rotate right", "All images" over
+// "Rotate all left"/"Rotate all right") — each action renders at an even
+// share of the row's width instead of stacking full-width.
+type SidebarActionGroup = {
+  label?: ReactNode
+  actions: (SidebarAction | false | null | undefined)[]
+  /**
+   * `"bottom"` (default) renders this group in the sidebar's pinned bottom
+   * action stack, alongside Download. `"top"` renders it in the scrollable
+   * section instead, alongside `zoom`/`slider` — for standalone transform
+   * controls with no single commit step (e.g. Image Rotate's rotate
+   * buttons), as opposed to a tool's actual call to action.
+   */
+  placement?: "top" | "bottom"
+}
+
 type SidebarDownload = {
   onDownload: () => void
   disabled?: boolean
@@ -173,7 +190,14 @@ type Sidebar = {
   slider?: SidebarSlider
   /** Muted contextual text (e.g. "No transparent margin to trim.") shown in the sidebar. */
   hint?: ReactNode
-  actions?: (SidebarAction | false | null | undefined)[]
+  /**
+   * Each top-level entry renders as its own full-width row in the pinned
+   * action stack. A `SidebarActionGroup` instead groups actions into a
+   * single row, evenly split (e.g. Image Rotate's "Rotate left" / "Rotate
+   * right" side by side) rather than stacking full-width, with an optional
+   * muted label rendered above it.
+   */
+  actions?: (SidebarAction | SidebarActionGroup | false | null | undefined)[]
   download?: SidebarDownload
 }
 
@@ -273,6 +297,93 @@ function SidebarColorControl({ color }: { color: SidebarColor }) {
   )
 }
 
+// Shared by a flat `sidebar.actions` entry and a grouped-row entry so both
+// render identically — `widthClassName` is `"w-full"` for a standalone
+// action, `"flex-1"` for one sharing a row with others.
+function SidebarPrimaryAction({
+  action,
+  widthClassName,
+}: {
+  action: SidebarAction
+  widthClassName: string
+}) {
+  if (!action.more) {
+    return (
+      <Button
+        variant={action.variant}
+        onClick={action.onClick}
+        disabled={action.disabled}
+        className={widthClassName}
+      >
+        <HugeiconsIcon icon={action.icon} aria-hidden />
+        {action.label}
+      </Button>
+    )
+  }
+
+  return (
+    <ButtonGroup className={widthClassName}>
+      <Button
+        variant={action.variant}
+        onClick={action.onClick}
+        disabled={action.disabled}
+        className="flex-1"
+      >
+        <HugeiconsIcon icon={action.icon} aria-hidden />
+        {action.label}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant={action.variant}
+            size="icon"
+            disabled={action.disabled}
+            aria-label={`More ${action.label.toLowerCase()} options`}
+          >
+            <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-max">
+          <DropdownMenuItem
+            onClick={action.more.onClick}
+            disabled={action.more.disabled}
+          >
+            <HugeiconsIcon icon={action.more.icon} aria-hidden />
+            {action.more.label}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ButtonGroup>
+  )
+}
+
+// Shared by a `SidebarActionGroup` wherever it renders — the scrollable top
+// section (`placement: "top"`) or the pinned bottom stack (the default) — so
+// both look identical: an optional muted label above a row of actions
+// evenly split via `flex-1`.
+function SidebarActionGroupRow({ group }: { group: SidebarActionGroup }) {
+  const actions = group.actions.filter(
+    (action): action is SidebarAction =>
+      !!action && action.emphasis !== "secondary"
+  )
+  if (actions.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-2">
+      {group.label && <SidebarLabel>{group.label}</SidebarLabel>}
+      <div className="flex w-full gap-2">
+        {actions.map((action, index) => (
+          <SidebarPrimaryAction
+            key={index}
+            action={action}
+            widthClassName="flex-1"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ToolPage({
   page,
   icon,
@@ -314,14 +425,28 @@ export function ToolPage({
   const hasBottomBar = !!(fileStrip || onAddFile)
   const hasSidebar = !!(sidebarSegments || sidebar)
 
-  const allActions = (sidebar?.actions ?? []).filter(
-    (action): action is SidebarAction => !!action
+  const rawActions = sidebar?.actions ?? []
+  const allActions = rawActions.flatMap((entry) =>
+    entry && "actions" in entry
+      ? entry.actions.filter((action): action is SidebarAction => !!action)
+      : entry
+        ? [entry]
+        : []
   )
   const secondaryActions = allActions.filter(
     (action) => action.emphasis === "secondary"
   )
-  const primaryActions = allActions.filter(
-    (action) => action.emphasis !== "secondary"
+  // A group opts into the scrollable top section (alongside zoom/slider) via
+  // `placement: "top"` — everything else stays in the pinned bottom stack.
+  const topActionGroups = rawActions.filter(
+    (entry): entry is SidebarActionGroup =>
+      !!entry && "actions" in entry && entry.placement === "top"
+  )
+  // Groups are rendered separately below, preserving their own row — only
+  // ungrouped primary actions are listed flat here.
+  const primaryActionRows = rawActions.filter(
+    (entry): entry is SidebarAction | SidebarActionGroup =>
+      !!entry && !("actions" in entry && entry.placement === "top")
   )
   const hasSidebarActionsBlock = allActions.length > 0 || !!sidebar?.download
 
@@ -396,6 +521,10 @@ export function ToolPage({
       {hasSidebar && (
         <div className="flex w-80 shrink-0 flex-col border-l bg-card">
           <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+            {topActionGroups.map((group, index) => (
+              <SidebarActionGroupRow key={index} group={group} />
+            ))}
+
             {sidebar?.zoom && (
               <div className="flex flex-col gap-3">
                 <SidebarLabel>Zoom</SidebarLabel>
@@ -574,51 +703,17 @@ export function ToolPage({
                 </div>
               )}
 
-              {primaryActions.map((action, index) =>
-                action.more ? (
-                  <ButtonGroup key={index} className="w-full">
-                    <Button
-                      variant={action.variant}
-                      onClick={action.onClick}
-                      disabled={action.disabled}
-                      className="flex-1"
-                    >
-                      <HugeiconsIcon icon={action.icon} aria-hidden />
-                      {action.label}
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant={action.variant}
-                          size="icon"
-                          disabled={action.disabled}
-                          aria-label={`More ${action.label.toLowerCase()} options`}
-                        >
-                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-max">
-                        <DropdownMenuItem
-                          onClick={action.more.onClick}
-                          disabled={action.more.disabled}
-                        >
-                          <HugeiconsIcon icon={action.more.icon} aria-hidden />
-                          {action.more.label}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </ButtonGroup>
+              {primaryActionRows.map((entry, index) =>
+                "actions" in entry ? (
+                  <SidebarActionGroupRow key={index} group={entry} />
                 ) : (
-                  <Button
-                    key={index}
-                    variant={action.variant}
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                    className="w-full"
-                  >
-                    <HugeiconsIcon icon={action.icon} aria-hidden />
-                    {action.label}
-                  </Button>
+                  entry.emphasis !== "secondary" && (
+                    <SidebarPrimaryAction
+                      key={index}
+                      action={entry}
+                      widthClassName="w-full"
+                    />
+                  )
                 )
               )}
 

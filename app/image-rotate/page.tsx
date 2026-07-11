@@ -152,31 +152,41 @@ export default function ImageRotatePage() {
           ? {
               actions: [
                 {
-                  label: "Rotate left",
-                  icon: RotateCcwSquareIcon,
-                  onClick: () => rotate(-90),
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Rotate all left",
+                  label: "This image",
+                  placement: "top",
+                  actions: [
+                    {
+                      label: "Rotate left",
+                      icon: RotateCcwSquareIcon,
+                      onClick: () => rotate(-90),
+                    },
+                    {
+                      label: "Rotate right",
+                      icon: RotateCwSquareIcon,
+                      onClick: () => rotate(90),
+                    },
+                  ],
+                },
+                jobs.length > 1
+                  ? {
+                      label: "All images",
+                      placement: "top",
+                      actions: [
+                        {
+                          label: "Rotate left",
                           icon: RotateCcwSquareIcon,
                           onClick: () => rotateAll(-90),
-                        }
-                      : undefined,
-                },
-                {
-                  label: "Rotate right",
-                  icon: RotateCwSquareIcon,
-                  onClick: () => rotate(90),
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Rotate all right",
+                          variant: "secondary",
+                        },
+                        {
+                          label: "Rotate right",
                           icon: RotateCwSquareIcon,
                           onClick: () => rotateAll(90),
-                        }
-                      : undefined,
-                },
+                          variant: "secondary",
+                        },
+                      ],
+                    }
+                  : undefined,
               ],
               download: {
                 onDownload: download,
@@ -190,8 +200,14 @@ export default function ImageRotatePage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
-            <PreviewCard layer={{ ref: displayCanvasRef }} />
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <PreviewCard
+              fill
+              layer={{
+                ref: displayCanvasRef,
+                className: "h-full w-full object-contain",
+              }}
+            />
           </div>
         )}
 

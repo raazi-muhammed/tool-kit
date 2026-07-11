@@ -144,6 +144,47 @@ See `app/image-crop/page.tsx`, `app/image-trim/page.tsx`, and
 `app/image-rotate/page.tsx` (which gives each of "Rotate left"/"Rotate right"
 its own `more`).
 
+A top-level `actions` entry can also be a `SidebarActionGroup` —
+`{ label?, actions, placement? }` — which renders its `actions` together in a
+single row, evenly split via `flex-1`, instead of each stacking full-width,
+with `label` rendered above the row as a muted `SidebarLabel` (omit `label`
+for an unlabeled row). `placement: "bottom"` (the default) keeps the group in
+the pinned bottom action stack alongside Download; `placement: "top"` renders
+it in the sidebar's scrollable section instead, alongside `zoom`/`slider` —
+use this for standalone transform controls with no single commit step (e.g.
+Image Rotate's rotate buttons), as opposed to a tool's actual call to action,
+which still belongs in the bottom stack. Use a group for a pair of related
+actions that should sit side by side (e.g. Image Rotate's per-image "Rotate
+left" / "Rotate right" row above its all-images "Rotate all left" / "Rotate
+all right" row):
+
+```tsx
+actions: [
+  jobs.length > 1
+    ? {
+        label: "All images",
+        placement: "top",
+        actions: [
+          { label: "Rotate all left", icon: RotateCcwSquareIcon, onClick: () => rotateAll(-90), variant: "secondary" },
+          { label: "Rotate all right", icon: RotateCwSquareIcon, onClick: () => rotateAll(90), variant: "secondary" },
+        ],
+      }
+    : undefined,
+  {
+    label: "This image",
+    placement: "top",
+    actions: [
+      { label: "Rotate left", icon: RotateCcwSquareIcon, onClick: () => rotate(-90) },
+      { label: "Rotate right", icon: RotateCwSquareIcon, onClick: () => rotate(90) },
+    ],
+  },
+],
+```
+
+Each action inside the group can still carry its own `more` — it renders as
+its own `ButtonGroup` sized to its share of the row rather than full-width.
+See `app/image-rotate/page.tsx`.
+
 The sidebar prop also has config primitives for a few other recurring controls —
 still config objects, never JSX, so `ToolPage` renders them itself, all in the
 sidebar:
