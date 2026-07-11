@@ -46,6 +46,8 @@ type Job = {
   // composited at render/export time (never baked into the image), so it
   // stays adjustable after cropping.
   bgColor: string | null
+  // Independent per file, like Image Converter's format.
+  aspect: Aspect
 }
 
 export default function ImageCropPage() {
@@ -67,11 +69,11 @@ export default function ImageCropPage() {
       name: file.name,
       previewUrl: URL.createObjectURL(file),
       bgColor: null,
+      aspect: "free",
     }),
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const [aspect, setAspect] = useState<Aspect>("free")
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -80,7 +82,7 @@ export default function ImageCropPage() {
 
   const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
     canvasRef: displayCanvasRef,
-    ratio: ASPECT_RATIOS[aspect],
+    ratio: ASPECT_RATIOS[activeJob?.aspect ?? "free"],
     render: (rect) => renderDisplay(rect),
   })
 
@@ -194,9 +196,11 @@ export default function ImageCropPage() {
   }
 
   // A pending selection made under the old ratio no longer matches the new
-  // one, so drop it rather than silently distorting it.
+  // one, so drop it rather than silently distorting it. Only the active
+  // job's own aspect changes — other queued files keep theirs.
   function onAspectChange(value: Aspect) {
-    setAspect(value)
+    if (activeId == null) return
+    updateJob(activeId, { aspect: value })
     clearSelection()
   }
 
@@ -232,19 +236,6 @@ export default function ImageCropPage() {
     <ToolPage
       page="Image Crop"
       icon={ImageCropIcon}
-      segments={{
-        value: aspect,
-        onValueChange: (value) => onAspectChange(value as Aspect),
-        label: "Aspect ratio",
-        options: [
-          { value: "free", label: "Free", icon: AspectRatioIcon },
-          { value: "1:1", label: "1:1", icon: SquareIcon },
-          { value: "4:3", label: "4:3", icon: Tv01Icon },
-          { value: "3:4", label: "3:4", icon: Image02Icon },
-          { value: "16:9", label: "16:9", icon: RectangularIcon },
-          { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
-        ],
-      }}
       onAddFile={
         jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
       }
@@ -261,6 +252,19 @@ export default function ImageCropPage() {
       sidebar={
         activeJob
           ? {
+              segments: {
+                value: activeJob.aspect,
+                onValueChange: (value) => onAspectChange(value as Aspect),
+                label: "Aspect ratio",
+                options: [
+                  { value: "free", label: "Free", icon: AspectRatioIcon },
+                  { value: "1:1", label: "1:1", icon: SquareIcon },
+                  { value: "4:3", label: "4:3", icon: Tv01Icon },
+                  { value: "3:4", label: "3:4", icon: Image02Icon },
+                  { value: "16:9", label: "16:9", icon: RectangularIcon },
+                  { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
+                ],
+              },
               color: isPng
                 ? {
                     label: "Background",
