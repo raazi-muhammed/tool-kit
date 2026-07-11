@@ -9,7 +9,7 @@ import {
   Pdf02Icon,
 } from "@hugeicons/core-free-icons"
 import dynamic from "next/dynamic"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
@@ -41,9 +41,26 @@ const PdfPage = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
 // instead of carrying over the previous file's page count.
 function PdfPreview({ url }: { url: string }) {
   const [numPages, setNumPages] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  // Pages render at this pixel width (react-pdf scales the PDF to fit) so
+  // wide pages shrink to the panel instead of overflowing it horizontally.
+  const [pageWidth, setPageWidth] = useState(0)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const observer = new ResizeObserver(([entry]) => {
+      setPageWidth(entry.contentRect.width)
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <div className="flex max-h-[calc(100dvh-220px)] w-full flex-col items-center gap-4 overflow-y-auto p-4">
+    <div
+      ref={containerRef}
+      className="flex max-h-[calc(100dvh-220px)] w-full flex-col items-center gap-4 overflow-y-auto p-4"
+    >
       <PdfDocument
         file={url}
         onLoadSuccess={({ numPages }: { numPages: number }) =>
@@ -54,6 +71,7 @@ function PdfPreview({ url }: { url: string }) {
           <PdfPage
             key={index}
             pageNumber={index + 1}
+            width={pageWidth || undefined}
             renderTextLayer={false}
             renderAnnotationLayer={false}
             className="shadow-md"

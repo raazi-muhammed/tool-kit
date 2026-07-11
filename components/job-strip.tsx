@@ -54,7 +54,7 @@ export function JobStrip({
               type="button"
               onClick={() => onSelect(job.id)}
               className={cn(
-                "relative flex shrink-0 items-center gap-2 overflow-hidden rounded-xl border p-2 pr-3 text-left transition-colors",
+                "relative flex shrink-0 items-center gap-2 overflow-hidden rounded-lg border p-2 pr-3 text-left transition-colors",
                 active
                   ? "border-primary/30 bg-primary/10"
                   : "border-transparent bg-muted/40 hover:bg-muted/60"
