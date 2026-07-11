@@ -332,7 +332,7 @@ export default function ImageConverterPage() {
                         kind: "image",
                         src: activeJob.previewUrl,
                         alt: activeJob.name,
-                        className: "relative max-h-full max-w-full",
+                        className: "h-full w-full object-contain",
                       }
                     : {
                         kind: "status",
@@ -352,7 +352,7 @@ export default function ImageConverterPage() {
                         kind: "image",
                         src: activeJob.result.url,
                         alt: activeJob.result.name,
-                        className: "relative max-h-full max-w-full",
+                        className: "h-full w-full object-contain",
                       }
                     : activeJob.status === "converting"
                       ? { kind: "status", icon: Loading03Icon, spin: true }
