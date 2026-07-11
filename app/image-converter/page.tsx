@@ -2,9 +2,7 @@
 
 import {
   AlertCircleIcon,
-  Cancel01Icon,
   CloudUploadIcon,
-  EraserAutoIcon,
   Image01Icon,
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
@@ -36,6 +34,8 @@ type Job = {
   status: Status
   error: string | null
   result: Result | null
+  // Independent per file, like image-crop's bgColor or image-rotate's rotation.
+  format: Format
 }
 
 const FORMAT_MIME: Record<Format, string> = {
@@ -52,38 +52,52 @@ function isImageFile(file: File): boolean {
   return /\.(jpe?g|png|webp|gif|bmp|svg|ico|avif|tiff?)$/i.test(file.name)
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number): Promise<Blob> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mime: string,
+  quality: number
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Encoding produced no data."))),
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error("Encoding produced no data.")),
       mime,
-      quality,
+      quality
     )
   })
 }
 
 export default function ImageConverterPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear } =
-    useFiles<Job>({
-      createJob: (file, id) => {
-        const valid = isImageFile(file)
-        return {
-          id,
-          file,
-          name: file.name,
-          size: file.size,
-          previewUrl: valid ? URL.createObjectURL(file) : "",
-          status: valid ? "idle" : "error",
-          error: valid ? null : "This file doesn't look like a recognised image format.",
-          result: null,
-        }
-      },
-      cleanupJob: (job) => {
-        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-        if (job.result) URL.revokeObjectURL(job.result.url)
-      },
-    })
-  const [format, setFormat] = useState<Format>("png")
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles,
+    updateJob,
+    removeJob,
+  } = useFiles<Job>({
+    createJob: (file, id) => {
+      const valid = isImageFile(file)
+      return {
+        id,
+        file,
+        name: file.name,
+        size: file.size,
+        previewUrl: valid ? URL.createObjectURL(file) : "",
+        status: valid ? "idle" : "error",
+        error: valid
+          ? null
+          : "This file doesn't look like a recognised image format.",
+        result: null,
+        format: "png",
+      }
+    },
+    cleanupJob: (job) => {
+      if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+      if (job.result) URL.revokeObjectURL(job.result.url)
+    },
+  })
   const [quality, setQuality] = useState(92)
   // Fill for transparent PNGs; null keeps transparency (where the target
   // format supports it — JPEG/BMP fall back to the browser's own default).
@@ -97,12 +111,12 @@ export default function ImageConverterPage() {
 
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
-  const supportsAlpha = format === "png" || format === "webp"
+  const supportsAlpha =
+    activeJob?.format === "png" || activeJob?.format === "webp"
 
   async function convertJob(
     job: Job,
     opts: {
-      format: Format
       quality: number
       bgColor: string | null
       removeBg: boolean
@@ -110,11 +124,13 @@ export default function ImageConverterPage() {
       tolerance: number
     }
   ) {
-    const { format: fmt, quality: q } = opts
+    const fmt = job.format
+    const { quality: q } = opts
     if (fmt === "webp" && !supportsWebp()) {
       updateJob(job.id, {
         status: "error",
-        error: "Your browser does not support WebP output. Try Chrome or use PNG instead.",
+        error:
+          "Your browser does not support WebP output. Try Chrome or use PNG instead.",
       })
       return
     }
@@ -125,7 +141,8 @@ export default function ImageConverterPage() {
       const img = new Image()
       const loaded = new Promise<void>((resolve, reject) => {
         img.onload = () => resolve()
-        img.onerror = () => reject(new Error("This file couldn't be decoded as an image."))
+        img.onerror = () =>
+          reject(new Error("This file couldn't be decoded as an image."))
       })
       img.src = job.previewUrl
       await loaded
@@ -153,30 +170,52 @@ export default function ImageConverterPage() {
       updateJob(job.id, (j) => {
         if (j.result) URL.revokeObjectURL(j.result.url)
         const url = URL.createObjectURL(blob)
-        return { status: "done", error: null, result: { url, name, size: blob.size } }
+        return {
+          status: "done",
+          error: null,
+          result: { url, name, size: blob.size },
+        }
       })
     } catch (err) {
       updateJob(job.id, {
         status: "error",
-        error: err instanceof Error ? err.message : "Something went wrong while converting the image.",
+        error:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong while converting the image.",
       })
     }
   }
 
-  // Re-run the conversion automatically whenever the format or any setting
-  // changes, instead of requiring an explicit Convert click. Debounced so
-  // dragging the quality/tolerance sliders (many onValueChange updates a
-  // second) doesn't re-encode on every tick — only once the value settles.
+  // Each job carries its own target format, so `jobs.length` alone (the
+  // usual dep for this effect elsewhere in the codebase) won't notice an
+  // existing job's format changing. This key changes only when a job is
+  // added/removed or a format actually changes, not on every status/result
+  // write `updateJob` makes during conversion — which would otherwise loop.
+  const formatsKey = jobs.map((job) => `${job.id}:${job.format}`).join(",")
+
+  // Re-run the conversion automatically whenever a job's format or any
+  // shared setting changes, instead of requiring an explicit Convert click.
+  // Debounced so dragging the quality/tolerance sliders (many onValueChange
+  // updates a second) doesn't re-encode on every tick — only once the value
+  // settles.
   useDebouncedEffect(() => {
     if (jobs.length === 0) return
     jobs.forEach((job) => {
       if (job.status !== "converting")
-        void convertJob(job, { format, quality, bgColor, removeBg, keyColor, tolerance })
+        void convertJob(job, {
+          quality,
+          bgColor,
+          removeBg,
+          keyColor,
+          tolerance,
+        })
     })
-  }, [format, quality, bgColor, removeBg, keyColor, tolerance, jobs.length])
+  }, [formatsKey, quality, bgColor, removeBg, keyColor, tolerance])
 
   function downloadActive() {
-    if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
+    if (activeJob?.result)
+      downloadFile(activeJob.result.url, activeJob.result.name)
   }
 
   async function downloadAll() {
@@ -191,37 +230,48 @@ export default function ImageConverterPage() {
     <ToolPage
       page="Image Converter"
       icon={Image01Icon}
-      segments={{
-        value: format,
-        onValueChange: (value) => setFormat(value as Format),
-        options: [
-          { value: "png", label: "PNG", icon: Image01Icon },
-          { value: "jpeg", label: "JPEG", icon: Image01Icon },
-          { value: "webp", label: "WebP", icon: Image01Icon },
-          { value: "bmp", label: "BMP", icon: Image01Icon },
-        ],
-        disabled: anyBusy,
-      }}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
-      footer={
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
+      sidebar={
         jobs.length > 0
           ? {
+              segments: activeJob
+                ? {
+                    value: activeJob.format,
+                    onValueChange: (value) =>
+                      updateJob(activeJob.id, { format: value as Format }),
+                    label: "Format",
+                    options: [
+                      { value: "png", label: "PNG", icon: Image01Icon },
+                      { value: "jpeg", label: "JPEG", icon: Image01Icon },
+                      { value: "webp", label: "WebP", icon: Image01Icon },
+                      { value: "bmp", label: "BMP", icon: Image01Icon },
+                    ],
+                    disabled: anyBusy,
+                  }
+                : undefined,
               color: anyPng
                 ? {
                     label: "Background",
                     value: bgColor,
                     onChange: setBgColor,
                     fallback: "#ffffff",
-                    nullLabel: "transparent",
-                    clearLabel: "Transparent",
-                    clearIcon: Cancel01Icon,
                   }
                 : undefined,
               toggle: supportsAlpha
                 ? {
                     label: "Remove background",
-                    icon: EraserAutoIcon,
                     pressed: removeBg,
                     onPressedChange: setRemoveBg,
                     color: {
@@ -235,18 +285,19 @@ export default function ImageConverterPage() {
                       onValueChange: setTolerance,
                       min: 0,
                       max: 100,
+                      unit: "%",
                     },
                   }
                 : undefined,
               slider:
-                format === "jpeg" || format === "webp"
+                activeJob?.format === "jpeg" || activeJob?.format === "webp"
                   ? {
                       label: "Quality",
                       value: quality,
                       onValueChange: setQuality,
                       min: 0,
                       max: 100,
-                      disabled: anyBusy,
+                      unit: "%",
                     }
                   : undefined,
               download: {
@@ -262,13 +313,6 @@ export default function ImageConverterPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
             {/* Original (left) and converted (right) preview, side by side. */}
             <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
               <PreviewCard
@@ -281,9 +325,13 @@ export default function ImageConverterPage() {
                         kind: "image",
                         src: activeJob.previewUrl,
                         alt: activeJob.name,
-                        className: "relative max-h-full max-w-full",
+                        className: "h-full w-full object-contain",
                       }
-                    : { kind: "status", icon: AlertCircleIcon, message: activeJob.error }
+                    : {
+                        kind: "status",
+                        icon: AlertCircleIcon,
+                        message: activeJob.error,
+                      }
                 }
               />
 
@@ -297,13 +345,21 @@ export default function ImageConverterPage() {
                         kind: "image",
                         src: activeJob.result.url,
                         alt: activeJob.result.name,
-                        className: "relative max-h-full max-w-full",
+                        className: "h-full w-full object-contain",
                       }
                     : activeJob.status === "converting"
                       ? { kind: "status", icon: Loading03Icon, spin: true }
                       : activeJob.status === "error"
-                        ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
-                        : { kind: "status", message: "Pick a format to convert it" }
+                        ? {
+                            kind: "status",
+                            icon: AlertCircleIcon,
+                            tone: "destructive",
+                            message: activeJob.error,
+                          }
+                        : {
+                            kind: "status",
+                            message: "Pick a format to convert it",
+                          }
                 }
               />
             </div>

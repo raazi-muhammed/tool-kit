@@ -8,7 +8,11 @@ import { useEffect } from "react"
  * whenever a setting changes, instead of requiring an explicit apply click,
  * so dragging a slider/color picker doesn't redraw on every tick.
  */
-export function useDebouncedEffect(effect: () => void, deps: React.DependencyList, delayMs = 300) {
+export function useDebouncedEffect(
+  effect: () => void,
+  deps: React.DependencyList,
+  delayMs = 300
+) {
   useEffect(() => {
     const timeout = setTimeout(effect, delayMs)
     return () => clearTimeout(timeout)

@@ -1,10 +1,5 @@
 export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue }
+  string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
 export type JsonSegment = {
   prefix: string
@@ -31,7 +26,11 @@ export function extractJsonSegment(input: string): JsonSegment | null {
     const json = input.slice(start, end + 1)
     try {
       JSON.parse(json)
-      return { prefix: input.slice(0, start), json, suffix: input.slice(end + 1) }
+      return {
+        prefix: input.slice(0, start),
+        json,
+        suffix: input.slice(end + 1),
+      }
     } catch {
       // this bracket wasn't the real start of the JSON value - try the next one
     }
@@ -59,11 +58,19 @@ export function safeParseJson(raw: string): ParseResult {
     const segment = extractJsonSegment(raw)
     if (segment && segment.json !== raw.trim()) {
       try {
-        return { data: JSON.parse(segment.json), error: null, cleaned: segment.json }
+        return {
+          data: JSON.parse(segment.json),
+          error: null,
+          cleaned: segment.json,
+        }
       } catch {
         // fall through to the original error, it's more likely relevant
       }
     }
-    return { data: undefined, error: e instanceof Error ? e.message : "Invalid JSON", cleaned: raw }
+    return {
+      data: undefined,
+      error: e instanceof Error ? e.message : "Invalid JSON",
+      cleaned: raw,
+    }
   }
 }

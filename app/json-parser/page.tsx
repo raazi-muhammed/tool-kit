@@ -3,6 +3,7 @@
 import {
   ArrowShrink02Icon,
   BracesIcon,
+  Eraser01Icon,
   EyeIcon,
   TextIcon,
   TextIndentIcon,
@@ -65,17 +66,17 @@ export default function JsonParserPage() {
   return (
     <ToolPage
       page="JSON Parser"
-      onClear={clear}
       icon={BracesIcon}
       segments={{
         value: tab,
         onValueChange: (value) => setTab(value as Tab),
+        label: "View",
         options: [
           { value: "text", label: "Text", icon: TextIcon },
           { value: "viewer", label: "Viewer", icon: EyeIcon },
         ],
       }}
-      footer={{
+      sidebar={{
         hint: raw.trim()
           ? parsed.error
             ? "Invalid JSON"
@@ -84,8 +85,20 @@ export default function JsonParserPage() {
               : undefined
           : undefined,
         actions: [
+          {
+            label: "Clear",
+            icon: Eraser01Icon,
+            onClick: clear,
+            variant: "ghost",
+            emphasis: "secondary",
+          },
           { label: "Format", icon: TextIndentIcon, onClick: format },
-          { label: "Minify", icon: ArrowShrink02Icon, onClick: minify, variant: "secondary" },
+          {
+            label: "Minify",
+            icon: ArrowShrink02Icon,
+            onClick: minify,
+            variant: "secondary",
+          },
         ],
       }}
     >

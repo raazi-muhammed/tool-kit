@@ -18,19 +18,37 @@ export function scaleRect(
 }
 
 /**
+ * Uniform scale factor between `canvas`'s backing pixel size and its
+ * rendered box — the same factor `object-contain` itself uses, so it holds
+ * even when the box's aspect ratio doesn't match the canvas's (a `fill`
+ * preview letterboxes the canvas inside its box rather than stretching it).
+ * Degrades to the old per-axis ratio when the box already matches the
+ * canvas's aspect ratio (e.g. the non-`fill`, intrinsically-sized preview),
+ * since both axes' ratios are then equal.
+ */
+export function canvasDisplayScale(canvas: HTMLCanvasElement): number {
+  const box = canvas.getBoundingClientRect()
+  return Math.min(box.width / canvas.width, box.height / canvas.height)
+}
+
+/**
  * Convert a pointer event's client coordinates into `canvas`'s own pixel
  * space, accounting for however it's scaled/transformed on screen (CSS
- * size, zoom/pan transforms, etc. — `getBoundingClientRect` already reflects
- * all of that).
+ * size, zoom/pan transforms, `object-contain` letterboxing, etc. —
+ * `getBoundingClientRect` plus `canvasDisplayScale` already reflect all of
+ * that).
  */
 export function canvasPointFromEvent(
   canvas: HTMLCanvasElement,
   e: { clientX: number; clientY: number }
 ): { x: number; y: number } {
   const box = canvas.getBoundingClientRect()
+  const scale = canvasDisplayScale(canvas)
+  const offsetX = (box.width - canvas.width * scale) / 2
+  const offsetY = (box.height - canvas.height * scale) / 2
   return {
-    x: (e.clientX - box.left) * (canvas.width / box.width),
-    y: (e.clientY - box.top) * (canvas.height / box.height),
+    x: (e.clientX - box.left - offsetX) / scale,
+    y: (e.clientY - box.top - offsetY) / scale,
   }
 }
 
@@ -531,7 +549,11 @@ export type Point = { x: number; y: number }
 export type Quad = [Point, Point, Point, Point]
 
 /** A quad inset from the canvas edges by `insetRatio`, so it starts fully visible and easy to grab. */
-export function defaultQuad(width: number, height: number, insetRatio = 0.08): Quad {
+export function defaultQuad(
+  width: number,
+  height: number,
+  insetRatio = 0.08
+): Quad {
   const ix = width * insetRatio
   const iy = height * insetRatio
   return [
@@ -551,7 +573,12 @@ export function clampPoint(point: Point, width: number, height: number): Point {
 }
 
 /** Index of the quad corner within `tol` (canvas px) of (x, y), or null. */
-export function hitQuadCorner(x: number, y: number, quad: Quad, tol: number): number | null {
+export function hitQuadCorner(
+  x: number,
+  y: number,
+  quad: Quad,
+  tol: number
+): number | null {
   for (let i = 0; i < quad.length; i++) {
     const dx = x - quad[i].x
     const dy = y - quad[i].y
@@ -626,8 +653,14 @@ function pointDistance(a: Point, b: Point): number {
 export function quadOutputSize(quad: Quad): { width: number; height: number } {
   const [tl, tr, br, bl] = quad
   return {
-    width: Math.max(1, Math.round((pointDistance(tl, tr) + pointDistance(bl, br)) / 2)),
-    height: Math.max(1, Math.round((pointDistance(tl, bl) + pointDistance(tr, br)) / 2)),
+    width: Math.max(
+      1,
+      Math.round((pointDistance(tl, tr) + pointDistance(bl, br)) / 2)
+    ),
+    height: Math.max(
+      1,
+      Math.round((pointDistance(tl, bl) + pointDistance(tr, br)) / 2)
+    ),
   }
 }
 
@@ -700,7 +733,14 @@ export function warpQuadToRect(
   const dy2 = p3.y - p2.y
   const dy3 = p0.y - p1.y + p2.y - p3.y
 
-  let a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number
+  let a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+    g: number,
+    h: number
   if (Math.abs(dx3) < 1e-9 && Math.abs(dy3) < 1e-9) {
     // Already a parallelogram (dx3/dy3 ~ 0): a pure affine map, no perspective term.
     a = p1.x - p0.x
@@ -762,7 +802,12 @@ function mapPointToContent(
   const renderedHeight = naturalHeight * scale
   const localX = clientX - box.left - (box.width - renderedWidth) / 2
   const localY = clientY - box.top - (box.height - renderedHeight) / 2
-  if (localX < 0 || localY < 0 || localX > renderedWidth || localY > renderedHeight) {
+  if (
+    localX < 0 ||
+    localY < 0 ||
+    localX > renderedWidth ||
+    localY > renderedHeight
+  ) {
     return null
   }
   return {

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 
 import {
+  canvasDisplayScale,
   canvasPointFromEvent,
   clampPoint,
   hitQuadCorner,
@@ -40,8 +41,7 @@ export function useQuadSelection({
   function hitTolerance(): number {
     const canvas = canvasRef.current
     if (!canvas) return 14
-    const box = canvas.getBoundingClientRect()
-    return 14 * (canvas.width / box.width)
+    return 14 / canvasDisplayScale(canvas)
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {

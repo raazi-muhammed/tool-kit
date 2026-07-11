@@ -37,6 +37,9 @@ type Job = {
   name: string
   previewUrl: string
   hasEdits: boolean
+  // Independent per file, like Image Converter's format — seeded from the
+  // persisted default below so new files start with the last-used type.
+  mode: BlurMode
 }
 
 function parseBlurSettings(
@@ -58,7 +61,6 @@ export default function ImageBlurPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
     setResource,
   } = useFiles<Job, HTMLCanvasElement>({
@@ -69,6 +71,7 @@ export default function ImageBlurPage() {
       name: file.name,
       previewUrl: URL.createObjectURL(file),
       hasEdits: false,
+      mode,
     }),
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
@@ -151,15 +154,16 @@ export default function ImageBlurPage() {
     }
   }
 
-  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } = useZoomPan({
-    canvasRef: displayCanvasRef,
-    getBaseSize: () => getResource(),
-  })
+  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } =
+    useZoomPan({
+      canvasRef: displayCanvasRef,
+      getBaseSize: () => getResource(),
+    })
 
   function renderDisplay(
     rect?: Rect,
     blurPx: number = blur,
-    blurMode: BlurMode = mode
+    blurMode: BlurMode = activeJob?.mode ?? mode
   ) {
     const base = getResource()
     const display = displayCanvasRef.current
@@ -196,14 +200,6 @@ export default function ImageBlurPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  function clear() {
-    clearQueue()
-    setError(null)
-    rectsRef.current = []
-    setRects([])
-    clearSelection()
-  }
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -213,27 +209,28 @@ export default function ImageBlurPage() {
     )
   }
 
-  function blurJob(id: number, targetRects: Rect[]) {
+  function blurJob(id: number, targetRects: Rect[], blurMode: BlurMode) {
     const base = getResource(id)
     if (!base) return
     // Commit the blur into the base image so it becomes the new ground truth.
     const committed = document.createElement("canvas")
     committed.width = base.width
     committed.height = base.height
-    blurRegion(committed, base, targetRects, blur, mode)
+    blurRegion(committed, base, targetRects, blur, blurMode)
     setResource(id, committed)
     updateJob(id, { hasEdits: true })
   }
 
   function applyBlur() {
-    if (activeId == null || totalRects === 0) return
+    if (activeId == null || totalRects === 0 || !activeJob) return
     const allRects = pendingRect ? [...rects, pendingRect] : rects
-    blurJob(activeId, allRects)
+    blurJob(activeId, allRects, activeJob.mode)
     clearAllRects()
   }
 
   // Applies the current selection to every queued image, scaled to each
-  // image's own dimensions since they aren't necessarily the same size.
+  // image's own dimensions since they aren't necessarily the same size. Each
+  // job is blurred using its own mode, since that's now set per file.
   function applyBlurToAll() {
     if (activeId == null || totalRects === 0) return
     const activeImage = getResource(activeId)
@@ -245,7 +242,8 @@ export default function ImageBlurPage() {
       if (!image) return
       blurJob(
         job.id,
-        allRects.map((rect) => scaleRect(rect, activeImage, image))
+        allRects.map((rect) => scaleRect(rect, activeImage, image)),
+        job.mode
       )
     })
     clearAllRects()
@@ -280,6 +278,10 @@ export default function ImageBlurPage() {
   }
 
   function onModeChange(value: BlurMode) {
+    if (!activeJob) return
+    updateJob(activeJob.id, { mode: value })
+    // Also updates the persisted default, so the next file you add starts
+    // with whatever type you most recently picked.
     setBlurSettings((prev) => ({ ...prev, mode: value }))
     if (totalRects > 0) renderDisplay(pendingRect ?? undefined, blur, value)
   }
@@ -288,19 +290,31 @@ export default function ImageBlurPage() {
     <ToolPage
       page="Image Blur"
       icon={BlurIcon}
-      segments={{
-        value: mode,
-        onValueChange: (value) => onModeChange(value as BlurMode),
-        options: [
-          { value: "pixelate", label: "Blocky", icon: GridViewIcon },
-          { value: "gaussian", label: "Gaussian", icon: BlurIcon },
-        ],
-      }}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
-      footer={
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
+      sidebar={
         activeJob
           ? {
+              segments: {
+                value: activeJob.mode,
+                onValueChange: (value) => onModeChange(value as BlurMode),
+                label: "Blur Type",
+                options: [
+                  { value: "pixelate", label: "Blocky", icon: GridViewIcon },
+                  { value: "gaussian", label: "Gaussian", icon: BlurIcon },
+                ],
+              },
               zoom: {
                 percent: zoomPct,
                 onZoomOut: () => zoomFromButton(0.8),
@@ -310,11 +324,12 @@ export default function ImageBlurPage() {
                 zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
               },
               slider: {
-                label: "Blur",
+                label: "Amount",
                 value: blur,
                 onValueChange: onBlurChange,
                 min: 1,
                 max: 50,
+                unit: "px",
               },
               actions: [
                 pendingRect && {
@@ -322,16 +337,20 @@ export default function ImageBlurPage() {
                   icon: RemoveSquareIcon,
                   onClick: clearSelection,
                   variant: "ghost",
+                  emphasis: "secondary",
                 },
                 rects.length > 0 && {
                   label: "Clear all",
                   icon: Cancel01Icon,
                   onClick: clearAllRects,
                   variant: "ghost",
+                  emphasis: "secondary",
                 },
                 {
                   label:
-                    totalRects > 1 ? `Apply blur (${totalRects})` : "Apply blur",
+                    totalRects > 1
+                      ? `Apply blur (${totalRects})`
+                      : "Apply blur",
                   icon: BlurIcon,
                   onClick: applyBlur,
                   disabled: totalRects === 0,
@@ -359,13 +378,6 @@ export default function ImageBlurPage() {
       <div className="flex flex-1 flex-col gap-4">
         {activeJob ? (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
-            />
-
             <PreviewCard
               fill
               viewportRef={viewportRef}

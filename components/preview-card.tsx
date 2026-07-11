@@ -13,32 +13,32 @@ const CHECKERBOARD =
   "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
 
 // Caps the non-`fill` preview at the viewport height minus everything else
-// ToolPage typically stacks around it, so it uses the actual available
-// space instead of an arbitrary vh guess, without risking the page growing
-// past the viewport: p-6 top+bottom (48) + breadcrumb/toolbar/footer rows
-// at h-8 (32 each) + three gap-4 gaps between them (48) + the Card's own
-// p-2 (16). Pages with a taller header (e.g. wrapped toolbar buttons) may
-// need a bigger cap via `className`.
+// ToolPage's main column can stack around it, sized for the worst case (the
+// optional header-actions row *and* the bottom bar both present) so it can
+// only under-fill on pages missing one of those rows, never overflow: p-6
+// top+bottom (48) + breadcrumb/header-row at h-8 (32 each) + bottom bar at
+// min-h-11 (44) + three gap-4 gaps between them (48) + the Card's own p-2
+// (16). The file strip (`ToolPage`'s `fileStrip` prop) now renders inside
+// that same bottom bar rather than stacking as its own row, so it no longer
+// needs a separate, taller cap. Pages with a taller header (e.g. wrapped
+// toolbar buttons) may need a bigger cap via `className`.
 const MAX_HEIGHT = "max-h-[calc(100dvh-220px)]"
-// Same, minus a JobStrip row plus its gap-4 (56) — pass `jobStrip` once a
-// tool's queue actually renders one (`jobs.length > 1`), so the preview
-// shrinks to make room instead of pushing the page past the viewport.
-const MAX_HEIGHT_WITH_JOB_STRIP = "max-h-[calc(100dvh-276px)]"
 
 type PreviewCardBaseProps = {
   /** Muted label rendered above the viewport (e.g. "Original", "Converted") — replaces a hand-rolled `<span>` above the card. */
   title?: ReactNode
   checkerboard?: boolean
   fill?: boolean
-  /** Pass once the page renders a `JobStrip` (i.e. `jobs.length > 1`) so the non-`fill` cap shrinks to make room for it. */
-  jobStrip?: boolean
   viewportRef?: Ref<HTMLDivElement>
   className?: string
 }
 
 // One canvas to render inside the viewport — a ref plus any extra canvas
 // props (event handlers, className, …).
-type PreviewCanvasLayer = { kind?: "canvas"; ref: Ref<HTMLCanvasElement> } & ComponentPropsWithoutRef<"canvas">
+type PreviewCanvasLayer = {
+  kind?: "canvas"
+  ref: Ref<HTMLCanvasElement>
+} & ComponentPropsWithoutRef<"canvas">
 // Or a plain <img> layer, e.g. a converted result that's already a decoded
 // blob URL and doesn't need a canvas draw at all.
 type PreviewImageLayer = { kind: "image" } & ComponentPropsWithoutRef<"img">
@@ -52,7 +52,8 @@ type PreviewStatusLayer = {
   message?: ReactNode
 }
 
-export type PreviewLayer = PreviewCanvasLayer | PreviewImageLayer | PreviewStatusLayer
+export type PreviewLayer =
+  PreviewCanvasLayer | PreviewImageLayer | PreviewStatusLayer
 // A layer, or nothing to render this pass — e.g. `activeJob.result && {...}`.
 type PreviewLayerInput = PreviewLayer | false | null | undefined
 
@@ -63,7 +64,7 @@ type PreviewCardProps = PreviewCardBaseProps & {
    * that stack on top of each other, positioned/sized identically so they
    * line up (e.g. a base image canvas plus a separate selection-overlay
    * canvas). Either form may be falsy — same convention as `ToolPage`'s
-   * `footer.actions` — so a tool can inline its own loading/error/idle
+   * `sidebar.actions` — so a tool can inline its own loading/error/idle
    * state as `condition ? {...} : {...}` right alongside the real layer
    * instead of reaching for `children`.
    */
@@ -85,7 +86,6 @@ export function PreviewCard({
   title,
   checkerboard,
   fill,
-  jobStrip,
   viewportRef,
   className,
   layer,
@@ -95,26 +95,30 @@ export function PreviewCard({
     (entry): entry is PreviewLayer => !!entry
   )
   const stacked = layers.length > 1
-  const maxHeight = jobStrip ? MAX_HEIGHT_WITH_JOB_STRIP : MAX_HEIGHT
 
   function layerClassName(override?: string) {
     return cn(
       fill
         ? "absolute top-0 left-0 origin-top-left select-none"
         : stacked
-          ? cn("absolute inset-0 m-auto max-w-full select-none", maxHeight)
-          : cn("block max-w-full select-none", maxHeight),
+          ? cn("absolute inset-0 m-auto max-w-full select-none", MAX_HEIGHT)
+          : cn("block max-w-full select-none", MAX_HEIGHT),
       override
     )
   }
 
   const card = (
-    <Card className={cn("w-full overflow-hidden p-2 border-2", fill && "flex min-h-0 flex-1 flex-col")}>
+    <Card
+      className={cn(
+        "w-full overflow-hidden p-2 ring-0",
+        fill && "flex min-h-0 flex-1 flex-col"
+      )}
+    >
       <div
         ref={viewportRef}
         className={cn(
           "flex w-full items-center justify-center overflow-hidden rounded-md",
-          fill ? "relative min-h-[60vh] flex-1" : maxHeight,
+          fill ? "relative min-h-[60vh] flex-1" : MAX_HEIGHT,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
           className
@@ -128,7 +132,9 @@ export function PreviewCard({
                     key={index}
                     className={cn(
                       "flex flex-col items-center gap-2 px-6 text-center",
-                      entry.tone === "destructive" ? "text-destructive" : "text-muted-foreground"
+                      entry.tone === "destructive"
+                        ? "text-destructive"
+                        : "text-muted-foreground"
                     )}
                   >
                     {entry.icon && (
@@ -138,7 +144,9 @@ export function PreviewCard({
                         aria-hidden
                       />
                     )}
-                    {entry.message && <p className="text-sm">{entry.message}</p>}
+                    {entry.message && (
+                      <p className="text-sm">{entry.message}</p>
+                    )}
                   </div>
                 )
               }

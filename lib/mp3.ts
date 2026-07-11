@@ -16,7 +16,7 @@ const BLOCK_SIZE = 1152 // MP3 frames are encoded in 1152-sample blocks.
 export function encodeMp3(
   samples: Float32Array,
   sampleRate: number,
-  kbps: number,
+  kbps: number
 ): Blob {
   const pcm = floatToInt16(samples)
   const encoder = new Mp3Encoder(1, sampleRate, kbps)

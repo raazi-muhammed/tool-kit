@@ -45,10 +45,15 @@ function JsonNode({
 
   if (!isCollapsible) {
     return (
-      <div className="flex items-start gap-1 py-0.5" style={{ paddingLeft: depth * 16 }}>
+      <div
+        className="flex items-start gap-1 py-0.5"
+        style={{ paddingLeft: depth * 16 }}
+      >
         <span className="w-3 shrink-0" />
         {label !== null && <span className="text-foreground/70">{label}:</span>}
-        <span className={cn("break-all", valueColor(value))}>{formatPrimitive(value)}</span>
+        <span className={cn("break-all", valueColor(value))}>
+          {formatPrimitive(value)}
+        </span>
       </div>
     )
   }
@@ -69,7 +74,10 @@ function JsonNode({
       >
         <HugeiconsIcon
           icon={ChevronRightIcon}
-          className={cn("mt-0.5 size-3 shrink-0 transition-transform", open && "rotate-90")}
+          className={cn(
+            "mt-0.5 size-3 shrink-0 transition-transform",
+            open && "rotate-90"
+          )}
         />
         {label !== null && <span className="text-foreground/70">{label}:</span>}
         <span className="text-muted-foreground">
@@ -95,7 +103,10 @@ function JsonNode({
               defaultOpen={depth < 1}
             />
           ))}
-          <div className="text-muted-foreground" style={{ paddingLeft: depth * 16 + 16 }}>
+          <div
+            className="text-muted-foreground"
+            style={{ paddingLeft: depth * 16 + 16 }}
+          >
             {brackets[1]}
           </div>
         </div>

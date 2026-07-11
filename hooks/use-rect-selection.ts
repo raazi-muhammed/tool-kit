@@ -3,6 +3,7 @@
 import { useRef, useState } from "react"
 
 import {
+  canvasDisplayScale,
   canvasPointFromEvent,
   clampRect,
   edgeCursor,
@@ -73,8 +74,7 @@ export function useRectSelection({
   function hitTolerance(): number {
     const canvas = canvasRef.current
     if (!canvas) return 8
-    const box = canvas.getBoundingClientRect()
-    return 8 * (canvas.width / box.width)
+    return 8 / canvasDisplayScale(canvas)
   }
 
   function dragRect(e: React.PointerEvent<HTMLCanvasElement>): Rect | null {
@@ -187,7 +187,10 @@ export function useRectSelection({
     } catch {
       // Capture may already be gone; nothing to clean up.
     }
-    if (drag.mode === "select" && (rect.width < minSize || rect.height < minSize)) {
+    if (
+      drag.mode === "select" &&
+      (rect.width < minSize || rect.height < minSize)
+    ) {
       setPendingRect(null)
       render(null)
       return

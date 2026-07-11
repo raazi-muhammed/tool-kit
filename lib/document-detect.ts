@@ -19,7 +19,11 @@ function toGrayscale(imageData: ImageData): Uint8ClampedArray {
 }
 
 /** 3x3 box blur — denoises paper texture/JPEG artifacts before thresholding. */
-function boxBlur(gray: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray {
+function boxBlur(
+  gray: Uint8ClampedArray,
+  width: number,
+  height: number
+): Uint8ClampedArray {
   const out = new Uint8ClampedArray(width * height)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -73,7 +77,11 @@ function otsuThreshold(gray: Uint8ClampedArray): number {
 }
 
 /** Every point in the largest 4-connected blob of `mask`, via BFS flood fill. */
-function largestComponent(mask: Uint8Array, width: number, height: number): Point[] {
+function largestComponent(
+  mask: Uint8Array,
+  width: number,
+  height: number
+): Point[] {
   const visited = new Uint8Array(width * height)
   const queue = new Int32Array(width * height)
   let best: Point[] = []
@@ -105,7 +113,11 @@ function largestComponent(mask: Uint8Array, width: number, height: number): Poin
         visited[idx - width] = 1
         queue[tail++] = idx - width
       }
-      if (idx + width < mask.length && mask[idx + width] && !visited[idx + width]) {
+      if (
+        idx + width < mask.length &&
+        mask[idx + width] &&
+        !visited[idx + width]
+      ) {
         visited[idx + width] = 1
         queue[tail++] = idx + width
       }
@@ -131,7 +143,10 @@ function largestComponent(mask: Uint8Array, width: number, height: number): Poin
  * back to a plain inset default.
  */
 export function detectDocumentQuad(source: HTMLCanvasElement): Quad | null {
-  const scale = Math.min(1, ANALYSIS_MAX_SIZE / Math.max(source.width, source.height))
+  const scale = Math.min(
+    1,
+    ANALYSIS_MAX_SIZE / Math.max(source.width, source.height)
+  )
   const width = Math.max(1, Math.round(source.width * scale))
   const height = Math.max(1, Math.round(source.height * scale))
 
@@ -142,9 +157,14 @@ export function detectDocumentQuad(source: HTMLCanvasElement): Quad | null {
   if (!ctx) return null
   ctx.drawImage(source, 0, 0, width, height)
 
-  const gray = boxBlur(toGrayscale(ctx.getImageData(0, 0, width, height)), width, height)
+  const gray = boxBlur(
+    toGrayscale(ctx.getImageData(0, 0, width, height)),
+    width,
+    height
+  )
   const threshold = otsuThreshold(gray)
-  const centerBright = gray[Math.floor(height / 2) * width + Math.floor(width / 2)] >= threshold
+  const centerBright =
+    gray[Math.floor(height / 2) * width + Math.floor(width / 2)] >= threshold
 
   const mask = new Uint8Array(width * height)
   for (let i = 0; i < gray.length; i++) {
@@ -194,7 +214,8 @@ export function detectDocumentQuad(source: HTMLCanvasElement): Quad | null {
   ]
 
   const { width: qw, height: qh } = quadOutputSize(quad)
-  if (qw < source.width * MIN_AREA_RATIO || qh < source.height * MIN_AREA_RATIO) return null
+  if (qw < source.width * MIN_AREA_RATIO || qh < source.height * MIN_AREA_RATIO)
+    return null
 
   return quad
 }

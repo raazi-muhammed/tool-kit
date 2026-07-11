@@ -3,11 +3,10 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
+  Add01Icon,
   ArrowDown01Icon,
-  CloudUploadIcon,
   Copy01Icon,
   Download04Icon,
-  Eraser01Icon,
   FitToScreenIcon,
   SparklesIcon,
   Tick02Icon,
@@ -22,6 +21,7 @@ import { IconTooltip } from "@/components/icon-tooltip"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +29,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -37,9 +44,32 @@ type Segments = {
   onValueChange: (value: string) => void
   options: { value: string; label: string; icon: IconSvgElement }[]
   disabled?: boolean
+  /** Heading shown above the control once it renders in the sidebar (e.g. "Blur Type"). */
+  label?: string
+  /**
+   * Where the control renders. `"sidebar"` (default) is for a setting that
+   * configures a transform (blur type, aspect ratio, format). `"inline"` is
+   * for a view switch that changes what `children` renders (e.g. JSON
+   * Parser's Text/Viewer) — keeping it next to the content it swaps instead
+   * of moving it into the sidebar, away from what it controls.
+   */
+  placement?: "sidebar" | "inline"
 }
 
-type FooterZoom = {
+// A segmented picker rendered inside the sidebar alongside a tool's other
+// settings — use this instead of the top-level `segments` prop when the
+// value is per-job (e.g. Image Converter's per-file output format) rather
+// than one shared page-level setting.
+type SidebarSegments = {
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string; icon: IconSvgElement }[]
+  disabled?: boolean
+  /** Heading shown above the control (e.g. "Format"). */
+  label?: string
+}
+
+type SidebarZoom = {
   percent: number
   onZoomOut: () => void
   onZoomIn: () => void
@@ -48,7 +78,7 @@ type FooterZoom = {
   zoomInDisabled?: boolean
 }
 
-type FooterSlider = {
+type SidebarSlider = {
   label: string
   value: number
   onValueChange: (value: number) => void
@@ -56,9 +86,11 @@ type FooterSlider = {
   max: number
   step?: number
   disabled?: boolean
+  /** Suffix shown next to the live value readout (e.g. "px"). */
+  unit?: string
 }
 
-type FooterAction = {
+type SidebarAction = {
   label: string
   icon: IconSvgElement
   onClick: () => void
@@ -73,9 +105,35 @@ type FooterAction = {
     onClick: () => void
     disabled?: boolean
   }
+  /**
+   * `"primary"` (default) renders full-width in the sidebar's pinned action
+   * stack, alongside Download. `"secondary"` renders smaller, at natural
+   * width, in a row above that stack (e.g. a momentary "Cancel selection" or
+   * a pressed/unpressed toggle button) — set explicitly per action rather
+   * than inferred from `variant`, since a toggle's `variant` can itself
+   * change between "secondary"/"outline" depending on its pressed state.
+   */
+  emphasis?: "primary" | "secondary"
 }
 
-type FooterDownload = {
+// Groups a row of `SidebarAction`s under an optional muted label (e.g.
+// "This image" over "Rotate left"/"Rotate right", "All images" over
+// "Rotate all left"/"Rotate all right") — each action renders at an even
+// share of the row's width instead of stacking full-width.
+type SidebarActionGroup = {
+  label?: ReactNode
+  actions: (SidebarAction | false | null | undefined)[]
+  /**
+   * `"bottom"` (default) renders this group in the sidebar's pinned bottom
+   * action stack, alongside Download. `"top"` renders it in the scrollable
+   * section instead, alongside `zoom`/`slider` — for standalone transform
+   * controls with no single commit step (e.g. Image Rotate's rotate
+   * buttons), as opposed to a tool's actual call to action.
+   */
+  placement?: "top" | "bottom"
+}
+
+type SidebarDownload = {
   onDownload: () => void
   disabled?: boolean
   onDownloadAll?: () => void
@@ -84,7 +142,7 @@ type FooterDownload = {
 
 // A color swatch that can also be "unset" (e.g. a transparent background) —
 // rendered as a ColorPicker plus a clear button, or a muted label when unset.
-type FooterColor = {
+type SidebarColor = {
   label: string
   value: string | null
   onChange: (value: string | null) => void
@@ -92,13 +150,14 @@ type FooterColor = {
   nullLabel?: string
   clearLabel?: string
   clearIcon?: IconSvgElement
+  /** Set false to skip the visible label row (e.g. a toggle's nested color, where the toggle's own label already says what it's for). `label` is still used as the ColorPicker's aria-label. */
+  showLabel?: boolean
 }
 
 // A pressable toggle (e.g. "Remove background") that reveals its own color
 // picker and/or strength slider only while pressed.
-type FooterToggle = {
+type SidebarToggle = {
   label: string
-  icon: IconSvgElement
   pressed: boolean
   onPressedChange: (pressed: boolean) => void
   color?: {
@@ -106,12 +165,12 @@ type FooterToggle = {
     value: string
     onChange: (value: string) => void
   }
-  slider?: FooterSlider
+  slider?: SidebarSlider
 }
 
 // A single labeled text/number/password field (e.g. a resize width, a PDF
 // password) — rendered label-above-input, matching the app's form fields.
-type FooterInput = {
+type SidebarInput = {
   label: string
   value: string
   onChange: (value: string) => void
@@ -122,16 +181,207 @@ type FooterInput = {
   onEnter?: () => void
 }
 
-type Footer = {
-  color?: FooterColor
-  toggle?: FooterToggle
-  inputs?: FooterInput[]
-  zoom?: FooterZoom
-  slider?: FooterSlider
-  /** Muted contextual text (e.g. "No transparent margin to trim.") shown inline with the footer, left of the right-aligned actions/download group. */
+type Sidebar = {
+  segments?: SidebarSegments
+  color?: SidebarColor
+  toggle?: SidebarToggle
+  inputs?: SidebarInput[]
+  zoom?: SidebarZoom
+  slider?: SidebarSlider
+  /** Muted contextual text (e.g. "No transparent margin to trim.") shown in the sidebar. */
   hint?: ReactNode
-  actions?: (FooterAction | false | null | undefined)[]
-  download?: FooterDownload
+  /**
+   * Each top-level entry renders as its own full-width row in the pinned
+   * action stack. A `SidebarActionGroup` instead groups actions into a
+   * single row, evenly split (e.g. Image Rotate's "Rotate left" / "Rotate
+   * right" side by side) rather than stacking full-width, with an optional
+   * muted label rendered above it.
+   */
+  actions?: (SidebarAction | SidebarActionGroup | false | null | undefined)[]
+  download?: SidebarDownload
+}
+
+function SidebarLabel({ children }: { children: ReactNode }) {
+  return (
+    <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+      {children}
+    </span>
+  )
+}
+
+// Shared by the standalone `sidebar.slider` and the nested
+// `sidebar.toggle.slider` (e.g. Image Converter's Quality and Tolerance) so
+// both render identically instead of drifting into two different looks.
+function SidebarSliderControl({ slider }: { slider: SidebarSlider }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <SidebarLabel>{slider.label}</SidebarLabel>
+        <span className="flex items-baseline gap-1">
+          <Input
+            type="number"
+            value={slider.value}
+            onChange={(e) => {
+              const parsed = Number(e.target.value)
+              if (!Number.isFinite(parsed)) return
+              slider.onValueChange(
+                Math.min(slider.max, Math.max(slider.min, parsed))
+              )
+            }}
+            min={slider.min}
+            max={slider.max}
+            step={slider.step ?? 1}
+            disabled={slider.disabled}
+            className="h-8 w-14 px-2 text-right"
+          />
+          {slider.unit && (
+            <span className="text-sm text-muted-foreground">{slider.unit}</span>
+          )}
+        </span>
+      </div>
+      <Slider
+        value={[slider.value]}
+        onValueChange={([value]) => slider.onValueChange(value)}
+        min={slider.min}
+        max={slider.max}
+        step={slider.step ?? 1}
+        disabled={slider.disabled}
+        className="w-full"
+      />
+    </div>
+  )
+}
+
+// Shared by the standalone `sidebar.color` and the nested
+// `sidebar.toggle.color` (e.g. Image Converter's Background and Background
+// color to remove) so both render identically instead of drifting into two
+// different looks. The clear/nullLabel row only shows once a caller opts in
+// via `clearLabel`/`clearIcon`/`nullLabel` — the toggle's nested color never
+// sets those, so it just gets a plain label above its `ColorPicker`.
+function SidebarColorControl({ color }: { color: SidebarColor }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {color.showLabel !== false && (
+        <div className="flex items-center justify-between">
+          <SidebarLabel>{color.label}</SidebarLabel>
+          {color.value
+            ? (color.clearLabel || color.clearIcon) && (
+                <button
+                  type="button"
+                  onClick={() => color.onChange(null)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {color.clearIcon && (
+                    <HugeiconsIcon
+                      icon={color.clearIcon}
+                      className="size-3.5"
+                      aria-hidden
+                    />
+                  )}
+                  {color.clearLabel ?? "Clear"}
+                </button>
+              )
+            : color.nullLabel && (
+                <span className="text-xs text-muted-foreground">
+                  {color.nullLabel}
+                </span>
+              )}
+        </div>
+      )}
+      <ColorPicker
+        value={color.value ?? color.fallback}
+        onChange={(value) => color.onChange(value)}
+        label={color.label}
+      />
+    </div>
+  )
+}
+
+// Shared by a flat `sidebar.actions` entry and a grouped-row entry so both
+// render identically — `widthClassName` is `"w-full"` for a standalone
+// action, `"flex-1"` for one sharing a row with others.
+function SidebarPrimaryAction({
+  action,
+  widthClassName,
+}: {
+  action: SidebarAction
+  widthClassName: string
+}) {
+  if (!action.more) {
+    return (
+      <Button
+        variant={action.variant}
+        onClick={action.onClick}
+        disabled={action.disabled}
+        className={widthClassName}
+      >
+        <HugeiconsIcon icon={action.icon} aria-hidden />
+        {action.label}
+      </Button>
+    )
+  }
+
+  return (
+    <ButtonGroup className={widthClassName}>
+      <Button
+        variant={action.variant}
+        onClick={action.onClick}
+        disabled={action.disabled}
+        className="flex-1"
+      >
+        <HugeiconsIcon icon={action.icon} aria-hidden />
+        {action.label}
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant={action.variant}
+            size="icon"
+            disabled={action.disabled}
+            aria-label={`More ${action.label.toLowerCase()} options`}
+          >
+            <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-max">
+          <DropdownMenuItem
+            onClick={action.more.onClick}
+            disabled={action.more.disabled}
+          >
+            <HugeiconsIcon icon={action.more.icon} aria-hidden />
+            {action.more.label}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ButtonGroup>
+  )
+}
+
+// Shared by a `SidebarActionGroup` wherever it renders — the scrollable top
+// section (`placement: "top"`) or the pinned bottom stack (the default) — so
+// both look identical: an optional muted label above a row of actions
+// evenly split via `flex-1`.
+function SidebarActionGroupRow({ group }: { group: SidebarActionGroup }) {
+  const actions = group.actions.filter(
+    (action): action is SidebarAction =>
+      !!action && action.emphasis !== "secondary"
+  )
+  if (actions.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-2">
+      {group.label && <SidebarLabel>{group.label}</SidebarLabel>}
+      <div className="flex w-full gap-2">
+        {actions.map((action, index) => (
+          <SidebarPrimaryAction
+            key={index}
+            action={action}
+            widthClassName="flex-1"
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function ToolPage({
@@ -140,10 +390,10 @@ export function ToolPage({
   onCopy,
   onLoadSample,
   onAddFile,
-  onClear,
   segments,
   actions,
-  footer,
+  fileStrip,
+  sidebar,
   children,
 }: {
   page: string
@@ -151,10 +401,11 @@ export function ToolPage({
   onCopy?: () => void
   onLoadSample?: () => void
   onAddFile?: () => void
-  onClear?: () => void
   segments?: Segments
   actions?: ReactNode
-  footer?: Footer
+  /** A `JobStrip` (or similar) element, rendered in the bottom bar next to zoom controls and Add file. */
+  fileStrip?: ReactNode
+  sidebar?: Sidebar
   children: ReactNode
 }) {
   const [copied, setCopied] = useState(false)
@@ -165,16 +416,57 @@ export function ToolPage({
     setTimeout(() => setCopied(false), 1000)
   }
 
-  return (
-    <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
-      <PageBreadcrumb page={page} icon={icon} />
+  const inlineSegments = segments?.placement === "inline" ? segments : undefined
+  const sidebarSegments =
+    (segments && segments.placement !== "inline" ? segments : undefined) ??
+    sidebar?.segments
 
-      <div className="flex flex-wrap items-center gap-2">
-        {segments && (
-          <Tabs value={segments.value} onValueChange={segments.onValueChange}>
+  const hasHeaderRow = !!(actions || onCopy || onLoadSample)
+  const hasBottomBar = !!(fileStrip || onAddFile)
+  const hasSidebar = !!(sidebarSegments || sidebar)
+
+  const rawActions = sidebar?.actions ?? []
+  const allActions = rawActions.flatMap((entry) =>
+    entry && "actions" in entry
+      ? entry.actions.filter((action): action is SidebarAction => !!action)
+      : entry
+        ? [entry]
+        : []
+  )
+  const secondaryActions = allActions.filter(
+    (action) => action.emphasis === "secondary"
+  )
+  // A group opts into the scrollable top section (alongside zoom/slider) via
+  // `placement: "top"` — everything else stays in the pinned bottom stack.
+  const topActionGroups = rawActions.filter(
+    (entry): entry is SidebarActionGroup =>
+      !!entry && "actions" in entry && entry.placement === "top"
+  )
+  // Groups are rendered separately below, preserving their own row — only
+  // ungrouped primary actions are listed flat here.
+  const primaryActionRows = rawActions.filter(
+    (entry): entry is SidebarAction | SidebarActionGroup =>
+      !!entry && !("actions" in entry && entry.placement === "top")
+  )
+  const hasSidebarActionsBlock = allActions.length > 0 || !!sidebar?.download
+
+  return (
+    <div className="flex min-h-svh">
+      <div className="mx-auto flex min-w-0 flex-1 flex-col gap-4 p-6">
+        <PageBreadcrumb page={page} icon={icon} />
+
+        {inlineSegments && (
+          <Tabs
+            value={inlineSegments.value}
+            onValueChange={inlineSegments.onValueChange}
+          >
             <TabsList>
-              {segments.options.map((option) => (
-                <TabsTrigger key={option.value} value={option.value} disabled={segments.disabled}>
+              {inlineSegments.options.map((option) => (
+                <TabsTrigger
+                  key={option.value}
+                  value={option.value}
+                  disabled={inlineSegments.disabled}
+                >
                   <HugeiconsIcon icon={option.icon} aria-hidden />
                   {option.label}
                 </TabsTrigger>
@@ -182,207 +474,224 @@ export function ToolPage({
             </TabsList>
           </Tabs>
         )}
-        {actions}
-        <div className="ml-auto flex items-center gap-2">
-          {onCopy && (
-            <Button variant="secondary" onClick={handleCopy}>
-              <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} aria-hidden />
-              Copy
-            </Button>
-          )}
-          {onLoadSample && (
-            <Button variant="secondary" onClick={onLoadSample}>
-              <HugeiconsIcon icon={SparklesIcon} aria-hidden />
-              Load sample
-            </Button>
-          )}
-          {onAddFile && (
-            <Button variant="secondary" onClick={onAddFile}>
-              <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
-              Add file
-            </Button>
-          )}
-          {onClear && (
-            <IconTooltip label="Clear">
-              <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear">
-                <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
+
+        {hasHeaderRow && (
+          <div className="flex flex-wrap items-center gap-2">
+            {actions}
+            <div className="ml-auto flex items-center gap-2">
+              {onCopy && (
+                <Button variant="secondary" onClick={handleCopy}>
+                  <HugeiconsIcon
+                    icon={copied ? Tick02Icon : Copy01Icon}
+                    aria-hidden
+                  />
+                  Copy
+                </Button>
+              )}
+              {onLoadSample && (
+                <Button variant="secondary" onClick={onLoadSample}>
+                  <HugeiconsIcon icon={SparklesIcon} aria-hidden />
+                  Load sample
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div className="flex min-h-0 flex-1 flex-col gap-4">{children}</div>
+
+        {hasBottomBar && (
+          <div className="flex min-h-11 items-center gap-4">
+            {fileStrip && <div className="min-w-0 flex-1">{fileStrip}</div>}
+
+            {onAddFile && (
+              <Button
+                variant="secondary"
+                onClick={onAddFile}
+                className="ml-auto"
+              >
+                <HugeiconsIcon icon={Add01Icon} aria-hidden />
+                Add file
               </Button>
-            </IconTooltip>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {children}
+      {hasSidebar && (
+        <div className="flex w-80 shrink-0 flex-col border-l bg-card">
+          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+            {topActionGroups.map((group, index) => (
+              <SidebarActionGroupRow key={index} group={group} />
+            ))}
 
-      {footer && (
-        <div className="flex flex-wrap items-center gap-4">
-          {footer.color && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{footer.color.label}</span>
-              <ColorPicker
-                value={footer.color.value ?? footer.color.fallback}
-                onChange={(value) => footer.color!.onChange(value)}
-                label={footer.color.label}
-              />
-              {footer.color.value ? (
-                <Button variant="ghost" onClick={() => footer.color!.onChange(null)}>
-                  {footer.color.clearIcon && (
-                    <HugeiconsIcon icon={footer.color.clearIcon} aria-hidden />
-                  )}
-                  {footer.color.clearLabel ?? "Clear"}
-                </Button>
-              ) : (
-                footer.color.nullLabel && (
-                  <span className="text-sm text-muted-foreground">{footer.color.nullLabel}</span>
-                )
-              )}
-            </div>
-          )}
+            {sidebar?.zoom && (
+              <div className="flex flex-col gap-3">
+                <SidebarLabel>Zoom</SidebarLabel>
+                <div className="flex w-full items-center gap-2">
+                  <div className="flex flex-1 items-center justify-between rounded-lg bg-muted">
+                    <IconTooltip label="Zoom out">
+                      <Button
+                        variant="ghost"
+                        onClick={sidebar.zoom.onZoomOut}
+                        disabled={sidebar.zoom.zoomOutDisabled}
+                        aria-label="Zoom out"
+                      >
+                        <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                      </Button>
+                    </IconTooltip>
+                    <span className="text-center text-sm text-muted-foreground">
+                      {sidebar.zoom.percent}%
+                    </span>
+                    <IconTooltip label="Zoom in">
+                      <Button
+                        variant="ghost"
+                        onClick={sidebar.zoom.onZoomIn}
+                        disabled={sidebar.zoom.zoomInDisabled}
+                        aria-label="Zoom in"
+                      >
+                        <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                      </Button>
+                    </IconTooltip>
+                  </div>
+                  <div className="shrink-0 rounded-lg bg-muted">
+                    <IconTooltip label="Fit to screen">
+                      <Button
+                        variant="ghost"
+                        onClick={sidebar.zoom.onFit}
+                        aria-label="Fit to screen"
+                      >
+                        <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                      </Button>
+                    </IconTooltip>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {footer.toggle && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant={footer.toggle.pressed ? "secondary" : "outline"}
-                aria-pressed={footer.toggle.pressed}
-                onClick={() => footer.toggle!.onPressedChange(!footer.toggle!.pressed)}
-              >
-                <HugeiconsIcon icon={footer.toggle.icon} aria-hidden />
-                {footer.toggle.label}
-              </Button>
-              {footer.toggle.pressed && footer.toggle.color && (
-                <ColorPicker
-                  value={footer.toggle.color.value}
-                  onChange={footer.toggle.color.onChange}
-                  label={footer.toggle.color.label}
-                />
-              )}
-              {footer.toggle.pressed && footer.toggle.slider && (
-                <>
-                  <span className="text-sm text-muted-foreground">
-                    {footer.toggle.slider.label}
-                  </span>
-                  <Slider
-                    value={[footer.toggle.slider.value]}
-                    onValueChange={([value]) => footer.toggle!.slider!.onValueChange(value)}
-                    min={footer.toggle.slider.min}
-                    max={footer.toggle.slider.max}
-                    step={footer.toggle.slider.step ?? 1}
-                    className="min-w-24 max-w-32"
+            {sidebarSegments && (
+              <div className="flex flex-col gap-3">
+                {sidebarSegments.label && (
+                  <SidebarLabel>{sidebarSegments.label}</SidebarLabel>
+                )}
+                {/* A couple of options (Blur Type, Format, …) read fine as an
+                    evenly-split segmented control — a crowded row (image-crop's
+                    6-option aspect picker) doesn't: wrapping it onto multiple
+                    lines still looks broken inside a pill-shaped Tabs track, so
+                    it gets a plain Select dropdown instead. */}
+                {sidebarSegments.options.length > 3 ? (
+                  <Select
+                    value={sidebarSegments.value}
+                    onValueChange={sidebarSegments.onValueChange}
+                    disabled={sidebarSegments.disabled}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sidebarSegments.options.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <HugeiconsIcon icon={option.icon} aria-hidden />
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Tabs
+                    value={sidebarSegments.value}
+                    onValueChange={sidebarSegments.onValueChange}
+                  >
+                    <TabsList className="w-full">
+                      {sidebarSegments.options.map((option) => (
+                        <TabsTrigger
+                          key={option.value}
+                          value={option.value}
+                          disabled={sidebarSegments.disabled}
+                        >
+                          <HugeiconsIcon icon={option.icon} aria-hidden />
+                          {option.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
+                )}
+              </div>
+            )}
+
+            {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
+
+            {sidebar?.toggle && (
+              <div className="flex flex-col gap-3">
+                <label className="flex cursor-pointer items-center justify-between gap-2">
+                  <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
+                  <Checkbox
+                    checked={sidebar.toggle.pressed}
+                    onCheckedChange={(checked) =>
+                      sidebar.toggle!.onPressedChange(checked === true)
+                    }
                   />
-                  <Input
-                    type="number"
-                    value={footer.toggle.slider.value}
-                    onChange={(e) => {
-                      const parsed = Number(e.target.value)
-                      if (!Number.isFinite(parsed)) return
-                      const { min, max } = footer.toggle!.slider!
-                      footer.toggle!.slider!.onValueChange(Math.min(max, Math.max(min, parsed)))
+                </label>
+                {sidebar.toggle.pressed && sidebar.toggle.color && (
+                  <SidebarColorControl
+                    color={{
+                      label: sidebar.toggle.color.label,
+                      value: sidebar.toggle.color.value,
+                      fallback: sidebar.toggle.color.value,
+                      showLabel: false,
+                      onChange: (value) => {
+                        if (value !== null)
+                          sidebar.toggle!.color!.onChange(value)
+                      },
                     }}
-                    min={footer.toggle.slider.min}
-                    max={footer.toggle.slider.max}
-                    step={footer.toggle.slider.step ?? 1}
-                    className="h-8 w-14 px-2 text-right"
                   />
-                </>
-              )}
-            </div>
-          )}
+                )}
+                {sidebar.toggle.pressed && sidebar.toggle.slider && (
+                  <SidebarSliderControl slider={sidebar.toggle.slider} />
+                )}
+              </div>
+            )}
 
-          {footer.inputs?.map((input, index) => (
-            <div key={index} className="flex flex-col gap-1.5">
-              <span className="text-sm text-muted-foreground">{input.label}</span>
-              <Input
-                type={input.type ?? "text"}
-                min={input.min}
-                value={input.value}
-                onChange={(e) => input.onChange(e.target.value)}
-                disabled={input.disabled}
-                autoComplete="off"
-                onKeyDown={
-                  input.onEnter
-                    ? (e) => {
-                        if (e.key === "Enter") input.onEnter!()
-                      }
-                    : undefined
-                }
-                className={input.className ?? "w-28"}
-              />
-            </div>
-          ))}
+            {sidebar?.inputs?.map((input, index) => (
+              <div key={index} className="flex flex-col gap-1.5">
+                <SidebarLabel>{input.label}</SidebarLabel>
+                <Input
+                  type={input.type ?? "text"}
+                  min={input.min}
+                  value={input.value}
+                  onChange={(e) => input.onChange(e.target.value)}
+                  disabled={input.disabled}
+                  autoComplete="off"
+                  onKeyDown={
+                    input.onEnter
+                      ? (e) => {
+                          if (e.key === "Enter") input.onEnter!()
+                        }
+                      : undefined
+                  }
+                  className={input.className ?? "w-full"}
+                />
+              </div>
+            ))}
 
-          {footer.zoom && (
-            <div className="flex items-center gap-1">
-              <IconTooltip label="Zoom out">
-                <Button
-                  variant="ghost"
-                  onClick={footer.zoom.onZoomOut}
-                  disabled={footer.zoom.zoomOutDisabled}
-                  aria-label="Zoom out"
-                >
-                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-                </Button>
-              </IconTooltip>
-              <span className="w-12 text-center text-sm text-muted-foreground">
-                {footer.zoom.percent}%
+            {sidebar?.slider && (
+              <SidebarSliderControl slider={sidebar.slider} />
+            )}
+
+            {sidebar?.hint && (
+              <span className="text-sm text-muted-foreground">
+                {sidebar.hint}
               </span>
-              <IconTooltip label="Zoom in">
-                <Button
-                  variant="ghost"
-                  onClick={footer.zoom.onZoomIn}
-                  disabled={footer.zoom.zoomInDisabled}
-                  aria-label="Zoom in"
-                >
-                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-                </Button>
-              </IconTooltip>
-              <IconTooltip label="Fit to screen">
-                <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
-                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-                </Button>
-              </IconTooltip>
-            </div>
-          )}
+            )}
+          </div>
 
-          {footer.slider && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">{footer.slider.label}</span>
-              <Slider
-                value={[footer.slider.value]}
-                onValueChange={([value]) => footer.slider!.onValueChange(value)}
-                min={footer.slider.min}
-                max={footer.slider.max}
-                step={footer.slider.step ?? 1}
-                disabled={footer.slider.disabled}
-                className="min-w-32 max-w-32"
-              />
-              <Input
-                type="number"
-                value={footer.slider.value}
-                onChange={(e) => {
-                  const parsed = Number(e.target.value)
-                  if (!Number.isFinite(parsed)) return
-                  footer.slider!.onValueChange(
-                    Math.min(footer.slider!.max, Math.max(footer.slider!.min, parsed))
-                  )
-                }}
-                min={footer.slider.min}
-                max={footer.slider.max}
-                step={footer.slider.step ?? 1}
-                disabled={footer.slider.disabled}
-                className="h-8 w-14 px-2 text-right"
-              />
-            </div>
-          )}
-
-          {footer.hint && <span className="text-sm text-muted-foreground">{footer.hint}</span>}
-
-          <div className="ml-auto flex flex-wrap items-center gap-4">
-            {footer.actions
-              ?.filter((action): action is FooterAction => !!action)
-              .map((action, index) =>
-                action.more ? (
-                  <ButtonGroup key={index}>
+          {hasSidebarActionsBlock && (
+            <div className="flex shrink-0 flex-col gap-3 border-t p-6">
+              {secondaryActions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {secondaryActions.map((action, index) => (
                     <Button
+                      key={index}
                       variant={action.variant}
                       onClick={action.onClick}
                       disabled={action.disabled}
@@ -390,71 +699,62 @@ export function ToolPage({
                       <HugeiconsIcon icon={action.icon} aria-hidden />
                       {action.label}
                     </Button>
+                  ))}
+                </div>
+              )}
+
+              {primaryActionRows.map((entry, index) =>
+                "actions" in entry ? (
+                  <SidebarActionGroupRow key={index} group={entry} />
+                ) : (
+                  entry.emphasis !== "secondary" && (
+                    <SidebarPrimaryAction
+                      key={index}
+                      action={entry}
+                      widthClassName="w-full"
+                    />
+                  )
+                )
+              )}
+
+              {sidebar?.download && (
+                <ButtonGroup className="w-full">
+                  <Button
+                    variant="secondary"
+                    onClick={sidebar.download.onDownload}
+                    disabled={sidebar.download.disabled}
+                    className="flex-1"
+                  >
+                    <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                    Download
+                  </Button>
+                  {sidebar.download.onDownloadAll && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
-                          variant={action.variant}
+                          variant="secondary"
                           size="icon"
-                          aria-label={`More ${action.label.toLowerCase()} options`}
+                          disabled={sidebar.download.disabled}
+                          aria-label="More download options"
                         >
                           <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-max">
                         <DropdownMenuItem
-                          onClick={action.more.onClick}
-                          disabled={action.more.disabled}
+                          onClick={sidebar.download.onDownloadAll}
+                          disabled={sidebar.download.downloadAllDisabled}
                         >
-                          <HugeiconsIcon icon={action.more.icon} aria-hidden />
-                          {action.more.label}
+                          <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                          Download all
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </ButtonGroup>
-                ) : (
-                  <Button
-                    key={index}
-                    variant={action.variant}
-                    onClick={action.onClick}
-                    disabled={action.disabled}
-                  >
-                    <HugeiconsIcon icon={action.icon} aria-hidden />
-                    {action.label}
-                  </Button>
-                )
+                  )}
+                </ButtonGroup>
               )}
-
-            {footer.download && (
-              <ButtonGroup>
-                <Button
-                  variant="secondary"
-                  onClick={footer.download.onDownload}
-                  disabled={footer.download.disabled}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download
-                </Button>
-                {footer.download.onDownloadAll && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="secondary" size="icon" aria-label="More download options">
-                        <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-max">
-                      <DropdownMenuItem
-                        onClick={footer.download.onDownloadAll}
-                        disabled={footer.download.downloadAllDisabled}
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        Download all
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </ButtonGroup>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </div>

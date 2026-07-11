@@ -1,6 +1,10 @@
 "use client"
 
-import { Cancel01Icon, CloudUploadIcon, SquareRoundCornerIcon } from "@hugeicons/core-free-icons"
+import {
+  Cancel01Icon,
+  CloudUploadIcon,
+  SquareRoundCornerIcon,
+} from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
@@ -15,7 +19,11 @@ import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
 
-type Result = { canvas: HTMLCanvasElement; radiusPercent: number; transparent: boolean }
+type Result = {
+  canvas: HTMLCanvasElement
+  radiusPercent: number
+  transparent: boolean
+}
 type Job = {
   id: number
   file: File
@@ -35,7 +43,6 @@ export default function ImageRoundCornersPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -60,7 +67,10 @@ export default function ImageRoundCornersPage() {
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
+  function renderDisplay(
+    source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ??
+      getResource()
+  ) {
     const display = displayCanvasRef.current
     if (!source || !display) return
     if (display.width !== source.width || display.height !== source.height) {
@@ -92,19 +102,14 @@ export default function ImageRoundCornersPage() {
     jobs.forEach((job) => {
       const base = getResource(job.id)
       if (!base) return
-      const radiusPx = ((radiusPercent / 100) * Math.min(base.width, base.height)) / 2
+      const radiusPx =
+        ((radiusPercent / 100) * Math.min(base.width, base.height)) / 2
       const canvas = roundCorners(base, radiusPx, bgColor)
       updateJob(job.id, { result: { canvas, radiusPercent, transparent } })
       if (job.id === activeId) activeCanvas = canvas
     })
     if (activeCanvas) renderDisplay(activeCanvas)
   }, [radiusPercent, bgColor, jobs.length])
-
-  function clear() {
-    clearQueue()
-    setRadiusPercent(6)
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -117,7 +122,9 @@ export default function ImageRoundCornersPage() {
 
   async function downloadJob(job: Job) {
     if (!job.result) return
-    const mime = job.result.transparent ? "image/png" : outputMime(job.file.type)
+    const mime = job.result.transparent
+      ? "image/png"
+      : outputMime(job.file.type)
     await downloadCanvas(job.result.canvas, job.name, mime)
   }
 
@@ -139,9 +146,20 @@ export default function ImageRoundCornersPage() {
     <ToolPage
       page="Image Round Corners"
       icon={SquareRoundCornerIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
-      footer={
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
+      sidebar={
         activeJob
           ? {
               color: {
@@ -149,9 +167,6 @@ export default function ImageRoundCornersPage() {
                 value: bgColor,
                 onChange: setBgColor,
                 fallback: "#ffffff",
-                nullLabel: "transparent",
-                clearLabel: "Transparent",
-                clearIcon: Cancel01Icon,
               },
               slider: {
                 label: "Radius",
@@ -159,6 +174,7 @@ export default function ImageRoundCornersPage() {
                 onValueChange: setRadiusPercent,
                 min: 0,
                 max: 100,
+                unit: "%",
               },
               download: {
                 onDownload: download,
@@ -172,15 +188,15 @@ export default function ImageRoundCornersPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <PreviewCard
+              fill
+              checkerboard
+              layer={{
+                ref: displayCanvasRef,
+                className: "h-full w-full object-contain",
+              }}
             />
-
-            <PreviewCard checkerboard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

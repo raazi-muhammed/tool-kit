@@ -28,8 +28,14 @@ export function outputMime(sourceType: string, fallback = "image/png"): string {
  * extension to match. Silently no-ops if encoding produced no data (a
  * canvas can fail to encode, e.g. zero-size).
  */
-export async function downloadCanvas(canvas: HTMLCanvasElement, name: string, mime: string) {
-  const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, mime))
+export async function downloadCanvas(
+  canvas: HTMLCanvasElement,
+  name: string,
+  mime: string
+) {
+  const blob: Blob | null = await new Promise((resolve) =>
+    canvas.toBlob(resolve, mime)
+  )
   if (!blob) return
   const url = URL.createObjectURL(blob)
   downloadFile(url, replaceExtension(name, extensionForMime(mime)))

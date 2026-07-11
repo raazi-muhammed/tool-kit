@@ -1,6 +1,10 @@
 "use client"
 
-import { Cancel01Icon, CloudUploadIcon, SquareIcon } from "@hugeicons/core-free-icons"
+import {
+  Cancel01Icon,
+  CloudUploadIcon,
+  SquareIcon,
+} from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
@@ -34,7 +38,6 @@ export default function SquareImageGeneratorPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -67,7 +70,10 @@ export default function SquareImageGeneratorPage() {
       ? "Enter a size of at least 1 pixel."
       : null
 
-  function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
+  function renderDisplay(
+    source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ??
+      getResource()
+  ) {
     const display = displayCanvasRef.current
     if (!source || !display) return
     if (display.width !== source.width || display.height !== source.height) {
@@ -100,7 +106,17 @@ export default function SquareImageGeneratorPage() {
     const scale = targetSize / Math.max(base.width, base.height)
     const dw = base.width * scale
     const dh = base.height * scale
-    ctx.drawImage(base, 0, 0, base.width, base.height, (targetSize - dw) / 2, (targetSize - dh) / 2, dw, dh)
+    ctx.drawImage(
+      base,
+      0,
+      0,
+      base.width,
+      base.height,
+      (targetSize - dw) / 2,
+      (targetSize - dh) / 2,
+      dw,
+      dh
+    )
     return canvas
   }
 
@@ -137,12 +153,6 @@ export default function SquareImageGeneratorPage() {
     if (activeCanvas) renderDisplay(activeCanvas)
   }, [parsedSize, sizeError, bgColor, jobs.length])
 
-  function clear() {
-    clearQueue()
-    setSize("")
-    setError(null)
-  }
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -154,7 +164,9 @@ export default function SquareImageGeneratorPage() {
 
   async function downloadJob(job: Job) {
     if (!job.result) return
-    const mime = job.result.transparent ? "image/png" : outputMime(job.file.type)
+    const mime = job.result.transparent
+      ? "image/png"
+      : outputMime(job.file.type)
     await downloadCanvas(job.result.canvas, job.name, mime)
   }
 
@@ -176,9 +188,20 @@ export default function SquareImageGeneratorPage() {
     <ToolPage
       page="Square Image Generator"
       icon={SquareIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
-      footer={
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
+      sidebar={
         activeJob
           ? {
               color: {
@@ -186,12 +209,15 @@ export default function SquareImageGeneratorPage() {
                 value: bgColor,
                 onChange: setBgColor,
                 fallback: "#ffffff",
-                nullLabel: "transparent",
-                clearLabel: "Transparent",
-                clearIcon: Cancel01Icon,
               },
               inputs: [
-                { label: "", type: "number", min: 1, value: size, onChange: setSize },
+                {
+                  label: "Size",
+                  type: "number",
+                  min: 1,
+                  value: size,
+                  onChange: setSize,
+                },
               ],
               download: {
                 onDownload: download,
@@ -205,15 +231,15 @@ export default function SquareImageGeneratorPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <PreviewCard
+              fill
+              checkerboard
+              layer={{
+                ref: displayCanvasRef,
+                className: "h-full w-full object-contain",
+              }}
             />
-
-            <PreviewCard checkerboard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 

@@ -6,7 +6,7 @@
  */
 export function evaluateExpression(
   input: string,
-  variables: Record<string, number> = {},
+  variables: Record<string, number> = {}
 ): number | null {
   const s = input.trim()
   if (!s) return null
@@ -160,12 +160,17 @@ export function annotateLines(text: string): LineAnnotation[] {
     if (assignment) {
       const [, name, rhsSource] = assignment
       const value = evaluateExpression(rhsSource, variables)
-      if (value === null) return { hasEquals: false, result: null, resolved: false }
+      if (value === null)
+        return { hasEquals: false, result: null, resolved: false }
 
       variables[name] = value
       const formatted = formatResult(value)
       const isRedundant = rhsSource.trim() === formatted
-      return { hasEquals: false, result: isRedundant ? null : formatted, resolved: true }
+      return {
+        hasEquals: false,
+        result: isRedundant ? null : formatted,
+        resolved: true,
+      }
     }
 
     const hasEquals = trimmed.endsWith("=")
@@ -186,7 +191,9 @@ export function resolveText(source: string): string {
     .map((line, i) => {
       const { hasEquals, result } = annotations[i]
       if (result === null) return line
-      return hasEquals ? `${line.trimEnd()} ${result}` : `${line.trimEnd()} = ${result}`
+      return hasEquals
+        ? `${line.trimEnd()} ${result}`
+        : `${line.trimEnd()} = ${result}`
     })
     .join("\n")
 }

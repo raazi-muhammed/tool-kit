@@ -70,7 +70,10 @@ export function useZoomPan({
     const viewport = viewportElRef.current
     const base = getBaseSizeRef.current()
     if (!canvas || !viewport || !base) return
-    const fit = Math.min(viewport.clientWidth / base.width, viewport.clientHeight / base.height)
+    const fit = Math.min(
+      viewport.clientWidth / base.width,
+      viewport.clientHeight / base.height
+    )
     fitSizeRef.current = { width: base.width * fit, height: base.height * fit }
     canvas.style.width = `${fitSizeRef.current.width}px`
     canvas.style.height = `${fitSizeRef.current.height}px`
@@ -112,7 +115,11 @@ export function useZoomPan({
         if (e.ctrlKey || e.metaKey) {
           // Pinch on Chrome/Firefox trackpads, or ctrl/cmd + scroll wheel.
           const box = node.getBoundingClientRect()
-          zoomAt(e.clientX - box.left, e.clientY - box.top, Math.exp(-e.deltaY * 0.01))
+          zoomAt(
+            e.clientX - box.left,
+            e.clientY - box.top,
+            Math.exp(-e.deltaY * 0.01)
+          )
         } else {
           const view = viewRef.current
           view.x -= e.deltaX
@@ -132,7 +139,10 @@ export function useZoomPan({
         const gesture = e as SafariGestureEvent
         if (!gesture.scale) return
         const box = node.getBoundingClientRect()
-        const target = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, gestureStartScale * gesture.scale))
+        const target = Math.min(
+          MAX_ZOOM,
+          Math.max(MIN_ZOOM, gestureStartScale * gesture.scale)
+        )
         zoomAt(
           (gesture.clientX ?? box.left + box.width / 2) - box.left,
           (gesture.clientY ?? box.top + box.height / 2) - box.top,

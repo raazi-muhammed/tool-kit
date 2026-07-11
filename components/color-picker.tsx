@@ -4,9 +4,9 @@ import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ColorPickerIcon, DropperIcon } from "@hugeicons/core-free-icons"
 
+import { IconTooltip } from "@/components/icon-tooltip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { sampleColorAtPoint } from "@/lib/canvas"
 
 // Not yet in the TS DOM lib — Chrome/Edge only, feature-detected below.
@@ -35,20 +35,20 @@ function normalizeHex(value: string): string | null {
 function findSampleable(el: Element | null): Element | null {
   let node = el
   for (let i = 0; node && i < 4; i++) {
-    if (node instanceof HTMLCanvasElement || node instanceof HTMLImageElement) return node
+    if (node instanceof HTMLCanvasElement || node instanceof HTMLImageElement)
+      return node
     node = node.parentElement
   }
   return null
 }
 
 /**
- * A color swatch button that opens a popover with a hex input, a native
- * color input (for the OS picker's full palette/sliders), a screen
- * eyedropper where the browser supports it (Chrome/Edge), and a "pick from
- * image" fallback that works everywhere (including Safari/Firefox): it
- * samples whatever canvas/image is under the next click anywhere on the
- * page, so no caller has to wire up how to sample its own preview — it's
- * always available, not something a page opts into.
+ * A color picker rendered inline (no popover) — a swatch + hex input row,
+ * plus a "pick from image" fallback that works everywhere (including
+ * Safari/Firefox): it samples whatever canvas/image is under the next click
+ * anywhere on the page, so no caller has to wire up how to sample its own
+ * preview — it's always available, not something a page opts into. Also
+ * offers a screen eyedropper where the browser supports it (Chrome/Edge).
  */
 export function ColorPicker({
   value,
@@ -59,7 +59,6 @@ export function ColorPicker({
   onChange: (color: string) => void
   label?: string
 }) {
-  const [open, setOpen] = React.useState(false)
   const [text, setText] = React.useState(value)
   const [picking, setPicking] = React.useState(false)
   // Adjust local text when `value` changes from outside (e.g. a reset) —
@@ -80,14 +79,14 @@ export function ColorPicker({
 
   async function pickFromScreen() {
     try {
-      const EyeDropper = (window as unknown as { EyeDropper: EyeDropperConstructor })
-        .EyeDropper
+      const EyeDropper = (
+        window as unknown as { EyeDropper: EyeDropperConstructor }
+      ).EyeDropper
       const result = await new EyeDropper().open()
       onChange(result.sRGBHex)
     } catch {
       // User pressed Escape or the pick failed — leave the color as is.
     }
-    setOpen(false)
   }
 
   // Consumes the next click anywhere on the page — capture phase, so it can
@@ -106,7 +105,9 @@ export function ColorPicker({
     function onClick(e: MouseEvent) {
       e.preventDefault()
       e.stopPropagation()
-      const target = findSampleable(document.elementFromPoint(e.clientX, e.clientY))
+      const target = findSampleable(
+        document.elementFromPoint(e.clientX, e.clientY)
+      )
       finish(target ? sampleColorAtPoint(target, e.clientX, e.clientY) : null)
     }
 
@@ -125,55 +126,49 @@ export function ColorPicker({
   }, [picking])
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" aria-label={label}>
-          <span
-            className="size-4 shrink-0 rounded-full border"
-            style={{ backgroundColor: value }}
-            aria-hidden
-          />
-          {value}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56">
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            aria-label={label}
-            className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
-          />
-          <Input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onBlur={(e) => commitText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitText(e.currentTarget.value)
-            }}
-            className="flex-1 font-mono uppercase"
-            maxLength={7}
-            aria-label="Hex color code"
-          />
-        </div>
+    <div className="flex items-center gap-2">
+      <div className="flex flex-1 items-center gap-0 rounded-lg border border-input bg-transparent pl-1 transition-colors has-[:focus-visible]:border-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 dark:bg-input/30">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
+          className="size-9 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-1 [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:rounded-sm [&::-webkit-color-swatch-wrapper]:border-none [&::-webkit-color-swatch-wrapper]:p-0"
+        />
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={(e) => commitText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitText(e.currentTarget.value)
+          }}
+          className="h-8 flex-1 border-0 bg-transparent px-2 font-mono uppercase shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
+          maxLength={7}
+          aria-label="Hex color code"
+        />
+      </div>
+      <IconTooltip label="Pick from image">
         <Button
           variant="outline"
-          onClick={() => {
-            setOpen(false)
-            setPicking(true)
-          }}
+          size="icon"
+          onClick={() => setPicking(true)}
+          aria-label="Pick from image"
         >
           <HugeiconsIcon icon={ColorPickerIcon} aria-hidden />
-          Pick from image
         </Button>
-        {supportsEyeDropper && (
-          <Button variant="outline" onClick={pickFromScreen}>
+      </IconTooltip>
+      {supportsEyeDropper && (
+        <IconTooltip label="Pick from screen">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={pickFromScreen}
+            aria-label="Pick from screen"
+          >
             <HugeiconsIcon icon={DropperIcon} aria-hidden />
-            Pick from screen
           </Button>
-        )}
-      </PopoverContent>
-    </Popover>
+        </IconTooltip>
+      )}
+    </div>
   )
 }

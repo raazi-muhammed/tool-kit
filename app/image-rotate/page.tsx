@@ -42,7 +42,6 @@ export default function ImageRotatePage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -83,11 +82,6 @@ export default function ImageRotatePage() {
     renderDisplay()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
-
-  function clear() {
-    clearQueue()
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -140,38 +134,59 @@ export default function ImageRotatePage() {
     <ToolPage
       page="Image Rotate"
       icon={ImageRotationClockwiseIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
-      footer={
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
+      sidebar={
         activeJob
           ? {
               actions: [
                 {
-                  label: "Rotate left",
-                  icon: RotateCcwSquareIcon,
-                  onClick: () => rotate(-90),
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Rotate all left",
+                  label: "This image",
+                  placement: "top",
+                  actions: [
+                    {
+                      label: "Rotate left",
+                      icon: RotateCcwSquareIcon,
+                      onClick: () => rotate(-90),
+                    },
+                    {
+                      label: "Rotate right",
+                      icon: RotateCwSquareIcon,
+                      onClick: () => rotate(90),
+                    },
+                  ],
+                },
+                jobs.length > 1
+                  ? {
+                      label: "All images",
+                      placement: "top",
+                      actions: [
+                        {
+                          label: "Rotate left",
                           icon: RotateCcwSquareIcon,
                           onClick: () => rotateAll(-90),
-                        }
-                      : undefined,
-                },
-                {
-                  label: "Rotate right",
-                  icon: RotateCwSquareIcon,
-                  onClick: () => rotate(90),
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Rotate all right",
+                          variant: "secondary",
+                        },
+                        {
+                          label: "Rotate right",
                           icon: RotateCwSquareIcon,
                           onClick: () => rotateAll(90),
-                        }
-                      : undefined,
-                },
+                          variant: "secondary",
+                        },
+                      ],
+                    }
+                  : undefined,
               ],
               download: {
                 onDownload: download,
@@ -185,15 +200,14 @@ export default function ImageRotatePage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
-            <JobStrip
-              jobs={jobs}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onRemove={removeJob}
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <PreviewCard
+              fill
+              layer={{
+                ref: displayCanvasRef,
+                className: "h-full w-full object-contain",
+              }}
             />
-
-            <PreviewCard jobStrip={jobs.length > 1} layer={{ ref: displayCanvasRef }} />
           </div>
         )}
 
