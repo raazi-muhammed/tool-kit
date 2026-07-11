@@ -4,6 +4,7 @@ import {
   BlurIcon,
   BracesIcon,
   Calculator01Icon,
+  FileStackIcon,
   FileUnlockedIcon,
   Image01Icon,
   ImageCropIcon,
@@ -115,6 +116,14 @@ export const TOOLS: Tool[] = [
     name: "PDF Unlock",
     description:
       "Remove a PDF's password and download an unlocked copy, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/pdf-merge",
+    icon: FileStackIcon,
+    name: "PDF Merge",
+    description:
+      "Combine multiple PDFs into one, in any order, in your browser.",
     category: "convert",
   },
   {
