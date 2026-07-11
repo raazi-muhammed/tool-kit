@@ -4,10 +4,13 @@ import {
   BlurIcon,
   BracesIcon,
   Calculator01Icon,
+  FileStackIcon,
   FileUnlockedIcon,
   Image01Icon,
   ImageCropIcon,
+  ImageDownloadIcon,
   ImageRotationClockwiseIcon,
+  Pdf01Icon,
   Png01Icon,
   Resize02Icon,
   ScanIcon,
@@ -115,6 +118,30 @@ export const TOOLS: Tool[] = [
     name: "PDF Unlock",
     description:
       "Remove a PDF's password and download an unlocked copy, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/pdf-merge",
+    icon: FileStackIcon,
+    name: "PDF Merge",
+    description:
+      "Combine multiple PDFs into one, in any order, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/image-to-pdf",
+    icon: Pdf01Icon,
+    name: "Image to PDF",
+    description:
+      "Combine images into a single PDF, one page each, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/pdf-to-images",
+    icon: ImageDownloadIcon,
+    name: "PDF to Images",
+    description:
+      "Export every page of a PDF as a PNG or JPEG image, in your browser.",
     category: "convert",
   },
   {
