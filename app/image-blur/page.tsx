@@ -37,6 +37,9 @@ type Job = {
   name: string
   previewUrl: string
   hasEdits: boolean
+  // Independent per file, like Image Converter's format — seeded from the
+  // persisted default below so new files start with the last-used type.
+  mode: BlurMode
 }
 
 function parseBlurSettings(
@@ -68,6 +71,7 @@ export default function ImageBlurPage() {
       name: file.name,
       previewUrl: URL.createObjectURL(file),
       hasEdits: false,
+      mode,
     }),
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
@@ -159,7 +163,7 @@ export default function ImageBlurPage() {
   function renderDisplay(
     rect?: Rect,
     blurPx: number = blur,
-    blurMode: BlurMode = mode
+    blurMode: BlurMode = activeJob?.mode ?? mode
   ) {
     const base = getResource()
     const display = displayCanvasRef.current
@@ -205,27 +209,28 @@ export default function ImageBlurPage() {
     )
   }
 
-  function blurJob(id: number, targetRects: Rect[]) {
+  function blurJob(id: number, targetRects: Rect[], blurMode: BlurMode) {
     const base = getResource(id)
     if (!base) return
     // Commit the blur into the base image so it becomes the new ground truth.
     const committed = document.createElement("canvas")
     committed.width = base.width
     committed.height = base.height
-    blurRegion(committed, base, targetRects, blur, mode)
+    blurRegion(committed, base, targetRects, blur, blurMode)
     setResource(id, committed)
     updateJob(id, { hasEdits: true })
   }
 
   function applyBlur() {
-    if (activeId == null || totalRects === 0) return
+    if (activeId == null || totalRects === 0 || !activeJob) return
     const allRects = pendingRect ? [...rects, pendingRect] : rects
-    blurJob(activeId, allRects)
+    blurJob(activeId, allRects, activeJob.mode)
     clearAllRects()
   }
 
   // Applies the current selection to every queued image, scaled to each
-  // image's own dimensions since they aren't necessarily the same size.
+  // image's own dimensions since they aren't necessarily the same size. Each
+  // job is blurred using its own mode, since that's now set per file.
   function applyBlurToAll() {
     if (activeId == null || totalRects === 0) return
     const activeImage = getResource(activeId)
@@ -237,7 +242,8 @@ export default function ImageBlurPage() {
       if (!image) return
       blurJob(
         job.id,
-        allRects.map((rect) => scaleRect(rect, activeImage, image))
+        allRects.map((rect) => scaleRect(rect, activeImage, image)),
+        job.mode
       )
     })
     clearAllRects()
@@ -272,6 +278,10 @@ export default function ImageBlurPage() {
   }
 
   function onModeChange(value: BlurMode) {
+    if (!activeJob) return
+    updateJob(activeJob.id, { mode: value })
+    // Also updates the persisted default, so the next file you add starts
+    // with whatever type you most recently picked.
     setBlurSettings((prev) => ({ ...prev, mode: value }))
     if (totalRects > 0) renderDisplay(pendingRect ?? undefined, blur, value)
   }
@@ -280,15 +290,6 @@ export default function ImageBlurPage() {
     <ToolPage
       page="Image Blur"
       icon={BlurIcon}
-      segments={{
-        value: mode,
-        onValueChange: (value) => onModeChange(value as BlurMode),
-        label: "Blur Type",
-        options: [
-          { value: "pixelate", label: "Blocky", icon: GridViewIcon },
-          { value: "gaussian", label: "Gaussian", icon: BlurIcon },
-        ],
-      }}
       onAddFile={
         jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
       }
@@ -305,6 +306,15 @@ export default function ImageBlurPage() {
       sidebar={
         activeJob
           ? {
+              segments: {
+                value: activeJob.mode,
+                onValueChange: (value) => onModeChange(value as BlurMode),
+                label: "Blur Type",
+                options: [
+                  { value: "pixelate", label: "Blocky", icon: GridViewIcon },
+                  { value: "gaussian", label: "Gaussian", icon: BlurIcon },
+                ],
+              },
               zoom: {
                 percent: zoomPct,
                 onZoomOut: () => zoomFromButton(0.8),
