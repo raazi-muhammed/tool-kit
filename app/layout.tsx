@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Inter, Unbounded } from "next/font/google"
+import { Geist_Mono, Inter, Unbounded } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 
 import "./globals.css"
@@ -7,7 +7,7 @@ import { CommandMenuProvider } from "@/components/command-menu"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],

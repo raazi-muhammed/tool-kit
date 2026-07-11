@@ -176,7 +176,6 @@ export function ToolPage({
   onCopy,
   onLoadSample,
   onAddFile,
-  onClear,
   segments,
   actions,
   fileStrip,
@@ -188,7 +187,6 @@ export function ToolPage({
   onCopy?: () => void
   onLoadSample?: () => void
   onAddFile?: () => void
-  onClear?: () => void
   segments?: Segments
   actions?: ReactNode
   /** A `JobStrip` (or similar) element, rendered in the bottom bar next to zoom controls and Add file. */
@@ -207,7 +205,7 @@ export function ToolPage({
   const inlineSegments = segments?.placement === "inline" ? segments : undefined
   const sidebarSegments = segments && segments.placement !== "inline" ? segments : undefined
 
-  const hasHeaderRow = !!(actions || onCopy || onLoadSample || onClear)
+  const hasHeaderRow = !!(actions || onCopy || onLoadSample)
   const hasBottomBar = !!(fileStrip || onAddFile)
   const hasSidebar = !!(sidebarSegments || footer)
 
@@ -249,13 +247,6 @@ export function ToolPage({
                   <HugeiconsIcon icon={SparklesIcon} aria-hidden />
                   Load sample
                 </Button>
-              )}
-              {onClear && (
-                <IconTooltip label="Clear">
-                  <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear">
-                    <HugeiconsIcon icon={Eraser01Icon} aria-hidden />
-                  </Button>
-                </IconTooltip>
               )}
             </div>
           </div>
@@ -459,8 +450,8 @@ export function ToolPage({
                   onKeyDown={
                     input.onEnter
                       ? (e) => {
-                          if (e.key === "Enter") input.onEnter!()
-                        }
+                        if (e.key === "Enter") input.onEnter!()
+                      }
                       : undefined
                   }
                   className={input.className ?? "w-full"}

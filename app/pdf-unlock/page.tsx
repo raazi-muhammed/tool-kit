@@ -46,7 +46,7 @@ function unlockedName(name: string): string {
 }
 
 export default function PdfUnlockPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear: clearQueue } =
+  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob } =
     useFiles<Job>({
       createJob: (file, id) => {
         const valid = isPdfFile(file)
@@ -115,12 +115,6 @@ export default function PdfUnlockPage() {
     })
   }
 
-  function clear() {
-    clearQueue()
-    setPassword("")
-    setFormError(null)
-  }
-
   async function downloadJob(job: Job) {
     if (job.result) downloadFile(job.result.url, job.result.name)
   }
@@ -142,7 +136,6 @@ export default function PdfUnlockPage() {
       page="PDF Unlock"
       icon={FileUnlockedIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

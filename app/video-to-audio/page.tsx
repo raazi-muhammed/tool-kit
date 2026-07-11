@@ -56,7 +56,7 @@ const isBusy = (status: JobStatus) =>
   status === "reading" || status === "decoding" || status === "encoding"
 
 export default function VideoToAudioPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear } = useFiles<Job>({
+  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, } = useFiles<Job>({
     createJob: (file, id) => ({
       id,
       file,
@@ -192,7 +192,6 @@ export default function VideoToAudioPage() {
         disabled: anyBusy,
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip
@@ -206,21 +205,21 @@ export default function VideoToAudioPage() {
       footer={
         jobs.length > 0
           ? {
-              actions: [
-                {
-                  label: "Convert",
-                  icon: ArrowDataTransferHorizontalIcon,
-                  onClick: convert,
-                  disabled: anyBusy || !anyIdle,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob?.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
+            actions: [
+              {
+                label: "Convert",
+                icon: ArrowDataTransferHorizontalIcon,
+                onClick: convert,
+                disabled: anyBusy || !anyIdle,
               },
-            }
+            ],
+            download: {
+              onDownload: download,
+              disabled: !activeJob?.result,
+              onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+              downloadAllDisabled: !jobs.some((job) => job.result),
+            },
+          }
           : undefined
       }
     >
@@ -249,25 +248,25 @@ export default function VideoToAudioPage() {
               layer={
                 isBusy(activeJob.status)
                   ? {
-                      kind: "status",
-                      icon: Loading03Icon,
-                      spin: true,
-                      message: STATUS_LABEL[activeJob.status as keyof typeof STATUS_LABEL],
-                    }
+                    kind: "status",
+                    icon: Loading03Icon,
+                    spin: true,
+                    message: STATUS_LABEL[activeJob.status as keyof typeof STATUS_LABEL],
+                  }
                   : activeJob.status === "error"
                     ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
                     : activeJob.result
                       ? {
-                          kind: "status",
-                          icon: activeJob.result.name.endsWith(".mp3") ? MusicNote01Icon : AudioWave01Icon,
-                          message: (
-                            <>
-                              {activeJob.result.name}
-                              <br />
-                              {activeJob.result.meta} · {formatBytes(activeJob.result.size)}
-                            </>
-                          ),
-                        }
+                        kind: "status",
+                        icon: activeJob.result.name.endsWith(".mp3") ? MusicNote01Icon : AudioWave01Icon,
+                        message: (
+                          <>
+                            {activeJob.result.name}
+                            <br />
+                            {activeJob.result.meta} · {formatBytes(activeJob.result.size)}
+                          </>
+                        ),
+                      }
                       : { kind: "status", message: "Pick a format and hit Convert" }
               }
             />
