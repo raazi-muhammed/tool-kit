@@ -303,7 +303,6 @@ export default function ImageConverterPage() {
                       onValueChange: setQuality,
                       min: 0,
                       max: 100,
-                      disabled: anyBusy,
                       unit: "%",
                     }
                   : undefined,

@@ -183,6 +183,49 @@ function SidebarLabel({ children }: { children: ReactNode }) {
   )
 }
 
+// Shared by the standalone `sidebar.slider` and the nested
+// `sidebar.toggle.slider` (e.g. Image Converter's Quality and Tolerance) so
+// both render identically instead of drifting into two different looks.
+function SidebarSliderControl({ slider }: { slider: SidebarSlider }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <SidebarLabel>{slider.label}</SidebarLabel>
+        <span className="flex items-baseline gap-1">
+          <Input
+            type="number"
+            value={slider.value}
+            onChange={(e) => {
+              const parsed = Number(e.target.value)
+              if (!Number.isFinite(parsed)) return
+              slider.onValueChange(
+                Math.min(slider.max, Math.max(slider.min, parsed))
+              )
+            }}
+            min={slider.min}
+            max={slider.max}
+            step={slider.step ?? 1}
+            disabled={slider.disabled}
+            className="h-8 w-14 px-2 text-right"
+          />
+          {slider.unit && (
+            <span className="text-sm text-muted-foreground">{slider.unit}</span>
+          )}
+        </span>
+      </div>
+      <Slider
+        value={[slider.value]}
+        onValueChange={([value]) => slider.onValueChange(value)}
+        min={slider.min}
+        max={slider.max}
+        step={slider.step ?? 1}
+        disabled={slider.disabled}
+        className="w-full"
+      />
+    </div>
+  )
+}
+
 export function ToolPage({
   page,
   icon,
@@ -456,39 +499,7 @@ export function ToolPage({
                   />
                 )}
                 {sidebar.toggle.pressed && sidebar.toggle.slider && (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        {sidebar.toggle.slider.label}
-                      </span>
-                      <Input
-                        type="number"
-                        value={sidebar.toggle.slider.value}
-                        onChange={(e) => {
-                          const parsed = Number(e.target.value)
-                          if (!Number.isFinite(parsed)) return
-                          const { min, max } = sidebar.toggle!.slider!
-                          sidebar.toggle!.slider!.onValueChange(
-                            Math.min(max, Math.max(min, parsed))
-                          )
-                        }}
-                        min={sidebar.toggle.slider.min}
-                        max={sidebar.toggle.slider.max}
-                        step={sidebar.toggle.slider.step ?? 1}
-                        className="h-8 w-14 px-2 text-right"
-                      />
-                    </div>
-                    <Slider
-                      value={[sidebar.toggle.slider.value]}
-                      onValueChange={([value]) =>
-                        sidebar.toggle!.slider!.onValueChange(value)
-                      }
-                      min={sidebar.toggle.slider.min}
-                      max={sidebar.toggle.slider.max}
-                      step={sidebar.toggle.slider.step ?? 1}
-                      className="w-full"
-                    />
-                  </div>
+                  <SidebarSliderControl slider={sidebar.toggle.slider} />
                 )}
               </div>
             )}
@@ -516,48 +527,7 @@ export function ToolPage({
             ))}
 
             {sidebar?.slider && (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <SidebarLabel>{sidebar.slider.label}</SidebarLabel>
-                  <span className="flex items-baseline gap-0.5">
-                    <input
-                      type="number"
-                      value={sidebar.slider.value}
-                      onChange={(e) => {
-                        const parsed = Number(e.target.value)
-                        if (!Number.isFinite(parsed)) return
-                        sidebar.slider!.onValueChange(
-                          Math.min(
-                            sidebar.slider!.max,
-                            Math.max(sidebar.slider!.min, parsed)
-                          )
-                        )
-                      }}
-                      min={sidebar.slider.min}
-                      max={sidebar.slider.max}
-                      step={sidebar.slider.step ?? 1}
-                      disabled={sidebar.slider.disabled}
-                      className="w-10 [appearance:textfield] border-none bg-transparent p-0 text-right text-sm font-medium text-foreground outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                    {sidebar.slider.unit && (
-                      <span className="text-sm text-muted-foreground">
-                        {sidebar.slider.unit}
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <Slider
-                  value={[sidebar.slider.value]}
-                  onValueChange={([value]) =>
-                    sidebar.slider!.onValueChange(value)
-                  }
-                  min={sidebar.slider.min}
-                  max={sidebar.slider.max}
-                  step={sidebar.slider.step ?? 1}
-                  disabled={sidebar.slider.disabled}
-                  className="w-full"
-                />
-              </div>
+              <SidebarSliderControl slider={sidebar.slider} />
             )}
 
             {sidebar?.hint && (
