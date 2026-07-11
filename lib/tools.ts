@@ -8,6 +8,7 @@ import {
   FileUnlockedIcon,
   Image01Icon,
   ImageCropIcon,
+  ImageDownloadIcon,
   ImageRotationClockwiseIcon,
   Pdf01Icon,
   Png01Icon,
@@ -133,6 +134,14 @@ export const TOOLS: Tool[] = [
     name: "Image to PDF",
     description:
       "Combine images into a single PDF, one page each, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/pdf-to-images",
+    icon: ImageDownloadIcon,
+    name: "PDF to Images",
+    description:
+      "Export every page of a PDF as a PNG or JPEG image, in your browser.",
     category: "convert",
   },
   {
