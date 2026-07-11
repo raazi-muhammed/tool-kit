@@ -67,6 +67,15 @@ type SidebarSegments = {
   disabled?: boolean
   /** Heading shown above the control (e.g. "Format"). */
   label?: string
+  /**
+   * Force the rendering — `"tabs"` for an evenly-split segmented control,
+   * `"select"` for a dropdown. Omit to pick automatically by option count
+   * (3 or fewer as tabs, more as a dropdown); set explicitly when a control
+   * should read as a dropdown regardless of how few options it has (e.g.
+   * Image to PDF's page size, alongside two other segmented pickers already
+   * using the tabs look).
+   */
+  variant?: "tabs" | "select"
 }
 
 type SidebarZoom = {
@@ -183,6 +192,13 @@ type SidebarInput = {
 
 type Sidebar = {
   segments?: SidebarSegments
+  /**
+   * Additional segmented pickers beyond the single `segments` slot above —
+   * e.g. Image to PDF's page orientation, page size, and margin, each an
+   * independent choice rather than one shared "mode" setting. Rendered
+   * stacked, in array order, right after `segments`.
+   */
+  groups?: SidebarSegments[]
   color?: SidebarColor
   toggle?: SidebarToggle
   inputs?: SidebarInput[]
@@ -248,6 +264,59 @@ function SidebarSliderControl({ slider }: { slider: SidebarSlider }) {
         disabled={slider.disabled}
         className="w-full"
       />
+    </div>
+  )
+}
+
+// Shared by the top-level `segments`/`sidebar.segments` slot and each entry
+// in `sidebar.groups` (e.g. Image to PDF's page orientation, page size, and
+// margin) so every segmented picker renders identically. A couple of options
+// read fine as an evenly-split segmented control — a crowded row (image-crop's
+// 6-option aspect picker) doesn't: wrapping it onto multiple lines still
+// looks broken inside a pill-shaped Tabs track, so it gets a plain Select
+// dropdown instead once there are more than 3.
+function SidebarSegmentsControl({ segments }: { segments: SidebarSegments }) {
+  const useSelect = segments.variant
+    ? segments.variant === "select"
+    : segments.options.length > 3
+
+  return (
+    <div className="flex flex-col gap-3">
+      {segments.label && <SidebarLabel>{segments.label}</SidebarLabel>}
+      {useSelect ? (
+        <Select
+          value={segments.value}
+          onValueChange={segments.onValueChange}
+          disabled={segments.disabled}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {segments.options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                <HugeiconsIcon icon={option.icon} aria-hidden />
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Tabs value={segments.value} onValueChange={segments.onValueChange}>
+          <TabsList className="w-full">
+            {segments.options.map((option) => (
+              <TabsTrigger
+                key={option.value}
+                value={option.value}
+                disabled={segments.disabled}
+              >
+                <HugeiconsIcon icon={option.icon} aria-hidden />
+                {option.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      )}
     </div>
   )
 }
@@ -570,54 +639,12 @@ export function ToolPage({
             )}
 
             {sidebarSegments && (
-              <div className="flex flex-col gap-3">
-                {sidebarSegments.label && (
-                  <SidebarLabel>{sidebarSegments.label}</SidebarLabel>
-                )}
-                {/* A couple of options (Blur Type, Format, …) read fine as an
-                    evenly-split segmented control — a crowded row (image-crop's
-                    6-option aspect picker) doesn't: wrapping it onto multiple
-                    lines still looks broken inside a pill-shaped Tabs track, so
-                    it gets a plain Select dropdown instead. */}
-                {sidebarSegments.options.length > 3 ? (
-                  <Select
-                    value={sidebarSegments.value}
-                    onValueChange={sidebarSegments.onValueChange}
-                    disabled={sidebarSegments.disabled}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sidebarSegments.options.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          <HugeiconsIcon icon={option.icon} aria-hidden />
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Tabs
-                    value={sidebarSegments.value}
-                    onValueChange={sidebarSegments.onValueChange}
-                  >
-                    <TabsList className="w-full">
-                      {sidebarSegments.options.map((option) => (
-                        <TabsTrigger
-                          key={option.value}
-                          value={option.value}
-                          disabled={sidebarSegments.disabled}
-                        >
-                          <HugeiconsIcon icon={option.icon} aria-hidden />
-                          {option.label}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                  </Tabs>
-                )}
-              </div>
+              <SidebarSegmentsControl segments={sidebarSegments} />
             )}
+
+            {sidebar?.groups?.map((group, index) => (
+              <SidebarSegmentsControl key={index} segments={group} />
+            ))}
 
             {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
 

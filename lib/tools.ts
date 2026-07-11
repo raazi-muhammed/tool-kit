@@ -9,6 +9,7 @@ import {
   Image01Icon,
   ImageCropIcon,
   ImageRotationClockwiseIcon,
+  Pdf01Icon,
   Png01Icon,
   Resize02Icon,
   ScanIcon,
@@ -124,6 +125,14 @@ export const TOOLS: Tool[] = [
     name: "PDF Merge",
     description:
       "Combine multiple PDFs into one, in any order, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/image-to-pdf",
+    icon: Pdf01Icon,
+    name: "Image to PDF",
+    description:
+      "Combine images into a single PDF, one page each, in your browser.",
     category: "convert",
   },
   {
