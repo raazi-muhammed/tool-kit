@@ -167,9 +167,6 @@ export default function ImageRoundCornersPage() {
                 value: bgColor,
                 onChange: setBgColor,
                 fallback: "#ffffff",
-                nullLabel: "transparent",
-                clearLabel: "Transparent",
-                clearIcon: Cancel01Icon,
               },
               slider: {
                 label: "Radius",
@@ -191,8 +188,15 @@ export default function ImageRoundCornersPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
-            <PreviewCard checkerboard layer={{ ref: displayCanvasRef }} />
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <PreviewCard
+              fill
+              checkerboard
+              layer={{
+                ref: displayCanvasRef,
+                className: "h-full w-full object-contain",
+              }}
+            />
           </div>
         )}
 

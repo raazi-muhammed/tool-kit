@@ -306,13 +306,15 @@ export default function ImageCropPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
             <PreviewCard
+              fill
               checkerboard
               layer={{
                 ref: displayCanvasRef,
                 ...selectionHandlers,
-                className: "cursor-crosshair touch-none",
+                className:
+                  "h-full w-full cursor-crosshair touch-none object-contain",
               }}
             />
           </div>

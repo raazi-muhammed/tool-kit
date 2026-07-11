@@ -309,15 +309,19 @@ pixels) with a status layer for the invalid-file case, and its Converted
 pane switches between an image layer and a status layer for
 converting/error/idle — no `children` on either.
 
-Pass `fill` for a viewport that grows to the available height (Image Blur's
-pan/zoom canvas, Image Converter's side-by-side panes); omit it for a fixed,
-viewport-relative preview (Image Crop, Image Rotate) capped at
-`PreviewCard`'s own `MAX_HEIGHT` constant (`max-h-[calc(100dvh-220px)]`) —
-derived from, and documented alongside, the worst-case fixed chrome ToolPage's
-main column can stack around it (padding, breadcrumb/header-action row, the
-bottom bar, gaps, the Card's own padding), so preview tools use the actual
-available space instead of an arbitrary `vh` guess. A page with a taller
-header than that (e.g. a wrapped toolbar) can raise the cap via `className`.
+Pass `fill` (the default choice for a new tool) for a viewport that grows to
+the available height — every current preview tool (Image Crop, Image Rotate,
+Image Resize, Image Round Corners, Square Image Generator, Image Trim, Image
+Blur, Image Converter, …) uses it now, paired with `className: "h-full w-full
+object-contain"` on the layer (see below) so the preview fills the column
+instead of shrinking to the picked file's intrinsic size and leaving a big gap
+underneath. Only reach for `PreviewCard`'s own fixed, viewport-relative
+`MAX_HEIGHT` constant (`max-h-[calc(100dvh-220px)]`, omitting `fill`) if a
+tool genuinely can't make `fill` work — derived from, and documented alongside,
+the worst-case fixed chrome ToolPage's main column can stack around it
+(padding, breadcrumb/header-action row, the bottom bar, gaps, the Card's own
+padding). A page with a taller header than that (e.g. a wrapped toolbar) can
+raise the cap via `className` instead.
 A `JobStrip` no longer stacks as its own row above the preview — it renders in
 the bottom bar via `ToolPage`'s `fileStrip` prop instead — so there's no
 separate cap to opt into for it.
@@ -351,9 +355,15 @@ container's own explicit sizing (`min-h-[60vh] flex-1`, a definite box on its
 own terms) rather than depending on percentage-height resolution through
 intermediate wrappers, and `object-contain` scales the content to fit inside
 that box without cropping, preserving aspect ratio. See `app/svg-to-png/page.tsx`.
-Reach for real fit-to-screen JS (Image Blur's zoom/pan) instead only when the
-tool needs actual pixel-precise sizing (e.g. for pointer math against the
-canvas) — a plain preview pane doesn't.
+This is safe for pointer math against the canvas too (Image Crop's drag-select,
+Image Scan's quad corners) — `canvasPointFromEvent`/`canvasDisplayScale`
+(`lib/canvas.ts`) map an event's client coordinates through the canvas's
+actual rendered content rect, not just its CSS box, so they stay correct even
+when `object-contain` letterboxes the canvas inside a box whose aspect ratio
+doesn't match the image's. Reach for real fit-to-screen JS (Image Blur's,
+Image Scan's zoom/pan) instead only when the tool needs actual pixel-precise
+*display* control beyond fit-to-box scaling (zooming in past 100%, panning) —
+a plain preview pane, even an interactive one, doesn't.
 `viewportRef` exposes the inner viewport node for wheel/gesture listeners or
 fit-to-screen math (see Image Blur's zoom/pan).
 Pass `title` for a muted label above the box (e.g. "Original", "Converted")
@@ -375,7 +385,7 @@ const { pendingRect, clearSelection, selectionHandlers } = useRectSelection({
   render: (rect) => renderDisplay(rect), // repaint with the selection (null = none)
 })
 
-<PreviewCard layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }} />
+<PreviewCard fill layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "h-full w-full cursor-crosshair touch-none object-contain" }} />
 ```
 
 The hook owns the selection state: read `pendingRect` to enable Apply-style

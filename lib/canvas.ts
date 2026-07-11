@@ -18,19 +18,37 @@ export function scaleRect(
 }
 
 /**
+ * Uniform scale factor between `canvas`'s backing pixel size and its
+ * rendered box — the same factor `object-contain` itself uses, so it holds
+ * even when the box's aspect ratio doesn't match the canvas's (a `fill`
+ * preview letterboxes the canvas inside its box rather than stretching it).
+ * Degrades to the old per-axis ratio when the box already matches the
+ * canvas's aspect ratio (e.g. the non-`fill`, intrinsically-sized preview),
+ * since both axes' ratios are then equal.
+ */
+export function canvasDisplayScale(canvas: HTMLCanvasElement): number {
+  const box = canvas.getBoundingClientRect()
+  return Math.min(box.width / canvas.width, box.height / canvas.height)
+}
+
+/**
  * Convert a pointer event's client coordinates into `canvas`'s own pixel
  * space, accounting for however it's scaled/transformed on screen (CSS
- * size, zoom/pan transforms, etc. — `getBoundingClientRect` already reflects
- * all of that).
+ * size, zoom/pan transforms, `object-contain` letterboxing, etc. —
+ * `getBoundingClientRect` plus `canvasDisplayScale` already reflect all of
+ * that).
  */
 export function canvasPointFromEvent(
   canvas: HTMLCanvasElement,
   e: { clientX: number; clientY: number }
 ): { x: number; y: number } {
   const box = canvas.getBoundingClientRect()
+  const scale = canvasDisplayScale(canvas)
+  const offsetX = (box.width - canvas.width * scale) / 2
+  const offsetY = (box.height - canvas.height * scale) / 2
   return {
-    x: (e.clientX - box.left) * (canvas.width / box.width),
-    y: (e.clientY - box.top) * (canvas.height / box.height),
+    x: (e.clientX - box.left - offsetX) / scale,
+    y: (e.clientY - box.top - offsetY) / scale,
   }
 }
 
