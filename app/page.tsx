@@ -56,29 +56,31 @@ export default function Page() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map(({ href, icon, name, description }) => (
           <Link key={href} href={href} className="group">
-            <Card className="relative h-full overflow-hidden transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary">
+            <Card className="relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary">
               <HugeiconsIcon
                 icon={icon}
                 aria-hidden
-                className="pointer-events-none absolute -right-6 -bottom-6 size-32 rotate-12 text-foreground/5"
+                className="pointer-events-none absolute -right-6 -bottom-6 size-24 rotate-12 text-foreground/5"
               />
-              <CardHeader>
-                <div className="mb-2 flex size-14 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+              <CardHeader className="flex flex-row items-start gap-3 px-0">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
                   <HugeiconsIcon
                     icon={icon}
                     className="size-6 text-primary transition-colors group-hover:text-primary-foreground"
                     aria-hidden
                   />
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle>{name}</CardTitle>
-                  <HugeiconsIcon
-                    icon={ArrowRight01Icon}
-                    className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
-                    aria-hidden
-                  />
+                <div className="flex min-w-0 flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="mt-1">{name}</CardTitle>
+                    <HugeiconsIcon
+                      icon={ArrowRight01Icon}
+                      className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-hidden
+                    />
+                  </div>
+                  <CardDescription>{description}</CardDescription>
                 </div>
-                <CardDescription>{description}</CardDescription>
               </CardHeader>
             </Card>
           </Link>
