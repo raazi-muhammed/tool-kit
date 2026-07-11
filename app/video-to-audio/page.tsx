@@ -9,7 +9,7 @@ import {
   MusicNote01Icon,
   Video01Icon,
 } from "@hugeicons/core-free-icons"
-import { useRef, useState } from "react"
+import { useRef } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
@@ -44,6 +44,8 @@ type Job = {
   error: string | null
   source: Source | null
   result: Result | null
+  // Independent per file, like Image Converter's format.
+  format: Format
 }
 
 const STATUS_LABEL: Record<"reading" | "decoding" | "encoding", string> = {
@@ -74,12 +76,12 @@ export default function VideoToAudioPage() {
       error: null,
       source: null,
       result: null,
+      format: "mp3",
     }),
     cleanupJob: (job) => {
       if (job.result) URL.revokeObjectURL(job.result.url)
     },
   })
-  const [format, setFormat] = useState<Format>("mp3")
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const anyBusy = jobs.some((job) => isBusy(job.status))
@@ -171,18 +173,18 @@ export default function VideoToAudioPage() {
   }
 
   function convert() {
-    const fmt = format
     jobs.forEach((job) => {
-      if (job.status === "idle") void convertJob(job.id, job.file, fmt)
+      if (job.status === "idle") void convertJob(job.id, job.file, job.format)
     })
   }
 
-  function changeFormat(next: Format) {
-    if (next === format) return
-    setFormat(next)
-    jobs.forEach((job) => {
-      if (job.source) encodeJob(job.id, job.source, next)
-    })
+  // Changing a job's format only re-encodes that job (from its already
+  // decoded source, if it has one) — other queued jobs keep their own format.
+  function changeFormat(id: number, next: Format) {
+    const job = jobs.find((j) => j.id === id)
+    if (!job || next === job.format) return
+    updateJob(id, { format: next })
+    if (job.source) encodeJob(id, job.source, next)
   }
 
   function download() {
@@ -202,16 +204,6 @@ export default function VideoToAudioPage() {
     <ToolPage
       page="Video to Audio"
       icon={AudioWave01Icon}
-      segments={{
-        value: format,
-        onValueChange: (value) => changeFormat(value as Format),
-        label: "Format",
-        options: [
-          { value: "mp3", label: "MP3", icon: MusicNote01Icon },
-          { value: "wav", label: "WAV", icon: AudioWave01Icon },
-        ],
-        disabled: anyBusy,
-      }}
       onAddFile={
         jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
       }
@@ -228,6 +220,19 @@ export default function VideoToAudioPage() {
       sidebar={
         jobs.length > 0
           ? {
+              segments: activeJob
+                ? {
+                    value: activeJob.format,
+                    onValueChange: (value) =>
+                      changeFormat(activeJob.id, value as Format),
+                    label: "Format",
+                    options: [
+                      { value: "mp3", label: "MP3", icon: MusicNote01Icon },
+                      { value: "wav", label: "WAV", icon: AudioWave01Icon },
+                    ],
+                    disabled: anyBusy,
+                  }
+                : undefined,
               actions: [
                 {
                   label: "Convert",
