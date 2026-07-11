@@ -1,6 +1,7 @@
 "use client"
 
 import { HugeiconsIcon } from "@hugeicons/react"
+import type { IconSvgElement } from "@hugeicons/react"
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 
 import { formatBytes } from "@/lib/wav"
@@ -9,7 +10,10 @@ import { cn } from "@/lib/utils"
 export type JobStripItem = {
   id: number
   name: string
-  previewUrl: string
+  // An image preview (crop/blur/resize, …). Tools with no visual thumbnail
+  // to show (PDF Unlock) omit this and pass `icon` instead.
+  previewUrl?: string
+  icon?: IconSvgElement
   // Shown as the chip's second line (e.g. "1.4 MB") when present.
   file?: File
 }
@@ -55,9 +59,15 @@ export function JobStrip({
               )}
             >
               {active && <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden />}
-              <span className="size-9 shrink-0 overflow-hidden rounded bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={job.previewUrl} alt="" className="h-full w-full object-cover" />
+              <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
+                {job.previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={job.previewUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  job.icon && (
+                    <HugeiconsIcon icon={job.icon} className="size-4 text-muted-foreground" aria-hidden />
+                  )
+                )}
               </span>
               <span className="flex min-w-0 flex-col">
                 <span className="max-w-36 truncate text-sm text-foreground">{job.name}</span>

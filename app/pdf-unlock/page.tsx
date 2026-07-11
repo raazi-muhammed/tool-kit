@@ -2,15 +2,17 @@
 
 import { PDFDocument } from "@cantoo/pdf-lib"
 import {
+  AlertCircleIcon,
   CloudUploadIcon,
-  Download04Icon,
   FileUnlockedIcon,
+  Loading03Icon,
   Pdf02Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
-import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useFiles } from "@/hooks/use-files"
 import { downloadFile, downloadStagger } from "@/lib/download"
@@ -44,24 +46,25 @@ function unlockedName(name: string): string {
 }
 
 export default function PdfUnlockPage() {
-  const { jobs, addFiles, updateJob, removeJob, clear: clearQueue } = useFiles<Job>({
-    createJob: (file, id) => {
-      const valid = isPdfFile(file)
-      return {
-        id,
-        file,
-        name: file.name,
-        size: file.size,
-        validFile: valid,
-        status: valid ? "idle" : "error",
-        error: valid ? null : "This file doesn't look like a PDF.",
-        result: null,
-      }
-    },
-    cleanupJob: (job) => {
-      if (job.result) URL.revokeObjectURL(job.result.url)
-    },
-  })
+  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear: clearQueue } =
+    useFiles<Job>({
+      createJob: (file, id) => {
+        const valid = isPdfFile(file)
+        return {
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          validFile: valid,
+          status: valid ? "idle" : "error",
+          error: valid ? null : "This file doesn't look like a PDF.",
+          result: null,
+        }
+      },
+      cleanupJob: (job) => {
+        if (job.result) URL.revokeObjectURL(job.result.url)
+      },
+    })
   const [password, setPassword] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -118,10 +121,18 @@ export default function PdfUnlockPage() {
     setFormError(null)
   }
 
+  async function downloadJob(job: Job) {
+    if (job.result) downloadFile(job.result.url, job.result.name)
+  }
+
+  function download() {
+    if (activeJob) void downloadJob(activeJob)
+  }
+
   async function downloadAll() {
     for (const job of jobs) {
       if (!job.result) continue
-      downloadFile(job.result.url, job.result.name)
+      await downloadJob(job)
       await downloadStagger()
     }
   }
@@ -132,6 +143,16 @@ export default function PdfUnlockPage() {
       icon={FileUnlockedIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs.map((job) => ({ ...job, icon: Pdf02Icon }))}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
       footer={
         jobs.length > 0
           ? {
@@ -145,50 +166,65 @@ export default function PdfUnlockPage() {
                   onEnter: unlock,
                 },
               ],
-              actions: [
-                jobs.some((job) => job.result) && {
-                  label: "Download all",
-                  icon: Download04Icon,
-                  onClick: downloadAll,
-                  variant: "outline",
-                  emphasis: "secondary",
-                },
-                { label: "Unlock", icon: FileUnlockedIcon, onClick: unlock, disabled: anyBusy },
-              ],
+              actions: [{ label: "Unlock", icon: FileUnlockedIcon, onClick: unlock, disabled: anyBusy }],
+              download: {
+                onDownload: download,
+                disabled: !activeJob?.result,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.result),
+              },
             }
           : undefined
       }
     >
       <div className="flex flex-1 flex-col gap-4">
-        {jobs.map((job) => (
-          <BatchJobRow
-            key={job.id}
-            name={job.name}
-            onRemove={() => removeJob(job.id)}
-            sourceIcon={Pdf02Icon}
-            sourceDescription={formatBytes(job.size)}
-            status={
-              job.status === "unlocking"
-                ? { state: "processing", title: "Unlocking…" }
-                : job.status === "error"
-                  ? { state: "error", title: "Couldn't unlock", description: job.error }
-                  : job.result
-                    ? {
-                        state: "done",
-                        icon: FileUnlockedIcon,
-                        title: job.result.name,
-                        description: formatBytes(job.result.size),
-                        download: { url: job.result.url, name: job.result.name },
-                      }
-                    : {
-                        state: "idle",
-                        icon: FileUnlockedIcon,
-                        title: "Ready to unlock",
-                        description: "Enter the password, then hit Unlock",
-                      }
-            }
-          />
-        ))}
+        {activeJob && (
+          <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+            <PreviewCard
+              fill
+              title="Original"
+              layer={
+                activeJob.validFile
+                  ? {
+                      kind: "status",
+                      icon: Pdf02Icon,
+                      message: (
+                        <>
+                          {activeJob.name}
+                          <br />
+                          {formatBytes(activeJob.size)}
+                        </>
+                      ),
+                    }
+                  : { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+              }
+            />
+
+            <PreviewCard
+              fill
+              title="Unlocked"
+              layer={
+                activeJob.status === "unlocking"
+                  ? { kind: "status", icon: Loading03Icon, spin: true, message: "Unlocking…" }
+                  : activeJob.status === "error"
+                    ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+                    : activeJob.result
+                      ? {
+                          kind: "status",
+                          icon: FileUnlockedIcon,
+                          message: (
+                            <>
+                              {activeJob.result.name}
+                              <br />
+                              {formatBytes(activeJob.result.size)}
+                            </>
+                          ),
+                        }
+                      : { kind: "status", message: "Enter the password, then hit Unlock" }
+              }
+            />
+          </div>
+        )}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
             button) once at least one file has been added. */}
