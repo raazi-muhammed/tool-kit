@@ -1,18 +1,22 @@
 "use client"
 
 import {
+  AlertCircleIcon,
   ArrowDataTransferHorizontalIcon,
   AudioWave01Icon,
   CloudUploadIcon,
+  Loading03Icon,
   MusicNote01Icon,
   Video01Icon,
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
-import { BatchJobRow } from "@/components/batch-job-row"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { JobStrip } from "@/components/job-strip"
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useFiles } from "@/hooks/use-files"
+import { downloadFile, downloadStagger } from "@/lib/download"
 import {
   decodeAudioData,
   encodeWav,
@@ -52,7 +56,7 @@ const isBusy = (status: JobStatus) =>
   status === "reading" || status === "decoding" || status === "encoding"
 
 export default function VideoToAudioPage() {
-  const { jobs, addFiles, updateJob, removeJob, clear } = useFiles<Job>({
+  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear } = useFiles<Job>({
     createJob: (file, id) => ({
       id,
       file,
@@ -161,6 +165,18 @@ export default function VideoToAudioPage() {
     })
   }
 
+  function download() {
+    if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
+  }
+
+  async function downloadAll() {
+    for (const job of jobs) {
+      if (!job.result) continue
+      downloadFile(job.result.url, job.result.name)
+      await downloadStagger()
+    }
+  }
+
   return (
     <ToolPage
       page="Video to Audio"
@@ -177,6 +193,16 @@ export default function VideoToAudioPage() {
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
       onClear={clear}
+      fileStrip={
+        jobs.length > 0 && (
+          <JobStrip
+            jobs={jobs.map((job) => ({ ...job, icon: Video01Icon }))}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
+        )
+      }
       footer={
         jobs.length > 0
           ? {
@@ -188,44 +214,65 @@ export default function VideoToAudioPage() {
                   disabled: anyBusy || !anyIdle,
                 },
               ],
+              download: {
+                onDownload: download,
+                disabled: !activeJob?.result,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.result),
+              },
             }
           : undefined
       }
     >
       <div className="flex flex-1 flex-col gap-4">
-        {/* One row per file: source (left) and its output (right), side by side. */}
-        {jobs.map((job) => {
-          const resultIsMp3 = job.result?.name.endsWith(".mp3")
-          return (
-            <BatchJobRow
-              key={job.id}
-              name={job.name}
-              onRemove={() => removeJob(job.id)}
-              sourceIcon={Video01Icon}
-              sourceDescription={formatBytes(job.size)}
-              status={
-                isBusy(job.status)
-                  ? { state: "processing", title: STATUS_LABEL[job.status as keyof typeof STATUS_LABEL] }
-                  : job.status === "error"
-                    ? { state: "error", title: "Couldn't convert", description: job.error }
-                    : job.result
+        {activeJob && (
+          <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+            <PreviewCard
+              fill
+              title="Original"
+              layer={{
+                kind: "status",
+                icon: Video01Icon,
+                message: (
+                  <>
+                    {activeJob.name}
+                    <br />
+                    {formatBytes(activeJob.size)}
+                  </>
+                ),
+              }}
+            />
+
+            <PreviewCard
+              fill
+              title="Converted"
+              layer={
+                isBusy(activeJob.status)
+                  ? {
+                      kind: "status",
+                      icon: Loading03Icon,
+                      spin: true,
+                      message: STATUS_LABEL[activeJob.status as keyof typeof STATUS_LABEL],
+                    }
+                  : activeJob.status === "error"
+                    ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+                    : activeJob.result
                       ? {
-                          state: "done",
-                          icon: resultIsMp3 ? MusicNote01Icon : AudioWave01Icon,
-                          title: job.result.name,
-                          description: `${job.result.meta} · ${formatBytes(job.result.size)}`,
-                          download: { url: job.result.url, name: job.result.name },
+                          kind: "status",
+                          icon: activeJob.result.name.endsWith(".mp3") ? MusicNote01Icon : AudioWave01Icon,
+                          message: (
+                            <>
+                              {activeJob.result.name}
+                              <br />
+                              {activeJob.result.meta} · {formatBytes(activeJob.result.size)}
+                            </>
+                          ),
                         }
-                      : {
-                          state: "idle",
-                          icon: AudioWave01Icon,
-                          title: "Ready to convert",
-                          description: "Pick a format and hit Convert",
-                        }
+                      : { kind: "status", message: "Pick a format and hit Convert" }
               }
             />
-          )
-        })}
+          </div>
+        )}
 
         {/* Drop area — hidden (but still mounted, for the header's Add file
             button) once at least one file has been added. */}
