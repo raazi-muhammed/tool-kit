@@ -63,7 +63,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number):
 }
 
 export default function ImageConverterPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, clear } =
+  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob } =
     useFiles<Job>({
       createJob: (file, id) => {
         const valid = isImageFile(file)
@@ -204,9 +204,8 @@ export default function ImageConverterPage() {
         disabled: anyBusy,
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }

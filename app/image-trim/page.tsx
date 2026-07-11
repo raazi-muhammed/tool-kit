@@ -42,7 +42,6 @@ export default function ImageTrimPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
     setResource,
   } = useFiles<Job, HTMLCanvasElement>({
@@ -106,10 +105,6 @@ export default function ImageTrimPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  function clear() {
-    clearQueue()
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -184,9 +179,8 @@ export default function ImageTrimPage() {
       page="Image Trim"
       icon={ScissorRectangleIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }

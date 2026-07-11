@@ -104,7 +104,7 @@ export function PreviewCard({
   }
 
   const card = (
-    <Card className={cn("w-full overflow-hidden p-2 border-2", fill && "flex min-h-0 flex-1 flex-col")}>
+    <Card className={cn("w-full overflow-hidden p-2 ring-0", fill && "flex min-h-0 flex-1 flex-col")}>
       <div
         ref={viewportRef}
         className={cn(

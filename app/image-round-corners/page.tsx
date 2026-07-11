@@ -35,7 +35,6 @@ export default function ImageRoundCornersPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -100,11 +99,6 @@ export default function ImageRoundCornersPage() {
     if (activeCanvas) renderDisplay(activeCanvas)
   }, [radiusPercent, bgColor, jobs.length])
 
-  function clear() {
-    clearQueue()
-    setRadiusPercent(6)
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -140,9 +134,8 @@ export default function ImageRoundCornersPage() {
       page="Image Round Corners"
       icon={SquareRoundCornerIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }

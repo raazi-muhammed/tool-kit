@@ -34,7 +34,6 @@ export default function SquareImageGeneratorPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -137,11 +136,6 @@ export default function SquareImageGeneratorPage() {
     if (activeCanvas) renderDisplay(activeCanvas)
   }, [parsedSize, sizeError, bgColor, jobs.length])
 
-  function clear() {
-    clearQueue()
-    setSize("")
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -177,9 +171,8 @@ export default function SquareImageGeneratorPage() {
       page="Square Image Generator"
       icon={SquareIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }

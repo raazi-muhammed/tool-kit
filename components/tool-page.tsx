@@ -3,8 +3,8 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
+  Add01Icon,
   ArrowDown01Icon,
-  CloudUploadIcon,
   Copy01Icon,
   Download04Icon,
   Eraser01Icon,
@@ -201,7 +201,7 @@ export function ToolPage({
   const sidebarSegments = segments && segments.placement !== "inline" ? segments : undefined
 
   const hasHeaderRow = !!(actions || onCopy || onLoadSample || onClear)
-  const hasBottomBar = !!(footer?.zoom || fileStrip || onAddFile)
+  const hasBottomBar = !!(fileStrip || onAddFile)
   const hasSidebar = !!(sidebarSegments || footer)
 
   const allActions = (footer?.actions ?? []).filter((action): action is FooterAction => !!action)
@@ -258,44 +258,11 @@ export function ToolPage({
 
         {hasBottomBar && (
           <div className="flex min-h-11 items-center gap-4">
-            {footer?.zoom && (
-              <div className="flex items-center gap-1">
-                <IconTooltip label="Zoom out">
-                  <Button
-                    variant="ghost"
-                    onClick={footer.zoom.onZoomOut}
-                    disabled={footer.zoom.zoomOutDisabled}
-                    aria-label="Zoom out"
-                  >
-                    <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-                  </Button>
-                </IconTooltip>
-                <span className="w-12 text-center text-sm text-muted-foreground">
-                  {footer.zoom.percent}%
-                </span>
-                <IconTooltip label="Zoom in">
-                  <Button
-                    variant="ghost"
-                    onClick={footer.zoom.onZoomIn}
-                    disabled={footer.zoom.zoomInDisabled}
-                    aria-label="Zoom in"
-                  >
-                    <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-                  </Button>
-                </IconTooltip>
-                <IconTooltip label="Fit to screen">
-                  <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
-                    <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-                  </Button>
-                </IconTooltip>
-              </div>
-            )}
-
             {fileStrip && <div className="min-w-0 flex-1">{fileStrip}</div>}
 
             {onAddFile && (
               <Button variant="secondary" onClick={onAddFile} className="ml-auto">
-                <HugeiconsIcon icon={CloudUploadIcon} aria-hidden />
+                <HugeiconsIcon icon={Add01Icon} aria-hidden />
                 Add file
               </Button>
             )}
@@ -306,6 +273,46 @@ export function ToolPage({
       {hasSidebar && (
         <div className="flex w-80 shrink-0 flex-col border-l bg-card">
           <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+            {footer?.zoom && (
+              <div className="flex flex-col gap-3">
+                <SidebarLabel>Zoom</SidebarLabel>
+                <div className="flex w-full items-center gap-2">
+                  <div className="flex flex-1 items-center justify-between rounded-lg bg-muted">
+                    <IconTooltip label="Zoom out">
+                      <Button
+                        variant="ghost"
+                        onClick={footer.zoom.onZoomOut}
+                        disabled={footer.zoom.zoomOutDisabled}
+                        aria-label="Zoom out"
+                      >
+                        <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                      </Button>
+                    </IconTooltip>
+                    <span className="text-center text-sm text-muted-foreground">
+                      {footer.zoom.percent}%
+                    </span>
+                    <IconTooltip label="Zoom in">
+                      <Button
+                        variant="ghost"
+                        onClick={footer.zoom.onZoomIn}
+                        disabled={footer.zoom.zoomInDisabled}
+                        aria-label="Zoom in"
+                      >
+                        <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                      </Button>
+                    </IconTooltip>
+                  </div>
+                  <div className="shrink-0 rounded-lg bg-muted">
+                    <IconTooltip label="Fit to screen">
+                      <Button variant="ghost" onClick={footer.zoom.onFit} aria-label="Fit to screen">
+                        <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                      </Button>
+                    </IconTooltip>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {sidebarSegments && (
               <div className="flex flex-col gap-3">
                 {sidebarSegments.label && <SidebarLabel>{sidebarSegments.label}</SidebarLabel>}

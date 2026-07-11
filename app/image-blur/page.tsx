@@ -58,7 +58,6 @@ export default function ImageBlurPage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
     setResource,
   } = useFiles<Job, HTMLCanvasElement>({
@@ -196,14 +195,6 @@ export default function ImageBlurPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  function clear() {
-    clearQueue()
-    setError(null)
-    rectsRef.current = []
-    setRects([])
-    clearSelection()
-  }
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -298,9 +289,8 @@ export default function ImageBlurPage() {
         ],
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }

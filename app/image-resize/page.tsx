@@ -34,7 +34,6 @@ export default function ImageResizePage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -60,7 +59,7 @@ export default function ImageResizePage() {
   const referenceOriginal = activeOriginal
     ? { width: activeOriginal.width, height: activeOriginal.height }
     : null
-  const { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed, reset } =
+  const { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed } =
     useLockedSize(referenceOriginal)
 
   function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
@@ -88,12 +87,6 @@ export default function ImageResizePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  function clear() {
-    clearQueue()
-    reset()
-    setFormError(null)
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -161,9 +154,8 @@ export default function ImageResizePage() {
       page="Image Resize"
       icon={Resize02Icon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }

@@ -55,7 +55,6 @@ export default function ImageScanPage() {
     activeJob,
     addFiles: addFilesToQueue,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -169,15 +168,6 @@ export default function ImageScanPage() {
   // doesn't re-filter the whole image on every tick, only once it settles.
   useDebouncedEffect(renderResult, [filter, bwThreshold], 200)
 
-  function clear() {
-    clearQueue()
-    scanResultsRef.current.clear()
-    setScannedIds(new Set())
-    setError(null)
-    setProcessingId(null)
-    setFilter("original")
-    setBwThreshold(160)
-  }
 
   function removeJobAndScan(id: number) {
     scanResultsRef.current.delete(id)
@@ -314,9 +304,8 @@ export default function ImageScanPage() {
         disabled: anyProcessing,
       }}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJobAndScan} />
         )
       }

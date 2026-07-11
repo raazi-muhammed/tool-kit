@@ -27,7 +27,7 @@ import { ToolPage } from "@/components/tool-page"
 ```
 
 `ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
-and a bottom bar for zoom controls/file strip/Add file), and — only once there's
+and a bottom bar for the file strip/Add file), and — only once there's
 something to put in it — a fixed-width right sidebar for settings, stacked
 top to bottom, with the primary action button(s) and Download pinned to its
 bottom edge. See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
@@ -71,9 +71,8 @@ the dropzone. See `app/video-to-audio/page.tsx` and `app/image-converter/page.ts
 
 For a tool's settings — zoom controls, a strength/setting slider, the primary
 action button(s), and the Download button — pass the `footer` prop instead of
-hand-rolling them inside `children`. `zoom` still renders in the main column's
-bottom bar (it's about navigating the preview, not a setting); everything else
-in `footer` renders in the sidebar. Like `segments`, `footer` takes a config
+hand-rolling them inside `children`. All of `footer` renders in the sidebar,
+`zoom` included. Like `segments`, `footer` takes a config
 object, not JSX, so `ToolPage` renders the controls (and their icons) itself:
 
 ```tsx
@@ -179,11 +178,11 @@ toggle button computed from page state, like Image Resize's aspect-ratio
 lock, marked `emphasis: "secondary"`) unless the control is genuinely reusable
 across tools.
 
-For a tool that queues multiple files (crop, blur, …), pass the same
-`<JobStrip .../>` element you'd have rendered inline above `PreviewCard` via
-`ToolPage`'s `fileStrip` prop instead — `ToolPage` renders it in the main
-column's bottom bar, next to zoom controls and the "Add file" button, rather
-than stacking it as its own row above the preview.
+For a tool that queues files (crop, blur, …), pass the same `<JobStrip .../>`
+element you'd have rendered inline above `PreviewCard` via `ToolPage`'s
+`fileStrip` prop instead — `ToolPage` renders it in the main column's bottom
+bar, next to the "Add file" button, rather than stacking it as its own row
+above the preview.
 
 ## Live vs explicit apply
 

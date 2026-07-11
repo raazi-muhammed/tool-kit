@@ -42,7 +42,6 @@ export default function ImageRotatePage() {
     addFiles: addFilesToQueue,
     updateJob,
     removeJob,
-    clear: clearQueue,
     getResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
@@ -84,10 +83,6 @@ export default function ImageRotatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-  function clear() {
-    clearQueue()
-    setError(null)
-  }
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -141,9 +136,8 @@ export default function ImageRotatePage() {
       page="Image Rotate"
       icon={ImageRotationClockwiseIcon}
       onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
-      onClear={clear}
       fileStrip={
-        jobs.length > 1 && (
+        jobs.length > 0 && (
           <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
         )
       }
