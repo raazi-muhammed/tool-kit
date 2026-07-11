@@ -35,7 +35,10 @@ type PreviewCardBaseProps = {
 
 // One canvas to render inside the viewport — a ref plus any extra canvas
 // props (event handlers, className, …).
-type PreviewCanvasLayer = { kind?: "canvas"; ref: Ref<HTMLCanvasElement> } & ComponentPropsWithoutRef<"canvas">
+type PreviewCanvasLayer = {
+  kind?: "canvas"
+  ref: Ref<HTMLCanvasElement>
+} & ComponentPropsWithoutRef<"canvas">
 // Or a plain <img> layer, e.g. a converted result that's already a decoded
 // blob URL and doesn't need a canvas draw at all.
 type PreviewImageLayer = { kind: "image" } & ComponentPropsWithoutRef<"img">
@@ -49,7 +52,8 @@ type PreviewStatusLayer = {
   message?: ReactNode
 }
 
-export type PreviewLayer = PreviewCanvasLayer | PreviewImageLayer | PreviewStatusLayer
+export type PreviewLayer =
+  PreviewCanvasLayer | PreviewImageLayer | PreviewStatusLayer
 // A layer, or nothing to render this pass — e.g. `activeJob.result && {...}`.
 type PreviewLayerInput = PreviewLayer | false | null | undefined
 
@@ -60,7 +64,7 @@ type PreviewCardProps = PreviewCardBaseProps & {
    * that stack on top of each other, positioned/sized identically so they
    * line up (e.g. a base image canvas plus a separate selection-overlay
    * canvas). Either form may be falsy — same convention as `ToolPage`'s
-   * `footer.actions` — so a tool can inline its own loading/error/idle
+   * `sidebar.actions` — so a tool can inline its own loading/error/idle
    * state as `condition ? {...} : {...}` right alongside the real layer
    * instead of reaching for `children`.
    */
@@ -104,7 +108,12 @@ export function PreviewCard({
   }
 
   const card = (
-    <Card className={cn("w-full overflow-hidden p-2 ring-0", fill && "flex min-h-0 flex-1 flex-col")}>
+    <Card
+      className={cn(
+        "w-full overflow-hidden p-2 ring-0",
+        fill && "flex min-h-0 flex-1 flex-col"
+      )}
+    >
       <div
         ref={viewportRef}
         className={cn(
@@ -123,7 +132,9 @@ export function PreviewCard({
                     key={index}
                     className={cn(
                       "flex flex-col items-center gap-2 px-6 text-center",
-                      entry.tone === "destructive" ? "text-destructive" : "text-muted-foreground"
+                      entry.tone === "destructive"
+                        ? "text-destructive"
+                        : "text-muted-foreground"
                     )}
                   >
                     {entry.icon && (
@@ -133,7 +144,9 @@ export function PreviewCard({
                         aria-hidden
                       />
                     )}
-                    {entry.message && <p className="text-sm">{entry.message}</p>}
+                    {entry.message && (
+                      <p className="text-sm">{entry.message}</p>
+                    )}
                   </div>
                 )
               }

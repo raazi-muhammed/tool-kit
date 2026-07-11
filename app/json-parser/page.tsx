@@ -76,7 +76,7 @@ export default function JsonParserPage() {
           { value: "viewer", label: "Viewer", icon: EyeIcon },
         ],
       }}
-      footer={{
+      sidebar={{
         hint: raw.trim()
           ? parsed.error
             ? "Invalid JSON"
@@ -85,9 +85,20 @@ export default function JsonParserPage() {
               : undefined
           : undefined,
         actions: [
-          { label: "Clear", icon: Eraser01Icon, onClick: clear, variant: "ghost", emphasis: "secondary" },
+          {
+            label: "Clear",
+            icon: Eraser01Icon,
+            onClick: clear,
+            variant: "ghost",
+            emphasis: "secondary",
+          },
           { label: "Format", icon: TextIndentIcon, onClick: format },
-          { label: "Minify", icon: ArrowShrink02Icon, onClick: minify, variant: "secondary" },
+          {
+            label: "Minify",
+            icon: ArrowShrink02Icon,
+            onClick: minify,
+            variant: "secondary",
+          },
         ],
       }}
     >

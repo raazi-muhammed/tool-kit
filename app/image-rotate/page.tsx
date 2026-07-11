@@ -83,7 +83,6 @@ export default function ImageRotatePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -135,13 +134,20 @@ export default function ImageRotatePage() {
     <ToolPage
       page="Image Rotate"
       icon={ImageRotationClockwiseIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               actions: [

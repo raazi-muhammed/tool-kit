@@ -54,38 +54,52 @@ function isImageFile(file: File): boolean {
   return /\.(jpe?g|png|webp|gif|bmp|svg|ico|avif|tiff?)$/i.test(file.name)
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality: number): Promise<Blob> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mime: string,
+  quality: number
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Encoding produced no data."))),
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error("Encoding produced no data.")),
       mime,
-      quality,
+      quality
     )
   })
 }
 
 export default function ImageConverterPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob } =
-    useFiles<Job>({
-      createJob: (file, id) => {
-        const valid = isImageFile(file)
-        return {
-          id,
-          file,
-          name: file.name,
-          size: file.size,
-          previewUrl: valid ? URL.createObjectURL(file) : "",
-          status: valid ? "idle" : "error",
-          error: valid ? null : "This file doesn't look like a recognised image format.",
-          result: null,
-          format: "png",
-        }
-      },
-      cleanupJob: (job) => {
-        if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
-        if (job.result) URL.revokeObjectURL(job.result.url)
-      },
-    })
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles,
+    updateJob,
+    removeJob,
+  } = useFiles<Job>({
+    createJob: (file, id) => {
+      const valid = isImageFile(file)
+      return {
+        id,
+        file,
+        name: file.name,
+        size: file.size,
+        previewUrl: valid ? URL.createObjectURL(file) : "",
+        status: valid ? "idle" : "error",
+        error: valid
+          ? null
+          : "This file doesn't look like a recognised image format.",
+        result: null,
+        format: "png",
+      }
+    },
+    cleanupJob: (job) => {
+      if (job.previewUrl) URL.revokeObjectURL(job.previewUrl)
+      if (job.result) URL.revokeObjectURL(job.result.url)
+    },
+  })
   const [quality, setQuality] = useState(92)
   // Fill for transparent PNGs; null keeps transparency (where the target
   // format supports it — JPEG/BMP fall back to the browser's own default).
@@ -99,7 +113,8 @@ export default function ImageConverterPage() {
 
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
-  const supportsAlpha = activeJob?.format === "png" || activeJob?.format === "webp"
+  const supportsAlpha =
+    activeJob?.format === "png" || activeJob?.format === "webp"
 
   async function convertJob(
     job: Job,
@@ -116,7 +131,8 @@ export default function ImageConverterPage() {
     if (fmt === "webp" && !supportsWebp()) {
       updateJob(job.id, {
         status: "error",
-        error: "Your browser does not support WebP output. Try Chrome or use PNG instead.",
+        error:
+          "Your browser does not support WebP output. Try Chrome or use PNG instead.",
       })
       return
     }
@@ -127,7 +143,8 @@ export default function ImageConverterPage() {
       const img = new Image()
       const loaded = new Promise<void>((resolve, reject) => {
         img.onload = () => resolve()
-        img.onerror = () => reject(new Error("This file couldn't be decoded as an image."))
+        img.onerror = () =>
+          reject(new Error("This file couldn't be decoded as an image."))
       })
       img.src = job.previewUrl
       await loaded
@@ -155,12 +172,19 @@ export default function ImageConverterPage() {
       updateJob(job.id, (j) => {
         if (j.result) URL.revokeObjectURL(j.result.url)
         const url = URL.createObjectURL(blob)
-        return { status: "done", error: null, result: { url, name, size: blob.size } }
+        return {
+          status: "done",
+          error: null,
+          result: { url, name, size: blob.size },
+        }
       })
     } catch (err) {
       updateJob(job.id, {
         status: "error",
-        error: err instanceof Error ? err.message : "Something went wrong while converting the image.",
+        error:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong while converting the image.",
       })
     }
   }
@@ -181,12 +205,19 @@ export default function ImageConverterPage() {
     if (jobs.length === 0) return
     jobs.forEach((job) => {
       if (job.status !== "converting")
-        void convertJob(job, { quality, bgColor, removeBg, keyColor, tolerance })
+        void convertJob(job, {
+          quality,
+          bgColor,
+          removeBg,
+          keyColor,
+          tolerance,
+        })
     })
   }, [formatsKey, quality, bgColor, removeBg, keyColor, tolerance])
 
   function downloadActive() {
-    if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
+    if (activeJob?.result)
+      downloadFile(activeJob.result.url, activeJob.result.name)
   }
 
   async function downloadAll() {
@@ -201,19 +232,27 @@ export default function ImageConverterPage() {
     <ToolPage
       page="Image Converter"
       icon={Image01Icon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         jobs.length > 0
           ? {
               segments: activeJob
                 ? {
                     value: activeJob.format,
-                    onValueChange: (value) => updateJob(activeJob.id, { format: value as Format }),
+                    onValueChange: (value) =>
+                      updateJob(activeJob.id, { format: value as Format }),
                     label: "Format",
                     options: [
                       { value: "png", label: "PNG", icon: Image01Icon },
@@ -295,7 +334,11 @@ export default function ImageConverterPage() {
                         alt: activeJob.name,
                         className: "relative max-h-full max-w-full",
                       }
-                    : { kind: "status", icon: AlertCircleIcon, message: activeJob.error }
+                    : {
+                        kind: "status",
+                        icon: AlertCircleIcon,
+                        message: activeJob.error,
+                      }
                 }
               />
 
@@ -314,8 +357,16 @@ export default function ImageConverterPage() {
                     : activeJob.status === "converting"
                       ? { kind: "status", icon: Loading03Icon, spin: true }
                       : activeJob.status === "error"
-                        ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
-                        : { kind: "status", message: "Pick a format to convert it" }
+                        ? {
+                            kind: "status",
+                            icon: AlertCircleIcon,
+                            tone: "destructive",
+                            message: activeJob.error,
+                          }
+                        : {
+                            kind: "status",
+                            message: "Pick a format to convert it",
+                          }
                 }
               />
             </div>

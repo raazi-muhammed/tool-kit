@@ -150,10 +150,11 @@ export default function ImageBlurPage() {
     }
   }
 
-  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } = useZoomPan({
-    canvasRef: displayCanvasRef,
-    getBaseSize: () => getResource(),
-  })
+  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } =
+    useZoomPan({
+      canvasRef: displayCanvasRef,
+      getBaseSize: () => getResource(),
+    })
 
   function renderDisplay(
     rect?: Rect,
@@ -288,13 +289,20 @@ export default function ImageBlurPage() {
           { value: "gaussian", label: "Gaussian", icon: BlurIcon },
         ],
       }}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               zoom: {
@@ -330,7 +338,9 @@ export default function ImageBlurPage() {
                 },
                 {
                   label:
-                    totalRects > 1 ? `Apply blur (${totalRects})` : "Apply blur",
+                    totalRects > 1
+                      ? `Apply blur (${totalRects})`
+                      : "Apply blur",
                   icon: BlurIcon,
                   onClick: applyBlur,
                   disabled: totalRects === 0,

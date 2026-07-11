@@ -56,7 +56,15 @@ const isBusy = (status: JobStatus) =>
   status === "reading" || status === "decoding" || status === "encoding"
 
 export default function VideoToAudioPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob, } = useFiles<Job>({
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles,
+    updateJob,
+    removeJob,
+  } = useFiles<Job>({
     createJob: (file, id) => ({
       id,
       file,
@@ -89,16 +97,25 @@ export default function VideoToAudioPage() {
             ? encodeMp3(source.samples, source.sampleRate, MP3_KBPS)
             : encodeWav(source.samples, source.sampleRate)
       } catch {
-        updateJob(id, { status: "error", error: "Something went wrong while encoding the audio." })
+        updateJob(id, {
+          status: "error",
+          error: "Something went wrong while encoding the audio.",
+        })
         return
       }
       const name = replaceExtension(source.baseName, fmt)
       const meta =
-        fmt === "mp3" ? `MP3 · ${MP3_KBPS} kbps · mono` : "WAV · 16-bit PCM · mono"
+        fmt === "mp3"
+          ? `MP3 · ${MP3_KBPS} kbps · mono`
+          : "WAV · 16-bit PCM · mono"
       updateJob(id, (job) => {
         if (job.result) URL.revokeObjectURL(job.result.url)
         const url = URL.createObjectURL(blob)
-        return { status: "done", error: null, result: { url, name, size: blob.size, meta } }
+        return {
+          status: "done",
+          error: null,
+          result: { url, name, size: blob.size, meta },
+        }
       })
     }, 0)
   }
@@ -125,7 +142,7 @@ export default function VideoToAudioPage() {
         audioBuffer = await decodeAudioData(ctx, arrayBuffer)
       } catch {
         throw new Error(
-          "This file has no audio track, or its format isn't supported by your browser.",
+          "This file has no audio track, or its format isn't supported by your browser."
         )
       }
 
@@ -143,7 +160,10 @@ export default function VideoToAudioPage() {
     } catch (err) {
       updateJob(id, {
         status: "error",
-        error: err instanceof Error ? err.message : "Something went wrong while converting the file.",
+        error:
+          err instanceof Error
+            ? err.message
+            : "Something went wrong while converting the file.",
       })
     } finally {
       void ctx.close()
@@ -166,7 +186,8 @@ export default function VideoToAudioPage() {
   }
 
   function download() {
-    if (activeJob?.result) downloadFile(activeJob.result.url, activeJob.result.name)
+    if (activeJob?.result)
+      downloadFile(activeJob.result.url, activeJob.result.name)
   }
 
   async function downloadAll() {
@@ -191,7 +212,9 @@ export default function VideoToAudioPage() {
         ],
         disabled: anyBusy,
       }}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
           <JobStrip
@@ -202,24 +225,24 @@ export default function VideoToAudioPage() {
           />
         )
       }
-      footer={
+      sidebar={
         jobs.length > 0
           ? {
-            actions: [
-              {
-                label: "Convert",
-                icon: ArrowDataTransferHorizontalIcon,
-                onClick: convert,
-                disabled: anyBusy || !anyIdle,
+              actions: [
+                {
+                  label: "Convert",
+                  icon: ArrowDataTransferHorizontalIcon,
+                  onClick: convert,
+                  disabled: anyBusy || !anyIdle,
+                },
+              ],
+              download: {
+                onDownload: download,
+                disabled: !activeJob?.result,
+                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                downloadAllDisabled: !jobs.some((job) => job.result),
               },
-            ],
-            download: {
-              onDownload: download,
-              disabled: !activeJob?.result,
-              onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-              downloadAllDisabled: !jobs.some((job) => job.result),
-            },
-          }
+            }
           : undefined
       }
     >
@@ -248,26 +271,40 @@ export default function VideoToAudioPage() {
               layer={
                 isBusy(activeJob.status)
                   ? {
-                    kind: "status",
-                    icon: Loading03Icon,
-                    spin: true,
-                    message: STATUS_LABEL[activeJob.status as keyof typeof STATUS_LABEL],
-                  }
+                      kind: "status",
+                      icon: Loading03Icon,
+                      spin: true,
+                      message:
+                        STATUS_LABEL[
+                          activeJob.status as keyof typeof STATUS_LABEL
+                        ],
+                    }
                   : activeJob.status === "error"
-                    ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+                    ? {
+                        kind: "status",
+                        icon: AlertCircleIcon,
+                        tone: "destructive",
+                        message: activeJob.error,
+                      }
                     : activeJob.result
                       ? {
-                        kind: "status",
-                        icon: activeJob.result.name.endsWith(".mp3") ? MusicNote01Icon : AudioWave01Icon,
-                        message: (
-                          <>
-                            {activeJob.result.name}
-                            <br />
-                            {activeJob.result.meta} · {formatBytes(activeJob.result.size)}
-                          </>
-                        ),
-                      }
-                      : { kind: "status", message: "Pick a format and hit Convert" }
+                          kind: "status",
+                          icon: activeJob.result.name.endsWith(".mp3")
+                            ? MusicNote01Icon
+                            : AudioWave01Icon,
+                          message: (
+                            <>
+                              {activeJob.result.name}
+                              <br />
+                              {activeJob.result.meta} ·{" "}
+                              {formatBytes(activeJob.result.size)}
+                            </>
+                          ),
+                        }
+                      : {
+                          kind: "status",
+                          message: "Pick a format and hit Convert",
+                        }
               }
             />
           </div>

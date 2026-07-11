@@ -1,6 +1,11 @@
 "use client"
 
-import { Cancel01Icon, CloudUploadIcon, LinkIcon, Png01Icon } from "@hugeicons/core-free-icons"
+import {
+  Cancel01Icon,
+  CloudUploadIcon,
+  LinkIcon,
+  Png01Icon,
+} from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
@@ -67,16 +72,30 @@ export default function SvgToPngPage() {
   // reference.
   const activeResource = activeJob ? getResource(activeJob.id) : undefined
   const referenceOriginal = activeResource
-    ? { width: activeResource.naturalWidth, height: activeResource.naturalHeight }
+    ? {
+        width: activeResource.naturalWidth,
+        height: activeResource.naturalHeight,
+      }
     : null
-  const { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed } =
-    useLockedSize(referenceOriginal)
+  const {
+    width,
+    height,
+    lockAspect,
+    onWidthChange,
+    onHeightChange,
+    toggleLockAspect,
+    seed,
+  } = useLockedSize(referenceOriginal)
 
-  function paintConverted(source: HTMLCanvasElement | HTMLImageElement | undefined) {
+  function paintConverted(
+    source: HTMLCanvasElement | HTMLImageElement | undefined
+  ) {
     const canvas = convertedCanvasRef.current
     if (!source || !canvas) return
-    const w = source instanceof HTMLImageElement ? source.naturalWidth : source.width
-    const h = source instanceof HTMLImageElement ? source.naturalHeight : source.height
+    const w =
+      source instanceof HTMLImageElement ? source.naturalWidth : source.width
+    const h =
+      source instanceof HTMLImageElement ? source.naturalHeight : source.height
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w
       canvas.height = h
@@ -98,7 +117,6 @@ export default function SvgToPngPage() {
     seed()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
-
 
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
@@ -143,7 +161,9 @@ export default function SvgToPngPage() {
     jobs.forEach((job) => {
       const canvas = convertJob(job, targetWidth, targetHeight, bgColor)
       if (!canvas) return
-      updateJob(job.id, { result: { canvas, width: targetWidth, height: targetHeight } })
+      updateJob(job.id, {
+        result: { canvas, width: targetWidth, height: targetHeight },
+      })
       if (job.id === activeId) activeCanvas = canvas
     })
     if (activeCanvas) paintConverted(activeCanvas)
@@ -171,13 +191,20 @@ export default function SvgToPngPage() {
     <ToolPage
       page="SVG to PNG"
       icon={Png01Icon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               color: {
@@ -190,12 +217,26 @@ export default function SvgToPngPage() {
                 clearIcon: Cancel01Icon,
               },
               inputs: [
-                { label: "Width", type: "number", min: 1, value: width, onChange: onWidthChange },
-                { label: "Height", type: "number", min: 1, value: height, onChange: onHeightChange },
+                {
+                  label: "Width",
+                  type: "number",
+                  min: 1,
+                  value: width,
+                  onChange: onWidthChange,
+                },
+                {
+                  label: "Height",
+                  type: "number",
+                  min: 1,
+                  value: height,
+                  onChange: onHeightChange,
+                },
               ],
               actions: [
                 {
-                  label: lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio",
+                  label: lockAspect
+                    ? "Unlock aspect ratio"
+                    : "Lock aspect ratio",
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
@@ -241,7 +282,10 @@ export default function SvgToPngPage() {
                 fill
                 checkerboard
                 title="Converted"
-                layer={{ ref: convertedCanvasRef, className: "h-full w-full object-contain" }}
+                layer={{
+                  ref: convertedCanvasRef,
+                  className: "h-full w-full object-contain",
+                }}
               />
             </div>
           </div>

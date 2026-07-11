@@ -1,6 +1,10 @@
 "use client"
 
-import { CloudUploadIcon, LinkIcon, Resize02Icon } from "@hugeicons/core-free-icons"
+import {
+  CloudUploadIcon,
+  LinkIcon,
+  Resize02Icon,
+} from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
@@ -59,10 +63,20 @@ export default function ImageResizePage() {
   const referenceOriginal = activeOriginal
     ? { width: activeOriginal.width, height: activeOriginal.height }
     : null
-  const { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed } =
-    useLockedSize(referenceOriginal)
+  const {
+    width,
+    height,
+    lockAspect,
+    onWidthChange,
+    onHeightChange,
+    toggleLockAspect,
+    seed,
+  } = useLockedSize(referenceOriginal)
 
-  function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
+  function renderDisplay(
+    source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ??
+      getResource()
+  ) {
     const display = displayCanvasRef.current
     if (!source || !display) return
     if (display.width !== source.width || display.height !== source.height) {
@@ -87,7 +101,6 @@ export default function ImageResizePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -97,7 +110,11 @@ export default function ImageResizePage() {
     )
   }
 
-  function resizeJob(job: Job, targetWidth: number, targetHeight: number): HTMLCanvasElement | null {
+  function resizeJob(
+    job: Job,
+    targetWidth: number,
+    targetHeight: number
+  ): HTMLCanvasElement | null {
     const base = getResource(job.id)
     if (!base) return null
     const canvas = document.createElement("canvas")
@@ -124,7 +141,9 @@ export default function ImageResizePage() {
     jobs.forEach((job) => {
       const canvas = resizeJob(job, targetWidth, targetHeight)
       if (!canvas) return
-      updateJob(job.id, { result: { canvas, width: targetWidth, height: targetHeight } })
+      updateJob(job.id, {
+        result: { canvas, width: targetWidth, height: targetHeight },
+      })
       if (job.id === activeId) activeCanvas = canvas
     })
     if (activeCanvas) renderDisplay(activeCanvas)
@@ -153,22 +172,43 @@ export default function ImageResizePage() {
     <ToolPage
       page="Image Resize"
       icon={Resize02Icon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               inputs: [
-                { label: "Width", type: "number", min: 1, value: width, onChange: onWidthChange },
-                { label: "Height", type: "number", min: 1, value: height, onChange: onHeightChange },
+                {
+                  label: "Width",
+                  type: "number",
+                  min: 1,
+                  value: width,
+                  onChange: onWidthChange,
+                },
+                {
+                  label: "Height",
+                  type: "number",
+                  min: 1,
+                  value: height,
+                  onChange: onHeightChange,
+                },
               ],
               actions: [
                 {
-                  label: lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio",
+                  label: lockAspect
+                    ? "Unlock aspect ratio"
+                    : "Lock aspect ratio",
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",

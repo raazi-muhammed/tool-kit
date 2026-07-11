@@ -245,13 +245,20 @@ export default function ImageCropPage() {
           { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
         ],
       }}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               color: isPng
@@ -302,7 +309,11 @@ export default function ImageCropPage() {
           <div className="flex flex-col gap-4">
             <PreviewCard
               checkerboard
-              layer={{ ref: displayCanvasRef, ...selectionHandlers, className: "cursor-crosshair touch-none" }}
+              layer={{
+                ref: displayCanvasRef,
+                ...selectionHandlers,
+                className: "cursor-crosshair touch-none",
+              }}
             />
           </div>
         )}

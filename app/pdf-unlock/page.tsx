@@ -46,25 +46,32 @@ function unlockedName(name: string): string {
 }
 
 export default function PdfUnlockPage() {
-  const { jobs, activeId, setActiveId, activeJob, addFiles, updateJob, removeJob } =
-    useFiles<Job>({
-      createJob: (file, id) => {
-        const valid = isPdfFile(file)
-        return {
-          id,
-          file,
-          name: file.name,
-          size: file.size,
-          validFile: valid,
-          status: valid ? "idle" : "error",
-          error: valid ? null : "This file doesn't look like a PDF.",
-          result: null,
-        }
-      },
-      cleanupJob: (job) => {
-        if (job.result) URL.revokeObjectURL(job.result.url)
-      },
-    })
+  const {
+    jobs,
+    activeId,
+    setActiveId,
+    activeJob,
+    addFiles,
+    updateJob,
+    removeJob,
+  } = useFiles<Job>({
+    createJob: (file, id) => {
+      const valid = isPdfFile(file)
+      return {
+        id,
+        file,
+        name: file.name,
+        size: file.size,
+        validFile: valid,
+        status: valid ? "idle" : "error",
+        error: valid ? null : "This file doesn't look like a PDF.",
+        result: null,
+      }
+    },
+    cleanupJob: (job) => {
+      if (job.result) URL.revokeObjectURL(job.result.url)
+    },
+  })
   const [password, setPassword] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -111,7 +118,8 @@ export default function PdfUnlockPage() {
     }
     setFormError(null)
     jobs.forEach((job) => {
-      if (job.validFile && job.status !== "unlocking") void unlockJob(job, password)
+      if (job.validFile && job.status !== "unlocking")
+        void unlockJob(job, password)
     })
   }
 
@@ -135,7 +143,9 @@ export default function PdfUnlockPage() {
     <ToolPage
       page="PDF Unlock"
       icon={FileUnlockedIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
           <JobStrip
@@ -146,7 +156,7 @@ export default function PdfUnlockPage() {
           />
         )
       }
-      footer={
+      sidebar={
         jobs.length > 0
           ? {
               inputs: [
@@ -159,7 +169,14 @@ export default function PdfUnlockPage() {
                   onEnter: unlock,
                 },
               ],
-              actions: [{ label: "Unlock", icon: FileUnlockedIcon, onClick: unlock, disabled: anyBusy }],
+              actions: [
+                {
+                  label: "Unlock",
+                  icon: FileUnlockedIcon,
+                  onClick: unlock,
+                  disabled: anyBusy,
+                },
+              ],
               download: {
                 onDownload: download,
                 disabled: !activeJob?.result,
@@ -189,7 +206,12 @@ export default function PdfUnlockPage() {
                         </>
                       ),
                     }
-                  : { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+                  : {
+                      kind: "status",
+                      icon: AlertCircleIcon,
+                      tone: "destructive",
+                      message: activeJob.error,
+                    }
               }
             />
 
@@ -198,9 +220,19 @@ export default function PdfUnlockPage() {
               title="Unlocked"
               layer={
                 activeJob.status === "unlocking"
-                  ? { kind: "status", icon: Loading03Icon, spin: true, message: "Unlocking…" }
+                  ? {
+                      kind: "status",
+                      icon: Loading03Icon,
+                      spin: true,
+                      message: "Unlocking…",
+                    }
                   : activeJob.status === "error"
-                    ? { kind: "status", icon: AlertCircleIcon, tone: "destructive", message: activeJob.error }
+                    ? {
+                        kind: "status",
+                        icon: AlertCircleIcon,
+                        tone: "destructive",
+                        message: activeJob.error,
+                      }
                     : activeJob.result
                       ? {
                           kind: "status",
@@ -213,7 +245,10 @@ export default function PdfUnlockPage() {
                             </>
                           ),
                         }
-                      : { kind: "status", message: "Enter the password, then hit Unlock" }
+                      : {
+                          kind: "status",
+                          message: "Enter the password, then hit Unlock",
+                        }
               }
             />
           </div>

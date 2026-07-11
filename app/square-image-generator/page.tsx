@@ -1,6 +1,10 @@
 "use client"
 
-import { Cancel01Icon, CloudUploadIcon, SquareIcon } from "@hugeicons/core-free-icons"
+import {
+  Cancel01Icon,
+  CloudUploadIcon,
+  SquareIcon,
+} from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
@@ -66,7 +70,10 @@ export default function SquareImageGeneratorPage() {
       ? "Enter a size of at least 1 pixel."
       : null
 
-  function renderDisplay(source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ?? getResource()) {
+  function renderDisplay(
+    source: HTMLCanvasElement | undefined = activeJob?.result?.canvas ??
+      getResource()
+  ) {
     const display = displayCanvasRef.current
     if (!source || !display) return
     if (display.width !== source.width || display.height !== source.height) {
@@ -99,7 +106,17 @@ export default function SquareImageGeneratorPage() {
     const scale = targetSize / Math.max(base.width, base.height)
     const dw = base.width * scale
     const dh = base.height * scale
-    ctx.drawImage(base, 0, 0, base.width, base.height, (targetSize - dw) / 2, (targetSize - dh) / 2, dw, dh)
+    ctx.drawImage(
+      base,
+      0,
+      0,
+      base.width,
+      base.height,
+      (targetSize - dw) / 2,
+      (targetSize - dh) / 2,
+      dw,
+      dh
+    )
     return canvas
   }
 
@@ -136,7 +153,6 @@ export default function SquareImageGeneratorPage() {
     if (activeCanvas) renderDisplay(activeCanvas)
   }, [parsedSize, sizeError, bgColor, jobs.length])
 
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -148,7 +164,9 @@ export default function SquareImageGeneratorPage() {
 
   async function downloadJob(job: Job) {
     if (!job.result) return
-    const mime = job.result.transparent ? "image/png" : outputMime(job.file.type)
+    const mime = job.result.transparent
+      ? "image/png"
+      : outputMime(job.file.type)
     await downloadCanvas(job.result.canvas, job.name, mime)
   }
 
@@ -170,13 +188,20 @@ export default function SquareImageGeneratorPage() {
     <ToolPage
       page="Square Image Generator"
       icon={SquareIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               color: {
@@ -189,7 +214,13 @@ export default function SquareImageGeneratorPage() {
                 clearIcon: Cancel01Icon,
               },
               inputs: [
-                { label: "Size", type: "number", min: 1, value: size, onChange: setSize },
+                {
+                  label: "Size",
+                  type: "number",
+                  min: 1,
+                  value: size,
+                  onChange: setSize,
+                },
               ],
               download: {
                 onDownload: download,

@@ -1,6 +1,9 @@
 "use client"
 
-import { CloudUploadIcon, ScissorRectangleIcon } from "@hugeicons/core-free-icons"
+import {
+  CloudUploadIcon,
+  ScissorRectangleIcon,
+} from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
@@ -29,7 +32,8 @@ type Job = {
 function marginRect(image: HTMLCanvasElement): Rect | null {
   const bounds = findOpaqueBounds(image)
   if (!bounds) return null
-  if (bounds.width === image.width && bounds.height === image.height) return null
+  if (bounds.width === image.width && bounds.height === image.height)
+    return null
   return bounds
 }
 
@@ -105,7 +109,6 @@ export default function ImageTrimPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
 
-
   function addFiles(fileList: FileList | null | undefined) {
     return addFilesReportingErrors(
       addFilesToQueue,
@@ -178,17 +181,26 @@ export default function ImageTrimPage() {
     <ToolPage
       page="Image Trim"
       icon={ScissorRectangleIcon}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJob}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               hint:
-                !pendingRect && !activeJob.trimmed ? "No transparent margin to trim." : undefined,
+                !pendingRect && !activeJob.trimmed
+                  ? "No transparent margin to trim."
+                  : undefined,
               actions: [
                 {
                   label: "Trim",

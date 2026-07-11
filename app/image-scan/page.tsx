@@ -93,10 +93,11 @@ export default function ImageScanPage() {
   })
 
   // Zoom/pan (Original pane only — the Scanned pane is a plain fit-to-box preview).
-  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } = useZoomPan({
-    canvasRef: displayCanvasRef,
-    getBaseSize: () => getResource(),
-  })
+  const { viewportRef, zoomPct, MIN_ZOOM, MAX_ZOOM, fitView, zoomFromButton } =
+    useZoomPan({
+      canvasRef: displayCanvasRef,
+      getBaseSize: () => getResource(),
+    })
 
   /** Repaint the Original pane: the untouched source image plus the quad overlay. */
   function renderDisplay(quad: Quad | null) {
@@ -119,7 +120,8 @@ export default function ImageScanPage() {
   /** Repaint the Scanned pane from the active job's last scan result, with the current filter applied. */
   function renderResult() {
     const canvas = resultCanvasRef.current
-    const scanned = activeId != null ? scanResultsRef.current.get(activeId) : undefined
+    const scanned =
+      activeId != null ? scanResultsRef.current.get(activeId) : undefined
     if (!canvas || !scanned) return
     const filtered = applyScanFilter(scanned, filter, bwThreshold)
     if (canvas.width !== filtered.width || canvas.height !== filtered.height) {
@@ -139,7 +141,9 @@ export default function ImageScanPage() {
       resetQuad(null)
       return
     }
-    resetQuad(detectDocumentQuad(image) ?? defaultQuad(image.width, image.height))
+    resetQuad(
+      detectDocumentQuad(image) ?? defaultQuad(image.width, image.height)
+    )
   }
 
   // Paint + fit the Original pane whenever the active job changes — it only
@@ -168,7 +172,6 @@ export default function ImageScanPage() {
   // doesn't re-filter the whole image on every tick, only once it settles.
   useDebouncedEffect(renderResult, [filter, bwThreshold], 200)
 
-
   function removeJobAndScan(id: number) {
     scanResultsRef.current.delete(id)
     setScannedIds((prev) => {
@@ -193,7 +196,10 @@ export default function ImageScanPage() {
     const image = getResource(id)
     if (!image) return
     const { width, height } = quadOutputSize(cornerQuad)
-    scanResultsRef.current.set(id, warpQuadToRect(image, cornerQuad, width, height))
+    scanResultsRef.current.set(
+      id,
+      warpQuadToRect(image, cornerQuad, width, height)
+    )
   }
 
   async function applyScan() {
@@ -221,7 +227,8 @@ export default function ImageScanPage() {
     jobs.forEach((job) => {
       const image = getResource(job.id)
       if (!image) return
-      const jobQuad = job.id === activeId ? quad : scaleQuad(quad, activeImage, image)
+      const jobQuad =
+        job.id === activeId ? quad : scaleQuad(quad, activeImage, image)
       scanJob(job.id, jobQuad)
       scannedNow.push(job.id)
     })
@@ -260,7 +267,11 @@ export default function ImageScanPage() {
     if (!activeJob) return
     setError(null)
     downloadJob(activeJob).catch((err) => {
-      setError(err instanceof Error ? err.message : "Something went wrong while downloading.")
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while downloading."
+      )
     })
   }
 
@@ -303,13 +314,20 @@ export default function ImageScanPage() {
         ],
         disabled: anyProcessing,
       }}
-      onAddFile={jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined}
+      onAddFile={
+        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
+      }
       fileStrip={
         jobs.length > 0 && (
-          <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJobAndScan} />
+          <JobStrip
+            jobs={jobs}
+            activeId={activeId}
+            onSelect={setActiveId}
+            onRemove={removeJobAndScan}
+          />
         )
       }
-      footer={
+      sidebar={
         activeJob
           ? {
               zoom: {
@@ -360,7 +378,9 @@ export default function ImageScanPage() {
                 onDownload: download,
                 disabled: !hasActiveScan,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => scannedIds.has(job.id)),
+                downloadAllDisabled: !jobs.some((job) =>
+                  scannedIds.has(job.id)
+                ),
               },
             }
           : undefined
@@ -391,11 +411,15 @@ export default function ImageScanPage() {
                   hasActiveScan
                     ? {
                         ref: resultCanvasRef,
-                        className: "relative max-h-full max-w-full pointer-events-none",
+                        className:
+                          "relative max-h-full max-w-full pointer-events-none",
                       }
                     : anyProcessing
                       ? { kind: "status", icon: Loading03Icon, spin: true }
-                      : { kind: "status", message: "Hit Scan to see the flattened result" }
+                      : {
+                          kind: "status",
+                          message: "Hit Scan to see the flattened result",
+                        }
                 }
               />
             </div>

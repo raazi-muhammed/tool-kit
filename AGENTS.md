@@ -75,9 +75,9 @@ use `segments` as shown above — don't hand-roll it as a `Select` placed next t
 the dropzone. See `app/video-to-audio/page.tsx` and `app/image-converter/page.tsx`.
 
 For a tool's settings — zoom controls, a strength/setting slider, the primary
-action button(s), and the Download button — pass the `footer` prop instead of
-hand-rolling them inside `children`. All of `footer` renders in the sidebar,
-`zoom` included. Like `segments`, `footer` takes a config
+action button(s), and the Download button — pass the `sidebar` prop instead of
+hand-rolling them inside `children`. All of `sidebar` renders in the settings
+sidebar, `zoom` included. Like `segments`, `sidebar` takes a config
 object, not JSX, so `ToolPage` renders the controls (and their icons) itself:
 
 ```tsx
@@ -87,7 +87,7 @@ object, not JSX, so `ToolPage` renders the controls (and their icons) itself:
   fileStrip={jobs.length > 1 && (
     <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
   )}
-  footer={
+  sidebar={
     activeJob && {
       zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
       slider: { label: "Amount", value: blur, onValueChange: onBlurChange, min: 1, max: 50, unit: "px" },
@@ -108,7 +108,7 @@ selection" only while a selection is pending — are just `condition && {...}`);
 `download` renders the Download button and, only when `onDownloadAll` is set,
 its "Download all" dropdown. See `app/image-blur/page.tsx`.
 
-Every `FooterAction` also takes an optional `emphasis`: `"primary"` (the
+Every `SidebarAction` also takes an optional `emphasis`: `"primary"` (the
 default) renders full-width, stacked in the sidebar's pinned bottom block
 alongside Download — reserve this for the tool's actual call(s) to action
 (Crop, Scan, Resize, Apply blur, Convert, Unlock, …). `emphasis: "secondary"`
@@ -122,7 +122,7 @@ jump between the two positions as state changes.
 
 For a primary action that also has a "do this to every job" variant (e.g.
 Image Blur's "Apply blur" / "Apply blur to all", Image Crop's "Crop" / "Crop
-all"), give that `FooterAction` a `more: { label, icon, onClick, disabled? }`
+all"), give that `SidebarAction` a `more: { label, icon, onClick, disabled? }`
 instead of adding a second button — `ToolPage` renders it as the same
 Download-style `ButtonGroup` + dropdown chevron, stretched full-width, only
 once `more` is set (so gate it on the same `jobs.length > 1` check as
@@ -144,7 +144,7 @@ See `app/image-crop/page.tsx`, `app/image-trim/page.tsx`, and
 `app/image-rotate/page.tsx` (which gives each of "Rotate left"/"Rotate right"
 its own `more`).
 
-The footer also has config primitives for a few other recurring controls —
+The sidebar prop also has config primitives for a few other recurring controls —
 still config objects, never JSX, so `ToolPage` renders them itself, all in the
 sidebar:
 
@@ -210,7 +210,7 @@ useEffect(() => {
 }, [settingA, settingB, jobs.length])
 ```
 
-`footer.actions` simply isn't set in this case — the footer is just
+`sidebar.actions` simply isn't set in this case — the sidebar prop is just
 `color`/`inputs`/`slider` (the settings) plus `download`. Derive any
 validation message (e.g. "Enter a size of at least 1 pixel") straight from
 the settings state in the render body instead of `useState` + effect —
@@ -258,7 +258,7 @@ import { PreviewCard } from "@/components/preview-card"
 `layer` takes a single layer object (the common case) or an array of layers
 that stack on top of each other, positioned/sized identically so they line
 up (e.g. a base image canvas plus a separate selection-overlay canvas). It
-filters falsy values — same convention as `ToolPage`'s `footer.actions` —
+filters falsy values — same convention as `ToolPage`'s `sidebar.actions` —
 so inline a layer's own readiness check (`condition ? {...} : {...}`)
 instead of reaching for `children`. `children` still exists as an escape
 hatch for content none of `canvas`/`image`/`status` fits — it's shown only
@@ -430,7 +430,7 @@ reach for them on a `Button`.
 ## Tooltips
 
 For an icon-only control whose purpose isn't spelled out in visible text (the
-zoom in/out/fit buttons in a `footer.zoom`), wrap it in the shared
+zoom in/out/fit buttons in a `sidebar.zoom`), wrap it in the shared
 `IconTooltip` component (`components/icon-tooltip.tsx`) instead of reaching
 for the shadcn `Tooltip`/`TooltipTrigger`/`TooltipContent` trio directly:
 
