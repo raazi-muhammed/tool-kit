@@ -35,7 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useFiles } from "@/hooks/use-files"
+import { useOrderedFiles } from "@/hooks/use-ordered-files"
 import { downloadFile } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
 
@@ -60,23 +60,20 @@ function isPdfFile(file: File): boolean {
 }
 
 export default function PdfMergePage() {
-  const { jobs, addFiles, removeJob } = useFiles<Job>({
-    createJob: (file, id) => {
-      const valid = isPdfFile(file)
-      return {
-        id,
-        file,
-        name: file.name,
-        size: file.size,
-        validFile: valid,
-        error: valid ? null : "This file doesn't look like a PDF.",
-      }
-    },
-  })
-  // useFiles keeps `jobs` in append order with no reordering of its own, so
-  // the merge order is tracked here as a separate permutation of job ids —
-  // appended to in addFilesOrdered, trimmed in remove, and shuffled by moveJob.
-  const [order, setOrder] = useState<number[]>([])
+  const { jobs, orderedJobs, addFilesOrdered, removeOrdered, moveJob } =
+    useOrderedFiles<Job>({
+      createJob: (file, id) => {
+        const valid = isPdfFile(file)
+        return {
+          id,
+          file,
+          name: file.name,
+          size: file.size,
+          validFile: valid,
+          error: valid ? null : "This file doesn't look like a PDF.",
+        }
+      },
+    })
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
@@ -102,32 +99,11 @@ export default function PdfMergePage() {
     })
   }
 
-  async function addFilesOrdered(fileList: FileList | null | undefined) {
-    const { jobs: created } = await addFiles(fileList)
-    if (created.length)
-      setOrder((prev) => [...prev, ...created.map((job) => job.id)])
-  }
-
-  const orderedJobs = order
-    .map((id) => jobs.find((job) => job.id === id))
-    .filter((job): job is Job => !!job)
   const validCount = orderedJobs.filter((job) => job.validFile).length
   const busy = status === "merging"
 
-  function moveJob(id: number, direction: -1 | 1) {
-    setOrder((prev) => {
-      const index = prev.indexOf(id)
-      const swapIndex = index + direction
-      if (index < 0 || swapIndex < 0 || swapIndex >= prev.length) return prev
-      const next = [...prev]
-      ;[next[index], next[swapIndex]] = [next[swapIndex], next[index]]
-      return next
-    })
-  }
-
   function remove(id: number) {
-    removeJob(id)
-    setOrder((prev) => prev.filter((jobId) => jobId !== id))
+    removeOrdered(id)
     if (previewJob?.id === id) closePreview()
     if (result) {
       URL.revokeObjectURL(result.url)
