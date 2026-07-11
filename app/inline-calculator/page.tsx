@@ -1,7 +1,11 @@
 "use client"
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Calculator01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
+import {
+  Calculator01Icon,
+  Copy01Icon,
+  Tick02Icon,
+} from "@hugeicons/core-free-icons"
 import { useMemo, useRef, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
@@ -56,7 +60,7 @@ export default function InlineCalculatorPage() {
     const prefix = prefixMatch[0]
 
     const matches = listVariableNames(text, lineIndex).filter((candidate) =>
-      candidate.startsWith(prefix),
+      candidate.startsWith(prefix)
     )
     if (matches.length === 0) return null
 
@@ -100,7 +104,9 @@ export default function InlineCalculatorPage() {
                   {suggestion && suggestion.line === i ? (
                     <>
                       {line.slice(0, suggestion.col)}
-                      <span className="text-muted-foreground/50">{suggestion.tail}</span>
+                      <span className="text-muted-foreground/50">
+                        {suggestion.tail}
+                      </span>
                       {line.slice(suggestion.col)}
                     </>
                   ) : (
@@ -117,7 +123,11 @@ export default function InlineCalculatorPage() {
                   >
                     <span>{hasEquals ? ` ${result}` : ` = ${result}`}</span>
                     {copiedLine === i ? (
-                      <HugeiconsIcon icon={Tick02Icon} aria-hidden className="size-3 shrink-0" />
+                      <HugeiconsIcon
+                        icon={Tick02Icon}
+                        aria-hidden
+                        className="size-3 shrink-0"
+                      />
                     ) : (
                       <HugeiconsIcon
                         icon={Copy01Icon}
@@ -150,7 +160,7 @@ export default function InlineCalculatorPage() {
           autoCapitalize="off"
           autoCorrect="off"
           style={{ caretColor: "var(--foreground)" }}
-          className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 text-transparent break-words whitespace-pre-wrap placeholder:text-muted-foreground selection:bg-primary/30 focus:outline-none"
+          className="absolute inset-0 h-full w-full resize-none overflow-auto bg-transparent p-4 font-mono text-sm leading-6 break-words whitespace-pre-wrap text-transparent selection:bg-primary/30 placeholder:text-muted-foreground focus:outline-none"
         />
       </div>
     </ToolPage>

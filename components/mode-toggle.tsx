@@ -7,7 +7,11 @@ import { Settings01Icon } from "@hugeicons/core-free-icons"
 
 import { IconTooltip } from "@/components/icon-tooltip"
 import { Button } from "@/components/ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const noopSubscribe = () => () => {}
@@ -17,7 +21,11 @@ export function ModeToggle() {
   // Avoids a hydration mismatch: the server always renders before
   // localStorage's theme is known, so the active segment can only reflect
   // `resolvedTheme` once mounted on the client.
-  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false)
+  const mounted = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false
+  )
 
   return (
     <Popover>
@@ -32,7 +40,10 @@ export function ModeToggle() {
         <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
           Theme
         </span>
-        <Tabs value={mounted ? resolvedTheme : "light"} onValueChange={setTheme}>
+        <Tabs
+          value={mounted ? resolvedTheme : "light"}
+          onValueChange={setTheme}
+        >
           <TabsList className="w-full">
             <TabsTrigger value="light">Light</TabsTrigger>
             <TabsTrigger value="dark">Dark</TabsTrigger>

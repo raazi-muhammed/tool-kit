@@ -78,14 +78,13 @@ export function CommandMenuProvider({
 export function CommandMenuTrigger() {
   const context = React.useContext(CommandMenuContext)
   if (!context) {
-    throw new Error("CommandMenuTrigger must be used within a CommandMenuProvider")
+    throw new Error(
+      "CommandMenuTrigger must be used within a CommandMenuProvider"
+    )
   }
 
   return (
-    <Button
-      variant="secondary"
-      onClick={() => context.setOpen(true)}
-    >
+    <Button variant="secondary" onClick={() => context.setOpen(true)}>
       <span className="flex items-center gap-1.5">
         <HugeiconsIcon icon={SearchIcon} aria-hidden />
         Search

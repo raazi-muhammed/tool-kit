@@ -40,7 +40,9 @@ export function JobStrip({
     <div className="flex min-w-0 items-center gap-3">
       <div className="shrink-0 text-xs text-muted-foreground">
         <div className="font-medium tracking-widest uppercase">Files</div>
-        <div>{jobs.length} {jobs.length === 1 ? "item" : "items"}</div>
+        <div>
+          {jobs.length} {jobs.length === 1 ? "item" : "items"}
+        </div>
       </div>
 
       <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
@@ -58,21 +60,38 @@ export function JobStrip({
                   : "border-transparent bg-muted/40 hover:bg-muted/60"
               )}
             >
-              {active && <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden />}
+              {active && (
+                <span
+                  className="absolute inset-y-0 left-0 w-1 bg-primary"
+                  aria-hidden
+                />
+              )}
               <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded bg-muted">
                 {job.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={job.previewUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={job.previewUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   job.icon && (
-                    <HugeiconsIcon icon={job.icon} className="size-4 text-muted-foreground" aria-hidden />
+                    <HugeiconsIcon
+                      icon={job.icon}
+                      className="size-4 text-muted-foreground"
+                      aria-hidden
+                    />
                   )
                 )}
               </span>
               <span className="flex min-w-0 flex-col">
-                <span className="max-w-36 truncate text-sm text-foreground">{job.name}</span>
+                <span className="max-w-36 truncate text-sm text-foreground">
+                  {job.name}
+                </span>
                 {job.file && (
-                  <span className="text-xs text-muted-foreground">{formatBytes(job.file.size)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatBytes(job.file.size)}
+                  </span>
                 )}
               </span>
               <span
@@ -92,7 +111,11 @@ export function JobStrip({
                 }}
                 className="ml-1 shrink-0 rounded p-0.5 opacity-60 hover:bg-muted hover:opacity-100"
               >
-                <HugeiconsIcon icon={Cancel01Icon} aria-hidden className="size-3.5" />
+                <HugeiconsIcon
+                  icon={Cancel01Icon}
+                  aria-hidden
+                  className="size-3.5"
+                />
               </span>
             </button>
           )

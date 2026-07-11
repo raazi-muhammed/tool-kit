@@ -18,7 +18,10 @@ import { cn } from "@/lib/utils"
 
 export default function Page() {
   const [category, setCategory] = useState<Category | "all">("all")
-  const tools = category === "all" ? TOOLS : TOOLS.filter((tool) => tool.category === category)
+  const tools =
+    category === "all"
+      ? TOOLS
+      : TOOLS.filter((tool) => tool.category === category)
 
   return (
     <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
@@ -111,7 +114,9 @@ function FilterPill({
       <span
         className={cn(
           "rounded-full px-2 py-0.5 text-xs",
-          active ? "bg-primary-foreground/20" : "bg-background/60 text-muted-foreground"
+          active
+            ? "bg-primary-foreground/20"
+            : "bg-background/60 text-muted-foreground"
         )}
       >
         {count}

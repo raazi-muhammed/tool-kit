@@ -2,9 +2,7 @@
 
 import {
   AlertCircleIcon,
-  Cancel01Icon,
   CloudUploadIcon,
-  EraserAutoIcon,
   Image01Icon,
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
@@ -269,15 +267,11 @@ export default function ImageConverterPage() {
                     value: bgColor,
                     onChange: setBgColor,
                     fallback: "#ffffff",
-                    nullLabel: "transparent",
-                    clearLabel: "Transparent",
-                    clearIcon: Cancel01Icon,
                   }
                 : undefined,
               toggle: supportsAlpha
                 ? {
                     label: "Remove background",
-                    icon: EraserAutoIcon,
                     pressed: removeBg,
                     onPressedChange: setRemoveBg,
                     color: {

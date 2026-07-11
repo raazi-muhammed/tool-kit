@@ -130,18 +130,17 @@ function DropzoneImpl(
                 shortcut, not a click) — styled to match Button so the two
                 read as a pair, but rendered as a span rather than a nested
                 interactive element inside this card's own role="button". */}
-            <span
-              className={cn(
-                buttonVariants({ variant: "outline" }),
-                "h-8 shrink-0 gap-1.5 leading-none text-muted-foreground pointer-events-none"
-              )}
-            >
-              <HugeiconsIcon icon={ClipboardPasteIcon} aria-hidden className="size-4" />
+            <Button variant="secondary" type="button">
+              <HugeiconsIcon
+                icon={ClipboardPasteIcon}
+                aria-hidden
+                className="size-4"
+              />
               Paste
               <kbd className="rounded border bg-muted px-1 py-0.5 font-sans text-[10px] leading-none text-muted-foreground">
                 ⌘V
               </kbd>
-            </span>
+            </Button>
           </AttachmentActions>
         </Attachment>
       )}

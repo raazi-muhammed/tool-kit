@@ -13,14 +13,23 @@ import {
 import { CommandMenuTrigger } from "@/components/command-menu"
 import { ModeToggle } from "@/components/mode-toggle"
 
-export function PageBreadcrumb({ page, icon }: { page: string; icon: IconSvgElement }) {
+export function PageBreadcrumb({
+  page,
+  icon,
+}: {
+  page: string
+  icon: IconSvgElement
+}) {
   return (
     <div className="flex items-center justify-between gap-2">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/" className="flex items-center gap-1.5 font-[family-name:var(--font-display)]">
+              <Link
+                href="/"
+                className="flex items-center gap-1.5 font-[family-name:var(--font-display)]"
+              >
                 Tool Kit
               </Link>
             </BreadcrumbLink>

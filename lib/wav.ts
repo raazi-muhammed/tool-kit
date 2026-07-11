@@ -21,7 +21,7 @@ export function getAudioContext(): (new () => AudioContext) | null {
  */
 export function decodeAudioData(
   ctx: AudioContext,
-  data: ArrayBuffer,
+  data: ArrayBuffer
 ): Promise<AudioBuffer> {
   return new Promise((resolve, reject) => {
     const maybePromise = ctx.decodeAudioData(data, resolve, reject)

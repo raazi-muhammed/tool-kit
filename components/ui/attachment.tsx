@@ -28,7 +28,8 @@ const attachmentVariants = cva(
         // fill whatever extra space its flex column parent has (every tool
         // page's `children` wrapper is a `flex flex-1 flex-col`), instead of
         // the old fixed `py-36` leaving empty space below it on tall screens.
-        dropzone: "w-full grow flex-col items-center justify-center bg-card/40 px-8 py-12 text-center",
+        dropzone:
+          "w-full grow flex-col items-center justify-center bg-card/40 px-8 py-12 text-center",
       },
     },
   }
@@ -57,7 +58,7 @@ function Attachment({
 }
 
 const attachmentMediaVariants = cva(
-  "relative flex aspect-square w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-foreground group-data-[orientation=vertical]/attachment:w-full group-data-[orientation=dropzone]/attachment:w-16 group-data-[orientation=dropzone]/attachment:rounded-full group-data-[size=sm]/attachment:w-8 group-data-[size=xs]/attachment:w-7 group-data-[size=xs]/attachment:rounded-md group-data-[state=error]/attachment:bg-destructive/10 group-data-[state=error]/attachment:text-destructive group-data-[orientation=vertical]/attachment:*:data-[slot=spinner]:size-6! [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 group-data-[orientation=vertical]/attachment:[&_svg:not([class*='size-'])]:size-6 group-data-[orientation=dropzone]/attachment:[&_svg:not([class*='size-'])]:size-7 group-data-[size=xs]/attachment:[&_svg:not([class*='size-'])]:size-3.5",
+  "relative flex aspect-square w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-foreground group-data-[orientation=dropzone]/attachment:w-16 group-data-[orientation=dropzone]/attachment:rounded-full group-data-[orientation=vertical]/attachment:w-full group-data-[size=sm]/attachment:w-8 group-data-[size=xs]/attachment:w-7 group-data-[size=xs]/attachment:rounded-md group-data-[state=error]/attachment:bg-destructive/10 group-data-[state=error]/attachment:text-destructive group-data-[orientation=vertical]/attachment:*:data-[slot=spinner]:size-6! [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 group-data-[orientation=dropzone]/attachment:[&_svg:not([class*='size-'])]:size-7 group-data-[orientation=vertical]/attachment:[&_svg:not([class*='size-'])]:size-6 group-data-[size=xs]/attachment:[&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -95,7 +96,7 @@ function AttachmentContent({
     <div
       data-slot="attachment-content"
       className={cn(
-        "max-w-full min-w-0 flex-1 leading-tight group-data-[orientation=vertical]/attachment:px-1 group-data-[orientation=dropzone]/attachment:max-w-sm group-data-[orientation=dropzone]/attachment:flex-none",
+        "max-w-full min-w-0 flex-1 leading-tight group-data-[orientation=dropzone]/attachment:max-w-sm group-data-[orientation=dropzone]/attachment:flex-none group-data-[orientation=vertical]/attachment:px-1",
         className
       )}
       {...props}
@@ -111,7 +112,7 @@ function AttachmentTitle({
     <span
       data-slot="attachment-title"
       className={cn(
-        "block max-w-full min-w-0 truncate font-medium group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer group-data-[orientation=dropzone]/attachment:overflow-visible group-data-[orientation=dropzone]/attachment:text-base group-data-[orientation=dropzone]/attachment:font-semibold group-data-[orientation=dropzone]/attachment:whitespace-normal",
+        "block max-w-full min-w-0 truncate font-medium group-data-[orientation=dropzone]/attachment:overflow-visible group-data-[orientation=dropzone]/attachment:text-base group-data-[orientation=dropzone]/attachment:font-semibold group-data-[orientation=dropzone]/attachment:whitespace-normal group-data-[state=processing]/attachment:shimmer group-data-[state=uploading]/attachment:shimmer",
         className
       )}
       {...props}
@@ -145,7 +146,7 @@ function AttachmentActions({
     <div
       data-slot="attachment-actions"
       className={cn(
-        "relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:right-3 group-data-[orientation=vertical]/attachment:gap-1 group-data-[orientation=dropzone]/attachment:mt-1",
+        "relative z-20 flex shrink-0 items-center group-data-[orientation=dropzone]/attachment:mt-1 group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:right-3 group-data-[orientation=vertical]/attachment:gap-1",
         className
       )}
       {...props}

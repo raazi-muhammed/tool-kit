@@ -187,7 +187,10 @@ export function useRectSelection({
     } catch {
       // Capture may already be gone; nothing to clean up.
     }
-    if (drag.mode === "select" && (rect.width < minSize || rect.height < minSize)) {
+    if (
+      drag.mode === "select" &&
+      (rect.width < minSize || rect.height < minSize)
+    ) {
       setPendingRect(null)
       render(null)
       return

@@ -35,7 +35,8 @@ function normalizeHex(value: string): string | null {
 function findSampleable(el: Element | null): Element | null {
   let node = el
   for (let i = 0; node && i < 4; i++) {
-    if (node instanceof HTMLCanvasElement || node instanceof HTMLImageElement) return node
+    if (node instanceof HTMLCanvasElement || node instanceof HTMLImageElement)
+      return node
     node = node.parentElement
   }
   return null
@@ -78,8 +79,9 @@ export function ColorPicker({
 
   async function pickFromScreen() {
     try {
-      const EyeDropper = (window as unknown as { EyeDropper: EyeDropperConstructor })
-        .EyeDropper
+      const EyeDropper = (
+        window as unknown as { EyeDropper: EyeDropperConstructor }
+      ).EyeDropper
       const result = await new EyeDropper().open()
       onChange(result.sRGBHex)
     } catch {
@@ -103,7 +105,9 @@ export function ColorPicker({
     function onClick(e: MouseEvent) {
       e.preventDefault()
       e.stopPropagation()
-      const target = findSampleable(document.elementFromPoint(e.clientX, e.clientY))
+      const target = findSampleable(
+        document.elementFromPoint(e.clientX, e.clientY)
+      )
       finish(target ? sampleColorAtPoint(target, e.clientX, e.clientY) : null)
     }
 
@@ -123,24 +127,26 @@ export function ColorPicker({
 
   return (
     <div className="flex items-center gap-2">
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={label}
-        className="size-10 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
-      />
-      <Input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={(e) => commitText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commitText(e.currentTarget.value)
-        }}
-        className="flex-1 font-mono uppercase"
-        maxLength={7}
-        aria-label="Hex color code"
-      />
+      <div className="flex flex-1 items-center gap-0 rounded-lg border border-input bg-transparent pl-1 transition-colors has-[:focus-visible]:border-ring has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50 dark:bg-input/30">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
+          className="size-9 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-1 [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:rounded-sm [&::-webkit-color-swatch-wrapper]:border-none [&::-webkit-color-swatch-wrapper]:p-0"
+        />
+        <Input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={(e) => commitText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitText(e.currentTarget.value)
+          }}
+          className="h-8 flex-1 border-0 bg-transparent px-2 font-mono uppercase shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
+          maxLength={7}
+          aria-label="Hex color code"
+        />
+      </div>
       <IconTooltip label="Pick from image">
         <Button
           variant="outline"
@@ -153,7 +159,12 @@ export function ColorPicker({
       </IconTooltip>
       {supportsEyeDropper && (
         <IconTooltip label="Pick from screen">
-          <Button variant="outline" size="icon" onClick={pickFromScreen} aria-label="Pick from screen">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={pickFromScreen}
+            aria-label="Pick from screen"
+          >
             <HugeiconsIcon icon={DropperIcon} aria-hidden />
           </Button>
         </IconTooltip>

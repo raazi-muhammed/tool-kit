@@ -128,7 +128,8 @@ export const TOOLS: Tool[] = [
     href: "/square-image-generator",
     icon: SquareIcon,
     name: "Square Image Generator",
-    description: "Fit any image into a square canvas at any size, in your browser.",
+    description:
+      "Fit any image into a square canvas at any size, in your browser.",
     category: "image",
   },
   {

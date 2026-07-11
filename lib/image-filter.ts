@@ -46,7 +46,8 @@ export function applyScanFilter(
     }
   } else if (filter === "bw") {
     for (let i = 0; i < data.length; i += 4) {
-      const v = luminance(data[i], data[i + 1], data[i + 2]) >= threshold ? 255 : 0
+      const v =
+        luminance(data[i], data[i + 1], data[i + 2]) >= threshold ? 255 : 0
       data[i] = v
       data[i + 1] = v
       data[i + 2] = v

@@ -12,7 +12,10 @@ import { useRef, useState } from "react"
  * unlock, …) that show every job at once simply ignore
  * `activeId`/`activeJob`/the resource helpers.
  */
-export function useFiles<TJob extends { id: number; file: File }, TResource = never>({
+export function useFiles<
+  TJob extends { id: number; file: File },
+  TResource = never,
+>({
   createJob,
   loadResource,
   cleanupJob,
@@ -34,11 +37,13 @@ export function useFiles<TJob extends { id: number; file: File }, TResource = ne
   /** Returns the newly created jobs, plus how many files were skipped (loadResource threw). */
   async function addFiles(fileList: FileList | null | undefined) {
     const files = fileList ? Array.from(fileList) : []
-    if (!files.length) return { jobs: [] as TJob[], addedCount: 0, failedCount: 0 }
+    if (!files.length)
+      return { jobs: [] as TJob[], addedCount: 0, failedCount: 0 }
 
     const loaded = await Promise.all(
       files.map(async (file) => {
-        if (!loadResource) return { file, resource: undefined as TResource | undefined }
+        if (!loadResource)
+          return { file, resource: undefined as TResource | undefined }
         try {
           return { file, resource: await loadResource(file) }
         } catch {
@@ -58,7 +63,11 @@ export function useFiles<TJob extends { id: number; file: File }, TResource = ne
       setJobs((prev) => [...prev, ...created])
       setActiveId((prev) => prev ?? created[0].id)
     }
-    return { jobs: created, addedCount: created.length, failedCount: files.length - created.length }
+    return {
+      jobs: created,
+      addedCount: created.length,
+      failedCount: files.length - created.length,
+    }
   }
 
   /**
@@ -67,9 +76,16 @@ export function useFiles<TJob extends { id: number; file: File }, TResource = ne
    * it) — it naturally no-ops if the job was already removed, since `map`
    * only invokes it for a matching id.
    */
-  function updateJob(id: number, patch: Partial<TJob> | ((job: TJob) => Partial<TJob>)) {
+  function updateJob(
+    id: number,
+    patch: Partial<TJob> | ((job: TJob) => Partial<TJob>)
+  ) {
     setJobs((prev) =>
-      prev.map((job) => (job.id === id ? { ...job, ...(typeof patch === "function" ? patch(job) : patch) } : job))
+      prev.map((job) =>
+        job.id === id
+          ? { ...job, ...(typeof patch === "function" ? patch(job) : patch) }
+          : job
+      )
     )
   }
 
@@ -118,7 +134,9 @@ export function useFiles<TJob extends { id: number; file: File }, TResource = ne
  * them), clearing it otherwise.
  */
 export async function addFilesReportingErrors(
-  addFiles: (fileList: FileList | null | undefined) => Promise<{ addedCount: number; failedCount: number }>,
+  addFiles: (
+    fileList: FileList | null | undefined
+  ) => Promise<{ addedCount: number; failedCount: number }>,
   fileList: FileList | null | undefined,
   message: string,
   setError: (error: string | null) => void

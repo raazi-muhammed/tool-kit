@@ -9,7 +9,9 @@ import { useState } from "react"
  * SVG to PNG). The target size is shared across every queued file, so
  * `seed` only fills the fields once (the first picked file), never again.
  */
-export function useLockedSize(reference: { width: number; height: number } | null) {
+export function useLockedSize(
+  reference: { width: number; height: number } | null
+) {
   const [width, setWidth] = useState("")
   const [height, setHeight] = useState("")
   const [lockAspect, setLockAspect] = useState(true)
@@ -18,7 +20,11 @@ export function useLockedSize(reference: { width: number; height: number } | nul
     setWidth(value)
     const parsed = Number(value)
     if (lockAspect && reference && parsed > 0) {
-      setHeight(String(Math.max(1, Math.round(parsed * (reference.height / reference.width)))))
+      setHeight(
+        String(
+          Math.max(1, Math.round(parsed * (reference.height / reference.width)))
+        )
+      )
     }
   }
 
@@ -26,7 +32,11 @@ export function useLockedSize(reference: { width: number; height: number } | nul
     setHeight(value)
     const parsed = Number(value)
     if (lockAspect && reference && parsed > 0) {
-      setWidth(String(Math.max(1, Math.round(parsed * (reference.width / reference.height)))))
+      setWidth(
+        String(
+          Math.max(1, Math.round(parsed * (reference.width / reference.height)))
+        )
+      )
     }
   }
 
@@ -36,7 +46,14 @@ export function useLockedSize(reference: { width: number; height: number } | nul
     if (!lockAspect && reference) {
       const parsedWidth = Number(width)
       if (parsedWidth > 0) {
-        setHeight(String(Math.max(1, Math.round(parsedWidth * (reference.height / reference.width)))))
+        setHeight(
+          String(
+            Math.max(
+              1,
+              Math.round(parsedWidth * (reference.height / reference.width))
+            )
+          )
+        )
       }
     }
     setLockAspect(!lockAspect)
@@ -56,5 +73,14 @@ export function useLockedSize(reference: { width: number; height: number } | nul
     setLockAspect(true)
   }
 
-  return { width, height, lockAspect, onWidthChange, onHeightChange, toggleLockAspect, seed, reset }
+  return {
+    width,
+    height,
+    lockAspect,
+    onWidthChange,
+    onHeightChange,
+    toggleLockAspect,
+    seed,
+    reset,
+  }
 }

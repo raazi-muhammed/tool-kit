@@ -21,6 +21,7 @@ import { IconTooltip } from "@/components/icon-tooltip"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,13 +133,14 @@ type SidebarColor = {
   nullLabel?: string
   clearLabel?: string
   clearIcon?: IconSvgElement
+  /** Set false to skip the visible label row (e.g. a toggle's nested color, where the toggle's own label already says what it's for). `label` is still used as the ColorPicker's aria-label. */
+  showLabel?: boolean
 }
 
 // A pressable toggle (e.g. "Remove background") that reveals its own color
 // picker and/or strength slider only while pressed.
 type SidebarToggle = {
   label: string
-  icon: IconSvgElement
   pressed: boolean
   onPressedChange: (pressed: boolean) => void
   color?: {
@@ -221,6 +223,51 @@ function SidebarSliderControl({ slider }: { slider: SidebarSlider }) {
         step={slider.step ?? 1}
         disabled={slider.disabled}
         className="w-full"
+      />
+    </div>
+  )
+}
+
+// Shared by the standalone `sidebar.color` and the nested
+// `sidebar.toggle.color` (e.g. Image Converter's Background and Background
+// color to remove) so both render identically instead of drifting into two
+// different looks. The clear/nullLabel row only shows once a caller opts in
+// via `clearLabel`/`clearIcon`/`nullLabel` — the toggle's nested color never
+// sets those, so it just gets a plain label above its `ColorPicker`.
+function SidebarColorControl({ color }: { color: SidebarColor }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {color.showLabel !== false && (
+        <div className="flex items-center justify-between">
+          <SidebarLabel>{color.label}</SidebarLabel>
+          {color.value
+            ? (color.clearLabel || color.clearIcon) && (
+                <button
+                  type="button"
+                  onClick={() => color.onChange(null)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {color.clearIcon && (
+                    <HugeiconsIcon
+                      icon={color.clearIcon}
+                      className="size-3.5"
+                      aria-hidden
+                    />
+                  )}
+                  {color.clearLabel ?? "Clear"}
+                </button>
+              )
+            : color.nullLabel && (
+                <span className="text-xs text-muted-foreground">
+                  {color.nullLabel}
+                </span>
+              )}
+        </div>
+      )}
+      <ColorPicker
+        value={color.value ?? color.fallback}
+        onChange={(value) => color.onChange(value)}
+        label={color.label}
       />
     </div>
   )
@@ -443,59 +490,31 @@ export function ToolPage({
               </div>
             )}
 
-            {sidebar?.color && (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <SidebarLabel>{sidebar.color.label}</SidebarLabel>
-                  {sidebar.color.value ? (
-                    <button
-                      type="button"
-                      onClick={() => sidebar.color!.onChange(null)}
-                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      {sidebar.color.clearIcon && (
-                        <HugeiconsIcon
-                          icon={sidebar.color.clearIcon}
-                          className="size-3.5"
-                          aria-hidden
-                        />
-                      )}
-                      {sidebar.color.clearLabel ?? "Clear"}
-                    </button>
-                  ) : (
-                    sidebar.color.nullLabel && (
-                      <span className="text-xs text-muted-foreground">
-                        {sidebar.color.nullLabel}
-                      </span>
-                    )
-                  )}
-                </div>
-                <ColorPicker
-                  value={sidebar.color.value ?? sidebar.color.fallback}
-                  onChange={(value) => sidebar.color!.onChange(value)}
-                  label={sidebar.color.label}
-                />
-              </div>
-            )}
+            {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
 
             {sidebar?.toggle && (
               <div className="flex flex-col gap-3">
-                <Button
-                  variant={sidebar.toggle.pressed ? "secondary" : "outline"}
-                  aria-pressed={sidebar.toggle.pressed}
-                  onClick={() =>
-                    sidebar.toggle!.onPressedChange(!sidebar.toggle!.pressed)
-                  }
-                  className="w-full"
-                >
-                  <HugeiconsIcon icon={sidebar.toggle.icon} aria-hidden />
-                  {sidebar.toggle.label}
-                </Button>
+                <label className="flex cursor-pointer items-center justify-between gap-2">
+                  <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
+                  <Checkbox
+                    checked={sidebar.toggle.pressed}
+                    onCheckedChange={(checked) =>
+                      sidebar.toggle!.onPressedChange(checked === true)
+                    }
+                  />
+                </label>
                 {sidebar.toggle.pressed && sidebar.toggle.color && (
-                  <ColorPicker
-                    value={sidebar.toggle.color.value}
-                    onChange={sidebar.toggle.color.onChange}
-                    label={sidebar.toggle.color.label}
+                  <SidebarColorControl
+                    color={{
+                      label: sidebar.toggle.color.label,
+                      value: sidebar.toggle.color.value,
+                      fallback: sidebar.toggle.color.value,
+                      showLabel: false,
+                      onChange: (value) => {
+                        if (value !== null)
+                          sidebar.toggle!.color!.onChange(value)
+                      },
+                    }}
                   />
                 )}
                 {sidebar.toggle.pressed && sidebar.toggle.slider && (
