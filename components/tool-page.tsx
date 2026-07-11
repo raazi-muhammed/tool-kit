@@ -29,6 +29,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -316,27 +323,29 @@ export function ToolPage({
             {sidebarSegments && (
               <div className="flex flex-col gap-3">
                 {sidebarSegments.label && <SidebarLabel>{sidebarSegments.label}</SidebarLabel>}
-                {/* A handful of options (Blur Type, Format, …) should split the
-                    row evenly, matching the mockup and the default Tabs look
-                    used elsewhere — only a crowded row (image-crop's 6-option
-                    aspect picker) needs to wrap to natural-width chips instead
-                    of being squeezed into equal slices. */}
+                {/* A couple of options (Blur Type, Format, …) read fine as an
+                    evenly-split segmented control — a crowded row (image-crop's
+                    6-option aspect picker) doesn't: wrapping it onto multiple
+                    lines still looks broken inside a pill-shaped Tabs track, so
+                    it gets a plain Select dropdown instead. */}
                 {sidebarSegments.options.length > 3 ? (
-                  <Tabs value={sidebarSegments.value} onValueChange={sidebarSegments.onValueChange}>
-                    <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1">
+                  <Select
+                    value={sidebarSegments.value}
+                    onValueChange={sidebarSegments.onValueChange}
+                    disabled={sidebarSegments.disabled}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                       {sidebarSegments.options.map((option) => (
-                        <TabsTrigger
-                          key={option.value}
-                          value={option.value}
-                          disabled={sidebarSegments.disabled}
-                          className="flex-none"
-                        >
+                        <SelectItem key={option.value} value={option.value}>
                           <HugeiconsIcon icon={option.icon} aria-hidden />
                           {option.label}
-                        </TabsTrigger>
+                        </SelectItem>
                       ))}
-                    </TabsList>
-                  </Tabs>
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Tabs value={sidebarSegments.value} onValueChange={sidebarSegments.onValueChange}>
                     <TabsList className="w-full">
@@ -358,26 +367,30 @@ export function ToolPage({
 
             {footer?.color && (
               <div className="flex flex-col gap-3">
-                <SidebarLabel>{footer.color.label}</SidebarLabel>
-                <div className="flex items-center gap-2">
-                  <ColorPicker
-                    value={footer.color.value ?? footer.color.fallback}
-                    onChange={(value) => footer.color!.onChange(value)}
-                    label={footer.color.label}
-                  />
+                <div className="flex items-center justify-between">
+                  <SidebarLabel>{footer.color.label}</SidebarLabel>
                   {footer.color.value ? (
-                    <Button variant="ghost" onClick={() => footer.color!.onChange(null)}>
+                    <button
+                      type="button"
+                      onClick={() => footer.color!.onChange(null)}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
                       {footer.color.clearIcon && (
-                        <HugeiconsIcon icon={footer.color.clearIcon} aria-hidden />
+                        <HugeiconsIcon icon={footer.color.clearIcon} className="size-3.5" aria-hidden />
                       )}
                       {footer.color.clearLabel ?? "Clear"}
-                    </Button>
+                    </button>
                   ) : (
                     footer.color.nullLabel && (
-                      <span className="text-sm text-muted-foreground">{footer.color.nullLabel}</span>
+                      <span className="text-xs text-muted-foreground">{footer.color.nullLabel}</span>
                     )
                   )}
                 </div>
+                <ColorPicker
+                  value={footer.color.value ?? footer.color.fallback}
+                  onChange={(value) => footer.color!.onChange(value)}
+                  label={footer.color.label}
+                />
               </div>
             )}
 
@@ -531,6 +544,7 @@ export function ToolPage({
                         <Button
                           variant={action.variant}
                           size="icon"
+                          disabled={action.disabled}
                           aria-label={`More ${action.label.toLowerCase()} options`}
                         >
                           <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
@@ -575,7 +589,12 @@ export function ToolPage({
                   {footer.download.onDownloadAll && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="icon" aria-label="More download options">
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          disabled={footer.download.disabled}
+                          aria-label="More download options"
+                        >
                           <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
                         </Button>
                       </DropdownMenuTrigger>

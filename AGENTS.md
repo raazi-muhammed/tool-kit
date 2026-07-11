@@ -39,7 +39,12 @@ as a shadcn `Tabs` segmented control. `segments` takes an optional `label`
 Type", "Format") and an optional `placement`:
 
 - `"sidebar"` (the default) — for a setting that configures a transform (blur
-  type, aspect ratio, output format). Renders in the settings sidebar.
+  type, aspect ratio, output format). Renders in the settings sidebar as an
+  evenly-split `Tabs` segmented control once there are 3 or fewer options; a
+  crowded row (image-crop's 6-option aspect picker) renders as a plain
+  `Select` dropdown instead — wrapping a segmented control onto more than one
+  line still looks broken inside its pill-shaped track, so don't try to make
+  `TabsList` wrap for this case.
 - `"inline"` — for a *view* switch that changes what `children` renders (e.g.
   JSON Parser's Text/Viewer tabs). Renders inline above `children`, right next
   to the content it swaps, exactly like today — don't move a view switch 320px
