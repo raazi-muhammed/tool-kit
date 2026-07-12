@@ -7,13 +7,15 @@ import {
   EyeIcon,
   TextIcon,
   TextIndentIcon,
+  Upload04Icon,
 } from "@hugeicons/core-free-icons"
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 
 import { ToolPage } from "@/components/tool-page"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
+import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JsonTree } from "@/components/json-tree"
 import { extractJsonSegment, safeParseJson } from "@/lib/json"
 
@@ -22,8 +24,16 @@ type Tab = "text" | "viewer"
 export default function JsonParserPage() {
   const [raw, setRaw] = useState("")
   const [tab, setTab] = useState<Tab>("text")
+  const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const parsed = useMemo(() => safeParseJson(raw), [raw])
+
+  async function handleFiles(files: FileList | null) {
+    const file = files?.[0]
+    if (!file) return
+    setRaw(await file.text())
+    setTab("text")
+  }
 
   function format() {
     try {
@@ -67,6 +77,7 @@ export default function JsonParserPage() {
     <ToolPage
       page="JSON Parser"
       icon={BracesIcon}
+      onAddFile={() => dropzoneRef.current?.open()}
       segments={{
         value: tab,
         onValueChange: (value) => setTab(value as Tab),
@@ -102,18 +113,18 @@ export default function JsonParserPage() {
         ],
       }}
     >
-      <div className="flex flex-1 flex-col gap-2">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
         {tab === "text" ? (
           <Textarea
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             placeholder="Paste the JSON code here (your code is not saved anywhere)"
             variant="flat"
-            className="min-h-[420px] flex-1 rounded-lg border border-border bg-card/40 p-4 font-mono text-xs"
+            className="field-sizing-fixed min-h-[60vh] flex-1 overflow-y-auto rounded-lg border border-border bg-card/40 p-4 font-mono text-xs"
             spellCheck={false}
           />
         ) : (
-          <Card className="min-h-[420px] flex-1 rounded-lg border bg-card/40 p-4 ring-0">
+          <Card className="flex min-h-[60vh] flex-1 flex-col rounded-lg border bg-card/40 p-4 ring-0">
             {parsed.error ? (
               <p className="text-sm text-destructive">{parsed.error}</p>
             ) : parsed.data === undefined ? (
@@ -121,13 +132,23 @@ export default function JsonParserPage() {
                 Paste JSON in the Text tab to see it here.
               </p>
             ) : (
-              <ScrollArea className="flex-1">
+              <ScrollArea className="min-h-0 flex-1">
                 <JsonTree data={parsed.data} />
               </ScrollArea>
             )}
           </Card>
         )}
       </div>
+
+      <Dropzone
+        ref={dropzoneRef}
+        hidden
+        icon={Upload04Icon}
+        title="Drag and drop a JSON file to upload"
+        description="or, click to browse · your file is not saved anywhere"
+        accept=".json,application/json"
+        onFiles={handleFiles}
+      />
     </ToolPage>
   )
 }
