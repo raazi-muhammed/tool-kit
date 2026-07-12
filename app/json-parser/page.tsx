@@ -100,8 +100,7 @@ export default function JsonParserPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "ghost",
-            emphasis: "secondary",
+            variant: "outline",
           },
           { label: "Format", icon: TextIndentIcon, onClick: format },
           {
