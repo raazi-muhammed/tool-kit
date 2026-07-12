@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CommandMenuProvider } from "@/components/command-menu"
 import { CardExpandProvider } from "@/components/card-expand-transition"
+import { MotionPreferenceProvider } from "@/components/motion-preference"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
@@ -40,11 +41,13 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <TooltipProvider>
-            <CardExpandProvider>
-              <CommandMenuProvider>{children}</CommandMenuProvider>
-            </CardExpandProvider>
-          </TooltipProvider>
+          <MotionPreferenceProvider>
+            <TooltipProvider>
+              <CardExpandProvider>
+                <CommandMenuProvider>{children}</CommandMenuProvider>
+              </CardExpandProvider>
+            </TooltipProvider>
+          </MotionPreferenceProvider>
         </ThemeProvider>
         <Analytics />
       </body>

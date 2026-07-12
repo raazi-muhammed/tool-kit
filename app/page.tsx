@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { CommandMenuTrigger } from "@/components/command-menu"
 import { useCardExpand } from "@/components/card-expand-transition"
+import { useAnimationsEnabled } from "@/components/motion-preference"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +63,7 @@ const SOCIAL_LINKS: { label: string; href: string; icon: IconSvgElement }[] = [
 
 export default function Page() {
   const expandCard = useCardExpand()
+  const { enabled: animationsEnabled } = useAnimationsEnabled()
   const [category, setCategory] = useState<Category | "all">("all")
   const tools =
     category === "all"
@@ -146,11 +148,11 @@ export default function Page() {
         {tools.map(({ href, icon, name, description }, index) => (
           <motion.div
             key={href}
-            initial={{ opacity: 0, y: 16 }}
+            initial={animationsEnabled ? { opacity: 0, y: 16 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{
               duration: 0.2,
-              delay: index * 0.015,
+              delay: animationsEnabled ? index * 0.015 : 0,
               ease: [0.4, 0, 0.2, 1],
             }}
           >

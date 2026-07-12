@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { IconTooltip } from "@/components/icon-tooltip"
 import { useCardExpand } from "@/components/card-expand-transition"
+import { useAnimationsEnabled } from "@/components/motion-preference"
 import { TOOLS, type Tool } from "@/lib/tools"
 import { cn } from "@/lib/utils"
 
@@ -38,6 +39,7 @@ export function CommandMenuProvider({
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const router = useRouter()
   const expandCard = useCardExpand()
+  const { enabled: animationsEnabled } = useAnimationsEnabled()
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -98,6 +100,7 @@ export function CommandMenuProvider({
         title="Search tools"
         description="Jump to a tool by name."
         transformOrigin={transformOrigin}
+        dramaticZoom={animationsEnabled}
       >
         <CommandInput placeholder="Search tools..." />
         <CommandList>

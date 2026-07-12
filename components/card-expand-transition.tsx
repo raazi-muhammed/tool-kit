@@ -6,6 +6,8 @@ import { AnimatePresence, motion } from "framer-motion"
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 
+import { useAnimationsEnabled } from "@/components/motion-preference"
+
 type Rect = { top: number; left: number; width: number; height: number }
 type ExpandingTool = { href: string; icon: IconSvgElement; rect: Rect }
 type Phase = "expand" | "hold" | "fade"
@@ -34,6 +36,7 @@ export function CardExpandProvider({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const { enabled: animationsEnabled } = useAnimationsEnabled()
   const [expandingTool, setExpandingTool] = React.useState<ExpandingTool | null>(
     null
   )
@@ -48,6 +51,10 @@ export function CardExpandProvider({
   }, [pathname, phase, expandingTool])
 
   function expand(tool: ExpandingTool) {
+    if (!animationsEnabled) {
+      router.push(tool.href)
+      return
+    }
     setPhase("expand")
     setExpandingTool(tool)
   }
