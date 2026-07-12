@@ -36,7 +36,12 @@ export function PageBreadcrumb({
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbPage className="flex items-center gap-1.5">
-              <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
+              <HugeiconsIcon
+                icon={icon}
+                className="size-3.5"
+                aria-hidden
+                data-tool-header-icon=""
+              />
               {page}
             </BreadcrumbPage>
           </BreadcrumbItem>

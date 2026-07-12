@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CommandMenuProvider } from "@/components/command-menu"
+import { CardExpandProvider } from "@/components/card-expand-transition"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
@@ -40,7 +41,9 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <TooltipProvider>
-            <CommandMenuProvider>{children}</CommandMenuProvider>
+            <CommandMenuProvider>
+              <CardExpandProvider>{children}</CardExpandProvider>
+            </CommandMenuProvider>
           </TooltipProvider>
         </ThemeProvider>
         <Analytics />

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CommandMenuTrigger } from "@/components/command-menu"
+import { useCardExpand } from "@/components/card-expand-transition"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,11 +60,32 @@ const SOCIAL_LINKS: { label: string; href: string; icon: IconSvgElement }[] = [
 ]
 
 export default function Page() {
+  const expandCard = useCardExpand()
   const [category, setCategory] = useState<Category | "all">("all")
   const tools =
     category === "all"
       ? TOOLS
       : TOOLS.filter((tool) => tool.category === category)
+
+  function handleCardClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    icon: IconSvgElement
+  ) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    expandCard({
+      href,
+      icon,
+      rect: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+    })
+  }
 
   return (
     <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
@@ -121,7 +143,12 @@ export default function Page() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map(({ href, icon, name, description }) => (
-          <Link key={href} href={href} className="group">
+          <Link
+            key={href}
+            href={href}
+            className="group"
+            onClick={(e) => handleCardClick(e, href, icon)}
+          >
             <Card className="relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary">
               <HugeiconsIcon
                 icon={icon}
