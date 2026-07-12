@@ -623,41 +623,23 @@ follow a measured DOM rect, or survive a route change).
 
 A page-level component (e.g. `app/page.tsx`) is unmounted the instant
 `router.push` navigates away from it, so any animation state that needs to
-keep playing *after* navigation (a fade-out, a shrink, anything that finishes
-on the destination page) can't live in that page's own `useState` — it has to
-live in a provider mounted once in `app/layout.tsx`, alongside
+keep playing *after* navigation (a fade-out, anything that finishes on the
+destination page) can't live in that page's own `useState` — it has to live
+in a provider mounted once in `app/layout.tsx`, alongside
 `ThemeProvider`/`CommandMenuProvider`/`TooltipProvider`, so it persists across
 the navigation. See `components/card-expand-transition.tsx`
 (`CardExpandProvider`, mounted in `app/layout.tsx`) — it expands a clicked
 homepage card to fill the screen, then, once `usePathname()` reports the new
-route has mounted, shrinks it down onto the destination page's own header
-icon before unmounting. Don't reach for framer's `layoutId` shared-layout
-tracking for this kind of cross-route transition — it only tracks elements
+route has mounted, fades the overlay out to reveal it, before unmounting.
+Don't reach for framer's `layoutId` shared-layout tracking for a cross-route
+transition that needs to track a specific DOM target (e.g. animating onto a
+destination element rather than just fading away) — it only tracks elements
 within one still-mounted tree, which a hard `router.push` doesn't give you.
-Measure the real target with `getBoundingClientRect()` (on the DOM node
-tagged with a purpose-built `data-*` attribute, e.g.
-`[data-tool-header-icon]` in `components/page-breadcrumb.tsx`) and animate a
-`position: fixed` `motion.div` to that rect instead.
-
-When different CSS properties on the same `motion.div` need their own
-duration/delay/easing (e.g. a box that keeps resizing for the full animation
-while its opacity only fades in the last third), pass a `transition` object
-keyed by property instead of splitting the effect across multiple nested
-`motion.div`s:
-
-```tsx
-<motion.div
-  animate={{ top, left, width, height, borderRadius, opacity: 0 }}
-  transition={{
-    top: { duration: SHRINK_DURATION, ease: EASE },
-    left: { duration: SHRINK_DURATION, ease: EASE },
-    width: { duration: SHRINK_DURATION, ease: EASE },
-    height: { duration: SHRINK_DURATION, ease: EASE },
-    borderRadius: { duration: SHRINK_DURATION, ease: EASE },
-    opacity: { duration: SHRINK_DURATION * 0.35, delay: SHRINK_DURATION * 0.65 },
-  }}
-/>
-```
+Measure the real target with `getBoundingClientRect()` on a DOM node tagged
+with a purpose-built `data-*` attribute instead, and animate a `position:
+fixed` `motion.div` to that rect — see `transformOriginFromRect` in
+`components/command-menu.tsx` for this pattern applied to a transform-origin
+rather than a full position/size target.
 
 For a color that must render reliably on a `motion.div` (or any element whose
 `animate`/`initial` props drive inline styles), set it via `style={{
@@ -671,9 +653,9 @@ any ambiguity about class-vs-inline-style precedence on that node.
 `CardExpandProvider` must be an *ancestor* of anything that calls
 `useCardExpand()` — in `app/layout.tsx` it wraps `CommandMenuProvider`
 specifically so `command-menu.tsx`'s tool-selection handler can trigger the
-same grow-then-shrink-to-header-icon transition as clicking a homepage card,
-rather than a bare `router.push`. If a new provider also needs to trigger it,
-it has to be mounted *inside* `CardExpandProvider`, not the other way round.
+same grow-then-fade-out transition as clicking a homepage card, rather than a
+bare `router.push`. If a new provider also needs to trigger it, it has to be
+mounted *inside* `CardExpandProvider`, not the other way round.
 
 Don't call `getBoundingClientRect()` on an element while it's mid-animation
 (e.g. to compute a `transform-origin`) — `transform-origin` length values are
@@ -689,16 +671,13 @@ analytically from that rule instead of measuring the DOM at all — see
 
 Prefer a `motion.div`'s `onAnimationComplete` callback over a separately
 tracked `setTimeout` matching the same `transition.duration` to sequence what
-happens after an animation finishes (e.g. navigating once an expand
-animation completes, or unmounting once a shrink completes) — seen in
+happens after an animation finishes (e.g. navigating once the expand
+animation completes, or unmounting once the fade-out completes) — seen in
 `card-expand-transition.tsx`'s `handleOuterAnimationComplete`. A parallel
 timer duplicates the duration as a magic number in two places and can drift
 from the real animation under frame drops or a backgrounded tab; the
 completion callback is tied to the actual animation, so it's exact by
-construction. Likewise, when the only thing being waited on is "let the DOM
-settle before measuring" (not a fixed animation length), use
-`requestAnimationFrame` rather than a guessed millisecond value — it waits
-exactly one frame, not an arbitrary buffer.
+construction.
 
 Passing a ref-registration function sourced from context/props directly as
 `ref={context.someFn}` trips the `react-hooks/refs` lint rule ("Cannot

@@ -8,18 +8,12 @@ import type { IconSvgElement } from "@hugeicons/react"
 
 type Rect = { top: number; left: number; width: number; height: number }
 type ExpandingTool = { href: string; icon: IconSvgElement; rect: Rect }
-type Phase = "expand" | "hold" | "shrink"
+type Phase = "expand" | "hold" | "fade"
 
 const EXPAND_DURATION = 0.35
-const SHRINK_DURATION = 0.45
+const FADE_DURATION = 0.4
 const EASE = [0.4, 0, 0.2, 1] as const
-
-function measureHeaderIconRect(): Rect | null {
-  const el = document.querySelector<HTMLElement>("[data-tool-header-icon]")
-  if (!el) return null
-  const rect = el.getBoundingClientRect()
-  return { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
-}
+const FADE_EASE = [0.4, 0, 1, 1] as const
 
 const CardExpandContext = React.createContext<
   ((tool: ExpandingTool) => void) | null
@@ -44,26 +38,17 @@ export function CardExpandProvider({
     null
   )
   const [phase, setPhase] = React.useState<Phase>("expand")
-  const [targetRect, setTargetRect] = React.useState<Rect | null>(null)
 
-  // Once the destination route has mounted (pathname changes), its layout —
-  // including the header icon we're about to measure — is already committed
-  // by the time this effect runs; wait exactly one frame (not an arbitrary
-  // timeout) as a minimal safety margin before measuring, then start the
-  // shrink.
+  // Once the destination route has mounted (pathname changes), start fading
+  // the overlay out to reveal it.
   React.useEffect(() => {
     if (!expandingTool || phase !== "hold") return
-    const raf = requestAnimationFrame(() => {
-      setTargetRect(measureHeaderIconRect())
-      setPhase("shrink")
-    })
-    return () => cancelAnimationFrame(raf)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, phase])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPhase("fade")
+  }, [pathname, phase, expandingTool])
 
   function expand(tool: ExpandingTool) {
     setPhase("expand")
-    setTargetRect(null)
     setExpandingTool(tool)
   }
 
@@ -75,14 +60,13 @@ export function CardExpandProvider({
     if (phase === "expand" && expandingTool) {
       router.push(expandingTool.href)
       setPhase("hold")
-    } else if (phase === "shrink") {
+    } else if (phase === "fade") {
       setExpandingTool(null)
       setPhase("expand")
-      setTargetRect(null)
     }
   }
 
-  const isShrinking = phase === "shrink"
+  const isFading = phase === "fade"
 
   return (
     <CardExpandContext.Provider value={expand}>
@@ -100,40 +84,17 @@ export function CardExpandProvider({
               borderRadius: 22,
               opacity: 1,
             }}
-            animate={
-              isShrinking
-                ? targetRect
-                  ? {
-                      top: targetRect.top,
-                      left: targetRect.left,
-                      width: targetRect.width,
-                      height: targetRect.height,
-                      borderRadius: 999,
-                      opacity: 0,
-                    }
-                  : { opacity: 0 }
-                : {
-                    top: 0,
-                    left: 0,
-                    width: "100vw",
-                    height: "100vh",
-                    borderRadius: 22,
-                    opacity: 1,
-                  }
-            }
+            animate={{
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              borderRadius: 22,
+              opacity: isFading ? 0 : 1,
+            }}
             transition={
-              isShrinking
-                ? {
-                    top: { duration: SHRINK_DURATION, ease: EASE },
-                    left: { duration: SHRINK_DURATION, ease: EASE },
-                    width: { duration: SHRINK_DURATION, ease: EASE },
-                    height: { duration: SHRINK_DURATION, ease: EASE },
-                    borderRadius: { duration: SHRINK_DURATION, ease: EASE },
-                    opacity: {
-                      duration: SHRINK_DURATION * 0.35,
-                      delay: SHRINK_DURATION * 0.65,
-                    },
-                  }
+              isFading
+                ? { duration: FADE_DURATION, ease: FADE_EASE }
                 : { duration: EXPAND_DURATION, ease: EASE }
             }
             onAnimationComplete={handleOuterAnimationComplete}
@@ -141,12 +102,10 @@ export function CardExpandProvider({
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.4 }}
-              animate={
-                isShrinking ? { opacity: 0, scale: 0.3 } : { opacity: 1, scale: 1 }
-              }
+              animate={{ opacity: isFading ? 0 : 1, scale: 1 }}
               transition={
-                isShrinking
-                  ? { duration: 0.15, ease: "easeIn" }
+                isFading
+                  ? { duration: FADE_DURATION, ease: FADE_EASE }
                   : { delay: EXPAND_DURATION * 0.4, duration: 0.2 }
               }
             >
