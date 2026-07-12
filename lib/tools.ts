@@ -19,11 +19,12 @@ import {
   SquareRoundCornerIcon,
 } from "@hugeicons/core-free-icons"
 
-export type Category = "data" | "image" | "convert"
+export type Category = "data" | "image" | "convert" | "pdf"
 
 export const CATEGORIES: { id: Category; label: string }[] = [
   { id: "data", label: "Data & text" },
   { id: "image", label: "Image tools" },
+  { id: "pdf", label: "PDF tools" },
   { id: "convert", label: "Convert & extract" },
 ]
 
@@ -118,7 +119,7 @@ export const TOOLS: Tool[] = [
     name: "PDF Unlock",
     description:
       "Remove a PDF's password and download an unlocked copy, in your browser.",
-    category: "convert",
+    category: "pdf",
   },
   {
     href: "/pdf-merge",
@@ -126,7 +127,7 @@ export const TOOLS: Tool[] = [
     name: "PDF Merge",
     description:
       "Combine multiple PDFs into one, in any order, in your browser.",
-    category: "convert",
+    category: "pdf",
   },
   {
     href: "/image-to-pdf",
@@ -134,7 +135,7 @@ export const TOOLS: Tool[] = [
     name: "Image to PDF",
     description:
       "Combine images into a single PDF, one page each, in your browser.",
-    category: "convert",
+    category: "pdf",
   },
   {
     href: "/pdf-to-images",
@@ -142,7 +143,7 @@ export const TOOLS: Tool[] = [
     name: "PDF to Images",
     description:
       "Export every page of a PDF as a PNG or JPEG image, in your browser.",
-    category: "convert",
+    category: "pdf",
   },
   {
     href: "/svg-to-png",
