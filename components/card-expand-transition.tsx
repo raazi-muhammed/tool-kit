@@ -13,9 +13,8 @@ type ExpandingTool = { href: string; icon: IconSvgElement; rect: Rect }
 type Phase = "expand" | "hold" | "fade"
 
 const EXPAND_DURATION = 0.35
-const FADE_DURATION = 0.4
+const FADE_DURATION = 0.5
 const EASE = [0.4, 0, 0.2, 1] as const
-const FADE_EASE = [0.4, 0, 1, 1] as const
 
 const CardExpandContext = React.createContext<
   ((tool: ExpandingTool) => void) | null
@@ -98,10 +97,18 @@ export function CardExpandProvider({
               height: "100vh",
               borderRadius: 22,
               opacity: isFading ? 0 : 1,
+              scale: isFading ? 6 : 1,
             }}
             transition={
               isFading
-                ? { duration: FADE_DURATION, ease: FADE_EASE }
+                ? {
+                    scale: { duration: FADE_DURATION, ease: EASE },
+                    opacity: {
+                      duration: FADE_DURATION * 0.6,
+                      delay: FADE_DURATION * 0.4,
+                      ease: EASE,
+                    },
+                  }
                 : { duration: EXPAND_DURATION, ease: EASE }
             }
             onAnimationComplete={handleOuterAnimationComplete}
@@ -112,7 +119,7 @@ export function CardExpandProvider({
               animate={{ opacity: isFading ? 0 : 1, scale: 1 }}
               transition={
                 isFading
-                  ? { duration: FADE_DURATION, ease: FADE_EASE }
+                  ? { duration: FADE_DURATION * 0.6, ease: EASE }
                   : { delay: EXPAND_DURATION * 0.4, duration: 0.2 }
               }
             >
