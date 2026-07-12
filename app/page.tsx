@@ -1,7 +1,15 @@
 "use client"
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import type { IconSvgElement } from "@hugeicons/react"
+import {
+  ArrowRight01Icon,
+  Contact01Icon,
+  GithubIcon,
+  InstagramIcon,
+  Linkedin01Icon,
+  Mail01Icon,
+} from "@hugeicons/core-free-icons"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -11,10 +19,44 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { CommandMenuTrigger } from "@/components/command-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { IconTooltip } from "@/components/icon-tooltip"
 import { ModeToggle } from "@/components/mode-toggle"
 import { CATEGORIES, TOOLS, type Category } from "@/lib/tools"
 import { cn } from "@/lib/utils"
+
+const CONTACT_EMAIL = "raazi6163@gmail.com"
+
+const SOCIAL_LINKS: { label: string; href: string; icon: IconSvgElement }[] = [
+  {
+    label: "GitHub",
+    href: "https://github.com/raazi-muhammed",
+    icon: GithubIcon,
+  },
+  {
+    label: "LinkedIn",
+    href: "https://www.linkedin.com/in/raazimuhammed/",
+    icon: Linkedin01Icon,
+  },
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/raazi_muhammed_/",
+    icon: InstagramIcon,
+  },
+  {
+    label: "Email",
+    href: `mailto:${CONTACT_EMAIL}`,
+    icon: Mail01Icon,
+  },
+]
 
 export default function Page() {
   const [category, setCategory] = useState<Category | "all">("all")
@@ -30,6 +72,30 @@ export default function Page() {
           Tool Kit
         </h1>
         <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <IconTooltip label="Connect with me">
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Connect with me">
+                  <HugeiconsIcon icon={Contact01Icon} aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+            </IconTooltip>
+            <DropdownMenuContent align="end" className="w-max">
+              <DropdownMenuLabel>Connect with me</DropdownMenuLabel>
+              {SOCIAL_LINKS.map(({ label, href, icon }) => (
+                <DropdownMenuItem key={label} asChild>
+                  <a
+                    href={href}
+                    target={href.startsWith("mailto:") ? undefined : "_blank"}
+                    rel={href.startsWith("mailto:") ? undefined : "noreferrer"}
+                  >
+                    <HugeiconsIcon icon={icon} aria-hidden />
+                    {label}
+                  </a>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <ModeToggle />
           <CommandMenuTrigger className="w-72" />
         </div>
