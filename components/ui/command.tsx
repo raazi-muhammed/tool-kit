@@ -37,12 +37,23 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  transformOrigin,
+  dramaticZoom = true,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  /** CSS `transform-origin` value (e.g. from a measured trigger rect) so the
+   *  zoom grows out of whichever element opened the dialog instead of its
+   *  own center. Must be a real React prop (not an imperative DOM mutation)
+   *  so it survives Radix's own re-renders on open. */
+  transformOrigin?: string
+  /** Set to `false` to fall back to the base Dialog's subtle default
+   *  zoom-in-95 instead of the dramatic grow-from-origin effect (e.g. when
+   *  the user has turned off animations). */
+  dramaticZoom?: boolean
 }) {
   return (
     <Dialog {...props}>
@@ -53,8 +64,21 @@ function CommandDialog({
       <DialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
+          dramaticZoom && "duration-200",
           className
         )}
+        // A much smaller start scale than the base Dialog's zoom-in-95, so it
+        // visibly grows out of the trigger rect instead of a
+        // barely-perceptible 95%->100% zoom.
+        style={
+          dramaticZoom
+            ? ({
+                "--tw-enter-scale": 0.12,
+                "--tw-exit-scale": 0.12,
+                transformOrigin: transformOrigin || undefined,
+              } as React.CSSProperties)
+            : undefined
+        }
         showCloseButton={showCloseButton}
       >
         <Command>{children}</Command>

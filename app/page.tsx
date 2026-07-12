@@ -10,6 +10,7 @@ import {
   Linkedin01Icon,
   Mail01Icon,
 } from "@hugeicons/core-free-icons"
+import { motion } from "framer-motion"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CommandMenuTrigger } from "@/components/command-menu"
+import { useCardExpand } from "@/components/card-expand-transition"
+import { useAnimationsEnabled } from "@/components/motion-preference"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,11 +62,33 @@ const SOCIAL_LINKS: { label: string; href: string; icon: IconSvgElement }[] = [
 ]
 
 export default function Page() {
+  const expandCard = useCardExpand()
+  const { enabled: animationsEnabled } = useAnimationsEnabled()
   const [category, setCategory] = useState<Category | "all">("all")
   const tools =
     category === "all"
       ? TOOLS
       : TOOLS.filter((tool) => tool.category === category)
+
+  function handleCardClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+    icon: IconSvgElement
+  ) {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    const rect = e.currentTarget.getBoundingClientRect()
+    expandCard({
+      href,
+      icon,
+      rect: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+    })
+  }
 
   return (
     <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
@@ -120,36 +145,51 @@ export default function Page() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tools.map(({ href, icon, name, description }) => (
-          <Link key={href} href={href} className="group">
-            <Card className="relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary">
-              <HugeiconsIcon
-                icon={icon}
-                aria-hidden
-                className="pointer-events-none absolute -right-6 -bottom-6 size-24 rotate-12 text-foreground/5"
-              />
-              <CardHeader className="flex flex-row items-start gap-3 px-0">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
-                  <HugeiconsIcon
-                    icon={icon}
-                    className="size-6 text-primary transition-colors group-hover:text-primary-foreground"
-                    aria-hidden
-                  />
-                </div>
-                <div className="flex min-w-0 flex-col gap-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="mt-1">{name}</CardTitle>
+        {tools.map(({ href, icon, name, description }, index) => (
+          <motion.div
+            key={href}
+            initial={animationsEnabled ? { opacity: 0, y: 16 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.2,
+              delay: animationsEnabled ? index * 0.015 : 0,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+          >
+            <Link
+              href={href}
+              className="group"
+              onClick={(e) => handleCardClick(e, href, icon)}
+            >
+              <Card className="relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary">
+                <HugeiconsIcon
+                  icon={icon}
+                  aria-hidden
+                  className="pointer-events-none absolute -right-6 -bottom-6 size-24 rotate-12 text-foreground/5"
+                />
+                <CardHeader className="flex flex-row items-start gap-3 px-0">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
                     <HugeiconsIcon
-                      icon={ArrowRight01Icon}
-                      className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                      icon={icon}
+                      className="size-6 text-primary transition-colors group-hover:text-primary-foreground"
                       aria-hidden
                     />
                   </div>
-                  <CardDescription>{description}</CardDescription>
-                </div>
-              </CardHeader>
-            </Card>
-          </Link>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="mt-1">{name}</CardTitle>
+                      <HugeiconsIcon
+                        icon={ArrowRight01Icon}
+                        className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                        aria-hidden
+                      />
+                    </div>
+                    <CardDescription>{description}</CardDescription>
+                  </div>
+                </CardHeader>
+              </Card>
+            </Link>
+          </motion.div>
         ))}
       </div>
     </div>

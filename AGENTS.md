@@ -427,12 +427,13 @@ import { CommandMenuTrigger } from "@/components/command-menu"
 <CommandMenuTrigger className="w-72" />
 ```
 
-Only `app/page.tsx` (the homepage) renders it — `PageBreadcrumb` (used by
-every tool page via `ToolPage`) deliberately doesn't, so the search trigger
-only shows up on the homescreen. Don't add it back to `PageBreadcrumb` or to
-an individual tool page. When adding a new tool, add it to `TOOLS` in
-`lib/tools.ts` (not inline in `app/page.tsx`) so it shows up in both the grid
-and the command menu.
+`app/page.tsx` (the homepage) renders the full `CommandMenuTrigger` bar (icon
++ "Search" label + `⌘K` hint). `PageBreadcrumb` (used by every tool page via
+`ToolPage`) renders the icon-only `CommandMenuIconTrigger` instead, next to
+the settings `ModeToggle` — same shared `CommandMenuProvider`/dialog, just a
+smaller trigger since a tool page's header has no room for the full bar. When
+adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
+`app/page.tsx`) so it shows up in both the grid and the command menu.
 
 ## Button styling
 
@@ -612,3 +613,88 @@ squeezed to that same narrow width and its item label wraps to two lines.
 Since it's a plain utility (not a conditional one), overriding it via
 `className="w-max"` works normally through `cn`'s `tailwind-merge` — no
 variant needed. See the `more`/`download` dropdowns in `components/tool-page.tsx`.
+
+## Animation (Framer Motion)
+
+This project uses **framer-motion** for anything beyond a plain Tailwind CSS
+transition (hover/focus states stay plain `transition-*` classes — reach for
+`motion.div` + `AnimatePresence` only once something needs to animate in/out,
+follow a measured DOM rect, or survive a route change).
+
+A page-level component (e.g. `app/page.tsx`) is unmounted the instant
+`router.push` navigates away from it, so any animation state that needs to
+keep playing *after* navigation (a fade-out, anything that finishes on the
+destination page) can't live in that page's own `useState` — it has to live
+in a provider mounted once in `app/layout.tsx`, alongside
+`ThemeProvider`/`CommandMenuProvider`/`TooltipProvider`, so it persists across
+the navigation. See `components/card-expand-transition.tsx`
+(`CardExpandProvider`, mounted in `app/layout.tsx`) — it expands a clicked
+homepage card to fill the screen, then, once `usePathname()` reports the new
+route has mounted, fades the overlay out to reveal it, before unmounting.
+Don't reach for framer's `layoutId` shared-layout tracking for a cross-route
+transition that needs to track a specific DOM target (e.g. animating onto a
+destination element rather than just fading away) — it only tracks elements
+within one still-mounted tree, which a hard `router.push` doesn't give you.
+Measure the real target with `getBoundingClientRect()` on a DOM node tagged
+with a purpose-built `data-*` attribute instead, and animate a `position:
+fixed` `motion.div` to that rect — see `transformOriginFromRect` in
+`components/command-menu.tsx` for this pattern applied to a transform-origin
+rather than a full position/size target.
+
+For a color that must render reliably on a `motion.div` (or any element whose
+`animate`/`initial` props drive inline styles), set it via `style={{
+backgroundColor: "#151519" }}` rather than a Tailwind arbitrary-value class
+like `bg-[#151519]` — `card-expand-transition.tsx` does this for its overlay
+background. Framer motion already manages `top`/`left`/`width`/`height`/
+`opacity`/`borderRadius` as inline styles on an animated element, so keeping
+a color that must always show up in that same inline `style` object avoids
+any ambiguity about class-vs-inline-style precedence on that node.
+
+`CardExpandProvider` must be an *ancestor* of anything that calls
+`useCardExpand()` — in `app/layout.tsx` it wraps `CommandMenuProvider`
+specifically so `command-menu.tsx`'s tool-selection handler can trigger the
+same grow-then-fade-out transition as clicking a homepage card, rather than a
+bare `router.push`. If a new provider also needs to trigger it, it has to be
+mounted *inside* `CardExpandProvider`, not the other way round.
+
+Don't call `getBoundingClientRect()` on an element while it's mid-animation
+(e.g. to compute a `transform-origin`) — `transform-origin` length values are
+resolved against the element's *untransformed* layout box, but
+`getBoundingClientRect()` reports the box *after* the currently-applied
+transform (a mid-scale-animation element reports a shrunken, offset rect).
+Subtracting one against the other silently produces a bogus result — no
+error, just a wrong-looking animation. Either measure at rest (before/after
+the animated transform is in play), or, if the element's position is driven
+by a static, known CSS rule (e.g. `left-1/2` + `top-1/3`), compute the origin
+analytically from that rule instead of measuring the DOM at all — see
+`transformOriginFromRect` in `components/command-menu.tsx`.
+
+Prefer a `motion.div`'s `onAnimationComplete` callback over a separately
+tracked `setTimeout` matching the same `transition.duration` to sequence what
+happens after an animation finishes (e.g. navigating once the expand
+animation completes, or unmounting once the fade-out completes) — seen in
+`card-expand-transition.tsx`'s `handleOuterAnimationComplete`. A parallel
+timer duplicates the duration as a magic number in two places and can drift
+from the real animation under frame drops or a backgrounded tab; the
+completion callback is tied to the actual animation, so it's exact by
+construction.
+
+Passing a ref-registration function sourced from context/props directly as
+`ref={context.someFn}` trips the `react-hooks/refs` lint rule ("Cannot
+access ref value during render"), even though it's a perfectly ordinary
+callback ref. Wrap it in a component-local `useCallback` first:
+
+```tsx
+const { registerTrigger } = context
+const setTriggerRef = React.useCallback(
+  (el: HTMLButtonElement | null) => registerTrigger(el),
+  [registerTrigger]
+)
+
+<Button ref={setTriggerRef} ... />
+```
+
+See `CommandMenuTrigger`/`CommandMenuIconTrigger` in
+`components/command-menu.tsx`, which register themselves this way so the
+⌘K/Ctrl+K shortcut can grow the search dialog out of whichever trigger is
+currently mounted instead of hunting for it with a DOM query.
