@@ -240,7 +240,6 @@ export default function SvgToPngPage() {
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
-                  emphasis: "secondary",
                 },
                 { label: "Convert", icon: Png01Icon, onClick: convert },
               ],

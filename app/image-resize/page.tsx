@@ -212,7 +212,6 @@ export default function ImageResizePage() {
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
-                  emphasis: "secondary",
                 },
                 { label: "Resize", icon: Resize02Icon, onClick: resize },
               ],

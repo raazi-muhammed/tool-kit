@@ -354,8 +354,7 @@ export default function ImageScanPage() {
                   label: "Auto detect",
                   icon: AiScanIcon,
                   onClick: autoDetectCorners,
-                  variant: "ghost",
-                  emphasis: "secondary",
+                  variant: "outline",
                   disabled: anyProcessing,
                 },
                 {
