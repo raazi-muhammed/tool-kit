@@ -4,6 +4,7 @@ import {
   BlurIcon,
   BracesIcon,
   Calculator01Icon,
+  FileDiffIcon,
   FileStackIcon,
   FileUnlockedIcon,
   Image01Icon,
@@ -49,6 +50,13 @@ export const TOOLS: Tool[] = [
     icon: Calculator01Icon,
     name: "Inline Calculator",
     description: "Evaluate math expressions inline as you type.",
+    category: "data",
+  },
+  {
+    href: "/text-diff",
+    icon: FileDiffIcon,
+    name: "Text Diff",
+    description: "Compare two text files line by line and see what changed.",
     category: "data",
   },
   {
