@@ -10,6 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { CommandMenuIconTrigger } from "@/components/command-menu"
 import { ModeToggle } from "@/components/mode-toggle"
 
 export function PageBreadcrumb({
@@ -49,6 +50,7 @@ export function PageBreadcrumb({
       </Breadcrumb>
       <div className="flex items-center gap-2">
         <ModeToggle />
+        <CommandMenuIconTrigger />
       </div>
     </div>
   )

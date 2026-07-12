@@ -111,7 +111,7 @@ function DropzoneImpl(
           }}
           className={cn(
             "w-full cursor-pointer transition-colors",
-            dragging ? "border-primary bg-accent/30" : "hover:bg-accent/30",
+            dragging && "border-primary bg-accent/30",
             className
           )}
         >

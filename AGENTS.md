@@ -427,12 +427,13 @@ import { CommandMenuTrigger } from "@/components/command-menu"
 <CommandMenuTrigger className="w-72" />
 ```
 
-Only `app/page.tsx` (the homepage) renders it — `PageBreadcrumb` (used by
-every tool page via `ToolPage`) deliberately doesn't, so the search trigger
-only shows up on the homescreen. Don't add it back to `PageBreadcrumb` or to
-an individual tool page. When adding a new tool, add it to `TOOLS` in
-`lib/tools.ts` (not inline in `app/page.tsx`) so it shows up in both the grid
-and the command menu.
+`app/page.tsx` (the homepage) renders the full `CommandMenuTrigger` bar (icon
++ "Search" label + `⌘K` hint). `PageBreadcrumb` (used by every tool page via
+`ToolPage`) renders the icon-only `CommandMenuIconTrigger` instead, next to
+the settings `ModeToggle` — same shared `CommandMenuProvider`/dialog, just a
+smaller trigger since a tool page's header has no room for the full bar. When
+adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
+`app/page.tsx`) so it shows up in both the grid and the command menu.
 
 ## Button styling
 
@@ -612,3 +613,57 @@ squeezed to that same narrow width and its item label wraps to two lines.
 Since it's a plain utility (not a conditional one), overriding it via
 `className="w-max"` works normally through `cn`'s `tailwind-merge` — no
 variant needed. See the `more`/`download` dropdowns in `components/tool-page.tsx`.
+
+## Animation (Framer Motion)
+
+This project uses **framer-motion** for anything beyond a plain Tailwind CSS
+transition (hover/focus states stay plain `transition-*` classes — reach for
+`motion.div` + `AnimatePresence` only once something needs to animate in/out,
+follow a measured DOM rect, or survive a route change).
+
+A page-level component (e.g. `app/page.tsx`) is unmounted the instant
+`router.push` navigates away from it, so any animation state that needs to
+keep playing *after* navigation (a fade-out, a shrink, anything that finishes
+on the destination page) can't live in that page's own `useState` — it has to
+live in a provider mounted once in `app/layout.tsx`, alongside
+`ThemeProvider`/`CommandMenuProvider`/`TooltipProvider`, so it persists across
+the navigation. See `components/card-expand-transition.tsx`
+(`CardExpandProvider`, mounted in `app/layout.tsx`) — it expands a clicked
+homepage card to fill the screen, then, once `usePathname()` reports the new
+route has mounted, shrinks it down onto the destination page's own header
+icon before unmounting. Don't reach for framer's `layoutId` shared-layout
+tracking for this kind of cross-route transition — it only tracks elements
+within one still-mounted tree, which a hard `router.push` doesn't give you.
+Measure the real target with `getBoundingClientRect()` (on the DOM node
+tagged with a purpose-built `data-*` attribute, e.g.
+`[data-tool-header-icon]` in `components/page-breadcrumb.tsx`) and animate a
+`position: fixed` `motion.div` to that rect instead.
+
+When different CSS properties on the same `motion.div` need their own
+duration/delay/easing (e.g. a box that keeps resizing for the full animation
+while its opacity only fades in the last third), pass a `transition` object
+keyed by property instead of splitting the effect across multiple nested
+`motion.div`s:
+
+```tsx
+<motion.div
+  animate={{ top, left, width, height, borderRadius, opacity: 0 }}
+  transition={{
+    top: { duration: SHRINK_DURATION, ease: EASE },
+    left: { duration: SHRINK_DURATION, ease: EASE },
+    width: { duration: SHRINK_DURATION, ease: EASE },
+    height: { duration: SHRINK_DURATION, ease: EASE },
+    borderRadius: { duration: SHRINK_DURATION, ease: EASE },
+    opacity: { duration: SHRINK_DURATION * 0.35, delay: SHRINK_DURATION * 0.65 },
+  }}
+/>
+```
+
+For a color that must render reliably on a `motion.div` (or any element whose
+`animate`/`initial` props drive inline styles), set it via `style={{
+backgroundColor: "#151519" }}` rather than a Tailwind arbitrary-value class
+like `bg-[#151519]` — `card-expand-transition.tsx` does this for its overlay
+background. Framer motion already manages `top`/`left`/`width`/`height`/
+`opacity`/`borderRadius` as inline styles on an animated element, so keeping
+a color that must always show up in that same inline `style` object avoids
+any ambiguity about class-vs-inline-style precedence on that node.
