@@ -32,6 +32,10 @@ type Job = {
   status: Status
   error: string | null
   result: Result | null
+  /** `null` until the async encryption check (below) resolves. */
+  locked: boolean | null
+  /** Blob URL for the original file, set once it's confirmed to have no password. */
+  originalUrl: string | null
 }
 
 function isPdfFile(file: File): boolean {
@@ -67,10 +71,13 @@ export default function PdfUnlockPage() {
         status: valid ? "idle" : "error",
         error: valid ? null : "This file doesn't look like a PDF.",
         result: null,
+        locked: null,
+        originalUrl: null,
       }
     },
     cleanupJob: (job) => {
       if (job.result) URL.revokeObjectURL(job.result.url)
+      if (job.originalUrl) URL.revokeObjectURL(job.originalUrl)
     },
   })
   const [password, setPassword] = useState("")
@@ -78,6 +85,27 @@ export default function PdfUnlockPage() {
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const anyBusy = jobs.some((job) => job.status === "unlocking")
+
+  async function checkLocked(job: Job) {
+    try {
+      const bytes = await job.file.arrayBuffer()
+      const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+      const locked = doc.isEncrypted
+      updateJob(job.id, (j) => ({
+        locked,
+        originalUrl: locked ? null : URL.createObjectURL(j.file),
+      }))
+    } catch {
+      updateJob(job.id, { locked: true })
+    }
+  }
+
+  async function handleFiles(fileList: FileList | null | undefined) {
+    const { jobs: created } = await addFiles(fileList)
+    created.forEach((job) => {
+      if (job.validFile) void checkLocked(job)
+    })
+  }
 
   async function unlockJob(job: Job, pwd: string) {
     updateJob(job.id, { status: "unlocking", error: null })
@@ -177,7 +205,7 @@ export default function PdfUnlockPage() {
                   type: "password",
                   value: password,
                   onChange: setPassword,
-                  disabled: anyBusy,
+                  disabled: anyBusy || activeJob?.locked === false,
                   onEnter: unlock,
                 },
               ],
@@ -186,7 +214,10 @@ export default function PdfUnlockPage() {
                   label: "Unlock",
                   icon: FileUnlockedIcon,
                   onClick: unlock,
-                  disabled: anyBusy || !activeJob?.validFile,
+                  disabled:
+                    anyBusy ||
+                    !activeJob?.validFile ||
+                    activeJob?.locked === false,
                   more:
                     jobs.length > 1
                       ? {
@@ -215,46 +246,70 @@ export default function PdfUnlockPage() {
               fill
               title="Original"
               layer={
-                activeJob.validFile
+                !activeJob.validFile
                   ? {
-                      kind: "status",
-                      icon: Pdf02Icon,
-                      message: (
-                        <>
-                          {activeJob.name}
-                          <br />
-                          {formatBytes(activeJob.size)}
-                        </>
-                      ),
-                    }
-                  : {
                       kind: "status",
                       icon: AlertCircleIcon,
                       tone: "destructive",
                       message: activeJob.error,
                     }
+                  : activeJob.locked === false && activeJob.originalUrl
+                    ? false
+                    : {
+                        kind: "status",
+                        icon: Pdf02Icon,
+                        message: (
+                          <>
+                            {activeJob.name}
+                            <br />
+                            {formatBytes(activeJob.size)}
+                          </>
+                        ),
+                      }
               }
-            />
+            >
+              {activeJob.validFile &&
+                activeJob.locked === false &&
+                activeJob.originalUrl && (
+                  <PdfPreview
+                    key={activeJob.originalUrl}
+                    url={activeJob.originalUrl}
+                  />
+                )}
+            </PreviewCard>
 
             <PreviewCard
               fill
               title="Unlocked"
               layer={
-                activeJob.status === "unlocking"
+                formError
                   ? {
                       kind: "status",
-                      icon: Loading03Icon,
-                      spin: true,
-                      message: "Unlocking…",
+                      icon: AlertCircleIcon,
+                      tone: "destructive",
+                      message: formError,
                     }
-                  : activeJob.status === "error"
+                  : activeJob.status === "unlocking"
                     ? {
                         kind: "status",
-                        icon: AlertCircleIcon,
-                        tone: "destructive",
-                        message: activeJob.error,
+                        icon: Loading03Icon,
+                        spin: true,
+                        message: "Unlocking…",
                       }
-                    : false
+                    : activeJob.status === "error"
+                      ? {
+                          kind: "status",
+                          icon: AlertCircleIcon,
+                          tone: "destructive",
+                          message: activeJob.error,
+                        }
+                      : activeJob.locked === false && !activeJob.result
+                        ? {
+                            kind: "status",
+                            icon: FileUnlockedIcon,
+                            message: "This PDF doesn't have a password.",
+                          }
+                        : false
               }
             >
               {activeJob.result ? (
@@ -281,10 +336,8 @@ export default function PdfUnlockPage() {
           accept={ACCEPTED}
           multiple
           hidden={jobs.length > 0}
-          onFiles={addFiles}
+          onFiles={handleFiles}
         />
-
-        {formError && <p className="text-sm text-destructive">{formError}</p>}
       </div>
     </ToolPage>
   )
