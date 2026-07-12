@@ -41,9 +41,9 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <TooltipProvider>
-            <CommandMenuProvider>
-              <CardExpandProvider>{children}</CardExpandProvider>
-            </CommandMenuProvider>
+            <CardExpandProvider>
+              <CommandMenuProvider>{children}</CommandMenuProvider>
+            </CardExpandProvider>
           </TooltipProvider>
         </ThemeProvider>
         <Analytics />

@@ -11,7 +11,6 @@ type ExpandingTool = { href: string; icon: IconSvgElement; rect: Rect }
 type Phase = "expand" | "hold" | "shrink"
 
 const EXPAND_DURATION = 0.35
-const SHRINK_HOLD = 0.12
 const SHRINK_DURATION = 0.45
 const EASE = [0.4, 0, 0.2, 1] as const
 
@@ -47,40 +46,40 @@ export function CardExpandProvider({
   const [phase, setPhase] = React.useState<Phase>("expand")
   const [targetRect, setTargetRect] = React.useState<Rect | null>(null)
 
-  React.useEffect(() => {
-    if (!expandingTool || phase !== "expand") return
-    const timeout = setTimeout(() => {
-      router.push(expandingTool.href)
-      setPhase("hold")
-    }, EXPAND_DURATION * 1000)
-    return () => clearTimeout(timeout)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandingTool])
-
+  // Once the destination route has mounted (pathname changes), its layout —
+  // including the header icon we're about to measure — is already committed
+  // by the time this effect runs; wait exactly one frame (not an arbitrary
+  // timeout) as a minimal safety margin before measuring, then start the
+  // shrink.
   React.useEffect(() => {
     if (!expandingTool || phase !== "hold") return
-    const timeout = setTimeout(() => {
+    const raf = requestAnimationFrame(() => {
       setTargetRect(measureHeaderIconRect())
       setPhase("shrink")
-    }, SHRINK_HOLD * 1000)
-    return () => clearTimeout(timeout)
+    })
+    return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, phase])
-
-  React.useEffect(() => {
-    if (phase !== "shrink") return
-    const timeout = setTimeout(() => {
-      setExpandingTool(null)
-      setPhase("expand")
-      setTargetRect(null)
-    }, SHRINK_DURATION * 1000)
-    return () => clearTimeout(timeout)
-  }, [phase])
 
   function expand(tool: ExpandingTool) {
     setPhase("expand")
     setTargetRect(null)
     setExpandingTool(tool)
+  }
+
+  // Advance the phase the instant each stage's animation actually finishes
+  // playing, instead of a separately-tracked timer that has to be kept in
+  // sync with `transition.duration` by hand (and can drift from the real
+  // animation under frame drops or a backgrounded tab).
+  function handleOuterAnimationComplete() {
+    if (phase === "expand" && expandingTool) {
+      router.push(expandingTool.href)
+      setPhase("hold")
+    } else if (phase === "shrink") {
+      setExpandingTool(null)
+      setPhase("expand")
+      setTargetRect(null)
+    }
   }
 
   const isShrinking = phase === "shrink"
@@ -137,6 +136,7 @@ export function CardExpandProvider({
                   }
                 : { duration: EXPAND_DURATION, ease: EASE }
             }
+            onAnimationComplete={handleOuterAnimationComplete}
             className="z-50 flex items-center justify-center overflow-hidden"
           >
             <motion.div

@@ -667,3 +667,55 @@ background. Framer motion already manages `top`/`left`/`width`/`height`/
 `opacity`/`borderRadius` as inline styles on an animated element, so keeping
 a color that must always show up in that same inline `style` object avoids
 any ambiguity about class-vs-inline-style precedence on that node.
+
+`CardExpandProvider` must be an *ancestor* of anything that calls
+`useCardExpand()` — in `app/layout.tsx` it wraps `CommandMenuProvider`
+specifically so `command-menu.tsx`'s tool-selection handler can trigger the
+same grow-then-shrink-to-header-icon transition as clicking a homepage card,
+rather than a bare `router.push`. If a new provider also needs to trigger it,
+it has to be mounted *inside* `CardExpandProvider`, not the other way round.
+
+Don't call `getBoundingClientRect()` on an element while it's mid-animation
+(e.g. to compute a `transform-origin`) — `transform-origin` length values are
+resolved against the element's *untransformed* layout box, but
+`getBoundingClientRect()` reports the box *after* the currently-applied
+transform (a mid-scale-animation element reports a shrunken, offset rect).
+Subtracting one against the other silently produces a bogus result — no
+error, just a wrong-looking animation. Either measure at rest (before/after
+the animated transform is in play), or, if the element's position is driven
+by a static, known CSS rule (e.g. `left-1/2` + `top-1/3`), compute the origin
+analytically from that rule instead of measuring the DOM at all — see
+`transformOriginFromRect` in `components/command-menu.tsx`.
+
+Prefer a `motion.div`'s `onAnimationComplete` callback over a separately
+tracked `setTimeout` matching the same `transition.duration` to sequence what
+happens after an animation finishes (e.g. navigating once an expand
+animation completes, or unmounting once a shrink completes) — seen in
+`card-expand-transition.tsx`'s `handleOuterAnimationComplete`. A parallel
+timer duplicates the duration as a magic number in two places and can drift
+from the real animation under frame drops or a backgrounded tab; the
+completion callback is tied to the actual animation, so it's exact by
+construction. Likewise, when the only thing being waited on is "let the DOM
+settle before measuring" (not a fixed animation length), use
+`requestAnimationFrame` rather than a guessed millisecond value — it waits
+exactly one frame, not an arbitrary buffer.
+
+Passing a ref-registration function sourced from context/props directly as
+`ref={context.someFn}` trips the `react-hooks/refs` lint rule ("Cannot
+access ref value during render"), even though it's a perfectly ordinary
+callback ref. Wrap it in a component-local `useCallback` first:
+
+```tsx
+const { registerTrigger } = context
+const setTriggerRef = React.useCallback(
+  (el: HTMLButtonElement | null) => registerTrigger(el),
+  [registerTrigger]
+)
+
+<Button ref={setTriggerRef} ... />
+```
+
+See `CommandMenuTrigger`/`CommandMenuIconTrigger` in
+`components/command-menu.tsx`, which register themselves this way so the
+⌘K/Ctrl+K shortcut can grow the search dialog out of whichever trigger is
+currently mounted instead of hunting for it with a DOM query.

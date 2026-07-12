@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/command"
 import { Button } from "@/components/ui/button"
 import { IconTooltip } from "@/components/icon-tooltip"
-import { TOOLS } from "@/lib/tools"
+import { useCardExpand } from "@/components/card-expand-transition"
+import { TOOLS, type Tool } from "@/lib/tools"
 import { cn } from "@/lib/utils"
 
 const CommandMenuContext = React.createContext<{
@@ -36,6 +37,7 @@ export function CommandMenuProvider({
   // go stale or match the wrong node the way a selector-based lookup can.
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const router = useRouter()
+  const expandCard = useCardExpand()
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -61,9 +63,30 @@ export function CommandMenuProvider({
     setOpen(true)
   }
 
-  function runTool(href: string) {
+  function runTool(tool: Tool) {
     setOpen(false)
-    router.push(href)
+    // Reuse the same grow-then-shrink-to-header-icon animation as clicking a
+    // homepage card, growing out of the dialog's own (settled, fully open)
+    // rect rather than the individual result row — cmdk's CommandItem
+    // doesn't expose the underlying click event to onSelect.
+    const content = document.querySelector<HTMLElement>(
+      '[data-slot="dialog-content"]'
+    )
+    if (!content) {
+      router.push(tool.href)
+      return
+    }
+    const rect = content.getBoundingClientRect()
+    expandCard({
+      href: tool.href,
+      icon: tool.icon,
+      rect: {
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      },
+    })
   }
 
   return (
@@ -85,7 +108,7 @@ export function CommandMenuProvider({
                 key={tool.href}
                 value={tool.name}
                 keywords={[tool.description]}
-                onSelect={() => runTool(tool.href)}
+                onSelect={() => runTool(tool)}
               >
                 <HugeiconsIcon icon={tool.icon} aria-hidden />
                 {tool.name}
