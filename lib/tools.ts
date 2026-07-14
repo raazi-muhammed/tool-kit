@@ -7,6 +7,7 @@ import {
   FileDiffIcon,
   FileStackIcon,
   FileUnlockedIcon,
+  IdentityCardIcon,
   Image01Icon,
   ImageCropIcon,
   ImageDownloadIcon,
@@ -160,6 +161,14 @@ export const TOOLS: Tool[] = [
     name: "PDF to Images",
     description:
       "Export every page of a PDF as a PNG or JPEG image, in your browser.",
+    category: "pdf",
+  },
+  {
+    href: "/id-card-merge",
+    icon: IdentityCardIcon,
+    name: "ID Card Merge",
+    description:
+      "Combine a front and back image, or a two-page PDF, onto a single page as an image or PDF, in your browser.",
     category: "pdf",
   },
   {

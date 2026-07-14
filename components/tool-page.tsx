@@ -209,7 +209,8 @@ type Sidebar = {
   toggle?: SidebarToggle
   inputs?: SidebarInput[]
   zoom?: SidebarZoom
-  slider?: SidebarSlider
+  /** A single slider (the common case), or an array for a tool with more than one independent slider setting (e.g. ID Card Merge's gap and outer padding) — each renders identically, stacked in order. */
+  slider?: SidebarSlider | SidebarSlider[]
   /** Muted contextual text (e.g. "No transparent margin to trim.") shown in the sidebar. */
   hint?: ReactNode
   /**
@@ -722,9 +723,14 @@ export function ToolPage({
               </div>
             ))}
 
-            {sidebar?.slider && (
-              <SidebarSliderControl slider={sidebar.slider} />
-            )}
+            {sidebar?.slider &&
+              (Array.isArray(sidebar.slider) ? (
+                sidebar.slider.map((slider, index) => (
+                  <SidebarSliderControl key={index} slider={slider} />
+                ))
+              ) : (
+                <SidebarSliderControl slider={sidebar.slider} />
+              ))}
 
             {sidebar?.hint && (
               <span className="text-sm text-muted-foreground">
