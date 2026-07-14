@@ -11,6 +11,7 @@ import {
   ImageCropIcon,
   ImageDownloadIcon,
   ImageRotationClockwiseIcon,
+  Key01Icon,
   Pdf01Icon,
   Png01Icon,
   Resize02Icon,
@@ -57,6 +58,14 @@ export const TOOLS: Tool[] = [
     icon: FileDiffIcon,
     name: "Text Diff",
     description: "Compare two text files line by line and see what changed.",
+    category: "data",
+  },
+  {
+    href: "/env-example-creator",
+    icon: Key01Icon,
+    name: ".env.example Creator",
+    description:
+      "Paste a .env file and get a .env.example with keys kept and values blanked out.",
     category: "data",
   },
   {

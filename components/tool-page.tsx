@@ -175,6 +175,12 @@ type SidebarToggle = {
     onChange: (value: string) => void
   }
   slider?: SidebarSlider
+  /** A plain checkbox sub-option, revealed only while `pressed` (e.g. a narrower refinement of the toggle's own behavior). */
+  checkbox?: {
+    label: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+  }
 }
 
 // A single labeled text/number/password field (e.g. a resize width, a PDF
@@ -675,6 +681,21 @@ export function ToolPage({
                 )}
                 {sidebar.toggle.pressed && sidebar.toggle.slider && (
                   <SidebarSliderControl slider={sidebar.toggle.slider} />
+                )}
+                {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
+                  <label className="flex cursor-pointer items-center justify-between gap-2">
+                    <SidebarLabel>
+                      {sidebar.toggle.checkbox.label}
+                    </SidebarLabel>
+                    <Checkbox
+                      checked={sidebar.toggle.checkbox.checked}
+                      onCheckedChange={(checked) =>
+                        sidebar.toggle!.checkbox!.onCheckedChange(
+                          checked === true
+                        )
+                      }
+                    />
+                  </label>
                 )}
               </div>
             )}
