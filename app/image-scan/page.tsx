@@ -8,6 +8,8 @@ import {
   Image01Icon,
   Loading03Icon,
   MagicWand01Icon,
+  RotateCcwSquareIcon,
+  RotateCwSquareIcon,
   ScanIcon,
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
@@ -24,6 +26,7 @@ import {
   defaultQuad,
   drawQuadSelection,
   quadOutputSize,
+  rotateCanvas,
   scaleQuad,
   warpQuadToRect,
   type Quad,
@@ -56,6 +59,7 @@ export default function ImageScanPage() {
     addFiles: addFilesToQueue,
     removeJob,
     getResource,
+    setResource,
   } = useFiles<Job, HTMLCanvasElement>({
     loadResource: loadImageAsCanvas,
     createJob: (file, id) => ({
@@ -70,6 +74,7 @@ export default function ImageScanPage() {
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [filter, setFilter] = useState<ScanFilter>("original")
   const [bwThreshold, setBwThreshold] = useState(160)
+  const [contrast, setContrast] = useState(100)
   // Which job ids currently have a committed scan result — mirrors
   // `scanResultsRef` as real state so the render body (which layer to show,
   // whether Download is enabled) can read it without touching a ref during
@@ -123,7 +128,7 @@ export default function ImageScanPage() {
     const scanned =
       activeId != null ? scanResultsRef.current.get(activeId) : undefined
     if (!canvas || !scanned) return
-    const filtered = applyScanFilter(scanned, filter, bwThreshold)
+    const filtered = applyScanFilter(scanned, filter, bwThreshold, contrast)
     if (canvas.width !== filtered.width || canvas.height !== filtered.height) {
       canvas.width = filtered.width
       canvas.height = filtered.height
@@ -166,11 +171,11 @@ export default function ImageScanPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, scannedIds])
 
-  // Re-run the filter automatically whenever it (or the B&W threshold)
-  // changes, instead of requiring an explicit apply click — debounced so
-  // dragging the threshold slider (many onValueChange updates a second)
+  // Re-run the filter automatically whenever it (or the B&W threshold /
+  // enhance contrast) changes, instead of requiring an explicit apply click
+  // — debounced so dragging a slider (many onValueChange updates a second)
   // doesn't re-filter the whole image on every tick, only once it settles.
-  useDebouncedEffect(renderResult, [filter, bwThreshold], 200)
+  useDebouncedEffect(renderResult, [filter, bwThreshold, contrast], 200)
 
   function removeJobAndScan(id: number) {
     scanResultsRef.current.delete(id)
@@ -244,10 +249,29 @@ export default function ImageScanPage() {
     reseedQuad(activeId)
   }
 
+  // Rotates the active job's own working image by 90°, in place — since the
+  // quad and any committed scan are defined against the old orientation,
+  // both are cleared and the quad is reseeded against the rotated image.
+  function rotate(delta: number) {
+    if (activeId == null || anyProcessing) return
+    const base = getResource(activeId)
+    if (!base) return
+    setResource(activeId, rotateCanvas(base, delta))
+    scanResultsRef.current.delete(activeId)
+    setScannedIds((prev) => {
+      if (!prev.has(activeId)) return prev
+      const next = new Set(prev)
+      next.delete(activeId)
+      return next
+    })
+    reseedQuad(activeId)
+    fitView()
+  }
+
   async function downloadJob(job: Job) {
     const scanned = scanResultsRef.current.get(job.id)
     if (!scanned) throw new Error(`"${job.name}" hasn't been scanned yet.`)
-    const filtered = applyScanFilter(scanned, filter, bwThreshold)
+    const filtered = applyScanFilter(scanned, filter, bwThreshold, contrast)
     // Only reuse the source file's MIME as the *output* encoding when a
     // canvas can actually produce it — formats a browser can merely decode
     // (HEIC/HEIF off an iPhone, TIFF, AVIF, ...) make `toBlob` resolve with
@@ -348,8 +372,38 @@ export default function ImageScanPage() {
                       max: 255,
                       disabled: anyProcessing,
                     }
-                  : undefined,
+                  : filter === "enhance"
+                    ? {
+                        label: "Contrast",
+                        value: contrast,
+                        onValueChange: setContrast,
+                        min: 50,
+                        max: 200,
+                        unit: "%",
+                        disabled: anyProcessing,
+                      }
+                    : undefined,
               actions: [
+                {
+                  label: "Rotate",
+                  placement: "top",
+                  actions: [
+                    {
+                      label: "Rotate left",
+                      icon: RotateCcwSquareIcon,
+                      onClick: () => rotate(-90),
+                      variant: "secondary",
+                      disabled: anyProcessing,
+                    },
+                    {
+                      label: "Rotate right",
+                      icon: RotateCwSquareIcon,
+                      onClick: () => rotate(90),
+                      variant: "secondary",
+                      disabled: anyProcessing,
+                    },
+                  ],
+                },
                 {
                   label: "Auto detect",
                   icon: AiScanIcon,
@@ -411,7 +465,7 @@ export default function ImageScanPage() {
                     ? {
                         ref: resultCanvasRef,
                         className:
-                          "relative max-h-full max-w-full pointer-events-none",
+                          "h-full w-full object-contain pointer-events-none",
                       }
                     : anyProcessing
                       ? { kind: "status", icon: Loading03Icon, spin: true }
