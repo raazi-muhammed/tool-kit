@@ -5,6 +5,7 @@ import type { IconSvgElement } from "@hugeicons/react"
 import {
   Add01Icon,
   ArrowDown01Icon,
+  ClipboardPasteIcon,
   Copy01Icon,
   Download04Icon,
   FitToScreenIcon,
@@ -14,7 +15,7 @@ import {
   ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
 import { useState } from "react"
-import type { ReactNode } from "react"
+import type { ReactNode, RefObject } from "react"
 
 import { ColorPicker } from "@/components/color-picker"
 import { IconTooltip } from "@/components/icon-tooltip"
@@ -38,6 +39,14 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+// Duck-typed against `DropzoneHandle` (`components/dropzone.tsx`) rather than
+// imported directly, so `ToolPage` doesn't need a hard dependency on
+// `Dropzone` — any ref exposing `open`/`paste` works.
+type AddFileHandle = {
+  open: () => void
+  paste: () => void
+}
 
 type Segments = {
   value: string
@@ -476,7 +485,13 @@ export function ToolPage({
   icon: IconSvgElement
   onCopy?: () => void
   onLoadSample?: () => void
-  onAddFile?: () => void
+  /**
+   * The same `dropzoneRef` a page already keeps for `ref={dropzoneRef}` on its
+   * `Dropzone` — `ToolPage` renders "Add file" as a ButtonGroup + dropdown
+   * chevron with a "Paste from clipboard" option, calling `.open()`/`.paste()`
+   * on it directly, so there's nothing extra to wire per page.
+   */
+  onAddFile?: RefObject<AddFileHandle | null>
   segments?: Segments
   actions?: ReactNode
   /** A `JobStrip` (or similar) element, rendered in the bottom bar next to zoom controls and Add file. */
@@ -581,14 +596,33 @@ export function ToolPage({
             {fileStrip && <div className="min-w-0 flex-1">{fileStrip}</div>}
 
             {onAddFile && (
-              <Button
-                variant="secondary"
-                onClick={onAddFile}
-                className="ml-auto"
-              >
-                <HugeiconsIcon icon={Add01Icon} aria-hidden />
-                Add file
-              </Button>
+              <ButtonGroup className="ml-auto">
+                <Button
+                  variant="secondary"
+                  onClick={() => onAddFile.current?.open()}
+                  className="flex-1"
+                >
+                  <HugeiconsIcon icon={Add01Icon} aria-hidden />
+                  Add file
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      aria-label="More add file options"
+                    >
+                      <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-max">
+                    <DropdownMenuItem onClick={() => onAddFile.current?.paste()}>
+                      <HugeiconsIcon icon={ClipboardPasteIcon} aria-hidden />
+                      Paste from clipboard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ButtonGroup>
             )}
           </div>
         )}

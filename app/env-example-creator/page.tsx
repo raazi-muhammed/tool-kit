@@ -34,7 +34,7 @@ export default function EnvExampleCreatorPage() {
     <ToolPage
       page=".env.example Creator"
       icon={Key01Icon}
-      onAddFile={() => dropzoneRef.current?.open()}
+      onAddFile={dropzoneRef}
       sidebar={{
         toggle: {
           label: "Remove commented-out lines",

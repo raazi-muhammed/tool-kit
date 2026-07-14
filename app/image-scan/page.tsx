@@ -338,9 +338,7 @@ export default function ImageScanPage() {
         ],
         disabled: anyProcessing,
       }}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

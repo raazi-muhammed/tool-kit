@@ -230,9 +230,7 @@ export default function ImageConverterPage() {
     <ToolPage
       page="Image Converter"
       icon={Image01Icon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip
