@@ -7,10 +7,12 @@ import {
   FileDiffIcon,
   FileStackIcon,
   FileUnlockedIcon,
+  IdentityCardIcon,
   Image01Icon,
   ImageCropIcon,
   ImageDownloadIcon,
   ImageRotationClockwiseIcon,
+  Key01Icon,
   Pdf01Icon,
   Png01Icon,
   Resize02Icon,
@@ -57,6 +59,14 @@ export const TOOLS: Tool[] = [
     icon: FileDiffIcon,
     name: "Text Diff",
     description: "Compare two text files line by line and see what changed.",
+    category: "data",
+  },
+  {
+    href: "/env-example-creator",
+    icon: Key01Icon,
+    name: ".env.example Creator",
+    description:
+      "Paste a .env file and get a .env.example with keys kept and values blanked out.",
     category: "data",
   },
   {
@@ -151,6 +161,14 @@ export const TOOLS: Tool[] = [
     name: "PDF to Images",
     description:
       "Export every page of a PDF as a PNG or JPEG image, in your browser.",
+    category: "pdf",
+  },
+  {
+    href: "/id-card-merge",
+    icon: IdentityCardIcon,
+    name: "ID Card Merge",
+    description:
+      "Combine a front and back image, or a two-page PDF, onto a single page as an image or PDF, in your browser.",
     category: "pdf",
   },
   {

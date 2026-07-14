@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 
 export type DropzoneHandle = {
   open: () => void
+  /** Reads image or text data off the system clipboard (Clipboard API) and feeds it through the same `onFiles` path as a pick or drop. Fails silently (console.error) if the browser denies clipboard access or the clipboard holds nothing usable. */
+  paste: () => Promise<void>
 }
 
 function DropzoneImpl(
@@ -48,6 +50,45 @@ function DropzoneImpl(
 
   React.useImperativeHandle(ref, () => ({
     open: () => inputRef.current?.click(),
+    paste: async () => {
+      // Derives a filename extension from this dropzone's own `accept` (e.g.
+      // ".env,text/plain" -> "env") so a pasted text clipboard item gets a
+      // name the tool's own file handling expects, instead of a generic
+      // ".txt" it might not recognize.
+      const acceptExtension = accept
+        ?.split(",")
+        .map((token) => token.trim())
+        .find((token) => token.startsWith("."))
+        ?.slice(1)
+
+      try {
+        const items = await navigator.clipboard.read()
+        const dataTransfer = new DataTransfer()
+        for (const item of items) {
+          const imageType = item.types.find((t) => t.startsWith("image/"))
+          if (imageType) {
+            const blob = await item.getType(imageType)
+            const ext = imageType.split("/")[1] ?? "png"
+            dataTransfer.items.add(
+              new File([blob], `pasted.${ext}`, { type: imageType })
+            )
+            continue
+          }
+          if (item.types.includes("text/plain")) {
+            const blob = await item.getType("text/plain")
+            dataTransfer.items.add(
+              new File([blob], `pasted.${acceptExtension ?? "txt"}`, {
+                type: "text/plain",
+              })
+            )
+          }
+        }
+        if (dataTransfer.files.length === 0) return
+        onFiles(dataTransfer.files)
+      } catch (error) {
+        console.error("Failed to paste from clipboard", error)
+      }
+    },
   }))
 
   // Cmd/Ctrl+V anywhere on the page adds files, mirroring drag-and-drop —

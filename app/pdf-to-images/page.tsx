@@ -235,9 +235,7 @@ export default function PdfToImagesPage() {
     <ToolPage
       page="PDF to Images"
       icon={ImageDownloadIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

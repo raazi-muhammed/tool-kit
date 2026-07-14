@@ -181,9 +181,7 @@ export default function ImageTrimPage() {
     <ToolPage
       page="Image Trim"
       icon={ScissorRectangleIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

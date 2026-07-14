@@ -188,9 +188,7 @@ export default function SquareImageGeneratorPage() {
     <ToolPage
       page="Square Image Generator"
       icon={SquareIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

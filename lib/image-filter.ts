@@ -12,6 +12,10 @@ function luminance(r: number, g: number, b: number): number {
   return 0.299 * r + 0.587 * g + 0.114 * b
 }
 
+function clamp255(value: number): number {
+  return Math.min(255, Math.max(0, value))
+}
+
 /**
  * Apply a scanner-style look to `source`, returning a new canvas (the
  * original is left untouched, since the filter is meant to stay swappable
@@ -19,15 +23,18 @@ function luminance(r: number, g: number, b: number): number {
  * - `grayscale` desaturates.
  * - `bw` thresholds to pure black/white at `threshold` (0-255).
  * - `enhance` contrast-stretches by luminance percentiles (clipping the
- *   dimmest/brightest 1% as outliers) and applies the same scale/offset to
- *   every channel, so color balance is preserved — pushes the page
- *   background toward white and deepens text without fully binarizing.
+ *   dimmest/brightest 1% as outliers), then applies `contrast` (100 = the
+ *   plain stretch, higher pushes values further from mid-gray) around the
+ *   midpoint — applies the same scale/offset to every channel, so color
+ *   balance is preserved — pushes the page background toward white and
+ *   deepens text without fully binarizing.
  * `"original"` is returned as-is (no copy needed).
  */
 export function applyScanFilter(
   source: HTMLCanvasElement,
   filter: ScanFilter,
-  threshold: number
+  threshold: number,
+  contrast = 100
 ): HTMLCanvasElement {
   if (filter === "original") return source
 
@@ -77,10 +84,14 @@ export function applyScanFilter(
       }
     }
     const range = Math.max(1, high - low)
+    const contrastFactor = contrast / 100
     for (let i = 0; i < data.length; i += 4) {
-      data[i] = ((data[i] - low) / range) * 255
-      data[i + 1] = ((data[i + 1] - low) / range) * 255
-      data[i + 2] = ((data[i + 2] - low) / range) * 255
+      const stretched0 = ((data[i] - low) / range) * 255
+      const stretched1 = ((data[i + 1] - low) / range) * 255
+      const stretched2 = ((data[i + 2] - low) / range) * 255
+      data[i] = clamp255((stretched0 - 128) * contrastFactor + 128)
+      data[i + 1] = clamp255((stretched1 - 128) * contrastFactor + 128)
+      data[i + 2] = clamp255((stretched2 - 128) * contrastFactor + 128)
     }
   }
 

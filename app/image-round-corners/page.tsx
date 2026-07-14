@@ -146,9 +146,7 @@ export default function ImageRoundCornersPage() {
     <ToolPage
       page="Image Round Corners"
       icon={SquareRoundCornerIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

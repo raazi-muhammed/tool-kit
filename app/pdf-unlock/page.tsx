@@ -183,9 +183,7 @@ export default function PdfUnlockPage() {
     <ToolPage
       page="PDF Unlock"
       icon={FileUnlockedIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

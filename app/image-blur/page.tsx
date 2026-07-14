@@ -290,9 +290,7 @@ export default function ImageBlurPage() {
     <ToolPage
       page="Image Blur"
       icon={BlurIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

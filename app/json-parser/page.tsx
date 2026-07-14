@@ -77,7 +77,7 @@ export default function JsonParserPage() {
     <ToolPage
       page="JSON Parser"
       icon={BracesIcon}
-      onAddFile={() => dropzoneRef.current?.open()}
+      onAddFile={dropzoneRef}
       segments={{
         value: tab,
         onValueChange: (value) => setTab(value as Tab),

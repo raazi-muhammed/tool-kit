@@ -172,9 +172,7 @@ export default function ImageResizePage() {
     <ToolPage
       page="Image Resize"
       icon={Resize02Icon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

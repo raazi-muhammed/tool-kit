@@ -204,9 +204,7 @@ export default function VideoToAudioPage() {
     <ToolPage
       page="Video to Audio"
       icon={AudioWave01Icon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

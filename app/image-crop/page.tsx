@@ -236,9 +236,7 @@ export default function ImageCropPage() {
     <ToolPage
       page="Image Crop"
       icon={ImageCropIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

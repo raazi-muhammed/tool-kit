@@ -134,9 +134,7 @@ export default function ImageRotatePage() {
     <ToolPage
       page="Image Rotate"
       icon={ImageRotationClockwiseIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip

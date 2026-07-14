@@ -5,6 +5,7 @@ import type { IconSvgElement } from "@hugeicons/react"
 import {
   Add01Icon,
   ArrowDown01Icon,
+  ClipboardPasteIcon,
   Copy01Icon,
   Download04Icon,
   FitToScreenIcon,
@@ -14,7 +15,7 @@ import {
   ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
 import { useState } from "react"
-import type { ReactNode } from "react"
+import type { ReactNode, RefObject } from "react"
 
 import { ColorPicker } from "@/components/color-picker"
 import { IconTooltip } from "@/components/icon-tooltip"
@@ -38,6 +39,14 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+// Duck-typed against `DropzoneHandle` (`components/dropzone.tsx`) rather than
+// imported directly, so `ToolPage` doesn't need a hard dependency on
+// `Dropzone` — any ref exposing `open`/`paste` works.
+type AddFileHandle = {
+  open: () => void
+  paste: () => void
+}
 
 type Segments = {
   value: string
@@ -175,6 +184,12 @@ type SidebarToggle = {
     onChange: (value: string) => void
   }
   slider?: SidebarSlider
+  /** A plain checkbox sub-option, revealed only while `pressed` (e.g. a narrower refinement of the toggle's own behavior). */
+  checkbox?: {
+    label: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+  }
 }
 
 // A single labeled text/number/password field (e.g. a resize width, a PDF
@@ -203,7 +218,8 @@ type Sidebar = {
   toggle?: SidebarToggle
   inputs?: SidebarInput[]
   zoom?: SidebarZoom
-  slider?: SidebarSlider
+  /** A single slider (the common case), or an array for a tool with more than one independent slider setting (e.g. ID Card Merge's gap and outer padding) — each renders identically, stacked in order. */
+  slider?: SidebarSlider | SidebarSlider[]
   /** Muted contextual text (e.g. "No transparent margin to trim.") shown in the sidebar. */
   hint?: ReactNode
   /**
@@ -469,7 +485,13 @@ export function ToolPage({
   icon: IconSvgElement
   onCopy?: () => void
   onLoadSample?: () => void
-  onAddFile?: () => void
+  /**
+   * The same `dropzoneRef` a page already keeps for `ref={dropzoneRef}` on its
+   * `Dropzone` — `ToolPage` renders "Add file" as a ButtonGroup + dropdown
+   * chevron with a "Paste from clipboard" option, calling `.open()`/`.paste()`
+   * on it directly, so there's nothing extra to wire per page.
+   */
+  onAddFile?: RefObject<AddFileHandle | null>
   segments?: Segments
   actions?: ReactNode
   /** A `JobStrip` (or similar) element, rendered in the bottom bar next to zoom controls and Add file. */
@@ -574,14 +596,33 @@ export function ToolPage({
             {fileStrip && <div className="min-w-0 flex-1">{fileStrip}</div>}
 
             {onAddFile && (
-              <Button
-                variant="secondary"
-                onClick={onAddFile}
-                className="ml-auto"
-              >
-                <HugeiconsIcon icon={Add01Icon} aria-hidden />
-                Add file
-              </Button>
+              <ButtonGroup className="ml-auto">
+                <Button
+                  variant="secondary"
+                  onClick={() => onAddFile.current?.open()}
+                  className="flex-1"
+                >
+                  <HugeiconsIcon icon={Add01Icon} aria-hidden />
+                  Add file
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      aria-label="More add file options"
+                    >
+                      <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-max">
+                    <DropdownMenuItem onClick={() => onAddFile.current?.paste()}>
+                      <HugeiconsIcon icon={ClipboardPasteIcon} aria-hidden />
+                      Paste from clipboard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </ButtonGroup>
             )}
           </div>
         )}
@@ -676,6 +717,21 @@ export function ToolPage({
                 {sidebar.toggle.pressed && sidebar.toggle.slider && (
                   <SidebarSliderControl slider={sidebar.toggle.slider} />
                 )}
+                {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
+                  <label className="flex cursor-pointer items-center justify-between gap-2">
+                    <SidebarLabel>
+                      {sidebar.toggle.checkbox.label}
+                    </SidebarLabel>
+                    <Checkbox
+                      checked={sidebar.toggle.checkbox.checked}
+                      onCheckedChange={(checked) =>
+                        sidebar.toggle!.checkbox!.onCheckedChange(
+                          checked === true
+                        )
+                      }
+                    />
+                  </label>
+                )}
               </div>
             )}
 
@@ -701,9 +757,14 @@ export function ToolPage({
               </div>
             ))}
 
-            {sidebar?.slider && (
-              <SidebarSliderControl slider={sidebar.slider} />
-            )}
+            {sidebar?.slider &&
+              (Array.isArray(sidebar.slider) ? (
+                sidebar.slider.map((slider, index) => (
+                  <SidebarSliderControl key={index} slider={slider} />
+                ))
+              ) : (
+                <SidebarSliderControl slider={sidebar.slider} />
+              ))}
 
             {sidebar?.hint && (
               <span className="text-sm text-muted-foreground">

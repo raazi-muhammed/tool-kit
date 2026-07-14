@@ -153,9 +153,7 @@ export default function PdfMergePage() {
     <ToolPage
       page="PDF Merge"
       icon={FileStackIcon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       sidebar={
         jobs.length > 0
           ? {

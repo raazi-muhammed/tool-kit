@@ -565,15 +565,18 @@ header's "Add file" button can still open the same picker, don't unmount
 `Dropzone` — its hidden `<input>` needs to stay mounted for the ref to work.
 Instead render it unconditionally and pass `hidden` to hide just the card, and
 reach it via a `DropzoneHandle` ref. Wire the button itself through
-`ToolPage`'s `onAddFile` prop rather than hand-rolling it in `actions` — every
-tool page that keeps a dropzone around does this identically, so `ToolPage`
-renders the button itself once `onAddFile` is set:
+`ToolPage`'s `onAddFile` prop — pass the `dropzoneRef` itself (not a closure)
+— rather than hand-rolling it in `actions`. Every tool page that keeps a
+dropzone around does this identically, so `ToolPage` renders "Add file" as a
+ButtonGroup + dropdown itself once `onAddFile` is set, calling `.open()`/
+`.paste()` directly on the ref — the dropdown's "Paste from clipboard" option
+comes for free, with no extra prop to wire per page:
 
 ```tsx
 const dropzoneRef = useRef<DropzoneHandle>(null)
 
 <ToolPage
-  onAddFile={file ? () => dropzoneRef.current?.open() : undefined}
+  onAddFile={file ? dropzoneRef : undefined}
   ...
 >
   <Dropzone ref={dropzoneRef} hidden={!!file} ... />

@@ -227,9 +227,7 @@ export default function ImageToPdfPage() {
     <ToolPage
       page="Image to PDF"
       icon={Pdf01Icon}
-      onAddFile={
-        jobs.length > 0 ? () => dropzoneRef.current?.open() : undefined
-      }
+      onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       sidebar={
         jobs.length > 0
           ? {
