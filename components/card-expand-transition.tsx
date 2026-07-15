@@ -40,14 +40,22 @@ export function CardExpandProvider({
     null
   )
   const [phase, setPhase] = React.useState<Phase>("expand")
+  // `router.push` is called inside `startTransition` below so `isPending`
+  // stays true until the destination page has actually rendered - not just
+  // until `pathname` flips. A tool page's own client bundle (framer-motion,
+  // canvas/pdf helpers, ...) can still be fetching/executing after the route
+  // change is visible to `usePathname`, and without this, the overlay would
+  // fade out over the stale homepage before the new page ever painted.
+  const [isPending, startTransition] = React.useTransition()
 
-  // Once the destination route has mounted (pathname changes), start fading
-  // the overlay out to reveal it.
+  // Once the destination route has mounted (pathname changed) *and* React
+  // has actually finished committing it (transition no longer pending),
+  // start fading the overlay out to reveal it.
   React.useEffect(() => {
-    if (!expandingTool || phase !== "hold") return
+    if (!expandingTool || phase !== "hold" || isPending) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPhase("fade")
-  }, [pathname, phase, expandingTool])
+  }, [pathname, phase, expandingTool, isPending])
 
   function expand(tool: ExpandingTool) {
     if (!animationsEnabled) {
@@ -64,7 +72,9 @@ export function CardExpandProvider({
   // animation under frame drops or a backgrounded tab).
   function handleOuterAnimationComplete() {
     if (phase === "expand" && expandingTool) {
-      router.push(expandingTool.href)
+      startTransition(() => {
+        router.push(expandingTool.href)
+      })
       setPhase("hold")
     } else if (phase === "fade") {
       setExpandingTool(null)
