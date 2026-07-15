@@ -46,8 +46,9 @@ import {
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors } from "@/hooks/use-files"
 import { useOrderedFiles } from "@/hooks/use-ordered-files"
-import { downloadFile } from "@/lib/download"
+import { downloadFile, setBlobResult, type FileResult } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
+import { A4_PT, embedCanvasAsPdfPage } from "@/lib/pdf"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "image/*"
@@ -65,11 +66,10 @@ type Job = {
 }
 
 type Status = "idle" | "converting" | "done" | "error"
-type Result = { url: string; name: string; size: number }
 
 // A4/Letter in PDF points (72 pt/in), portrait orientation.
 const PAGE_SIZES_PT: Record<Exclude<PageSize, "fit">, [number, number]> = {
-  a4: [595.28, 841.89],
+  a4: A4_PT,
   letter: [612, 792],
 }
 const MARGIN_PT: Record<Margin, number> = { none: 0, small: 24, big: 56 }
@@ -86,16 +86,6 @@ function pageDimensions(
   return orientation === "landscape"
     ? [portraitHeight, portraitWidth]
     : [portraitWidth, portraitHeight]
-}
-
-async function canvasToPngBytes(
-  canvas: HTMLCanvasElement
-): Promise<Uint8Array> {
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob(resolve, "image/png")
-  )
-  if (!blob) throw new Error("Couldn't encode an image for the PDF.")
-  return new Uint8Array(await blob.arrayBuffer())
 }
 
 // Adds one page for `canvas` to `pdfDoc` — sized to the image itself under
@@ -115,12 +105,9 @@ async function addImagePage(
     canvas,
     marginPt
   )
-  const page = pdfDoc.addPage([pageWidth, pageHeight])
-  const pngBytes = await canvasToPngBytes(canvas)
-  const image = await pdfDoc.embedPng(pngBytes)
 
   if (pageSize === "fit") {
-    page.drawImage(image, {
+    await embedCanvasAsPdfPage(pdfDoc, canvas, [pageWidth, pageHeight], {
       x: marginPt,
       y: marginPt,
       width: canvas.width,
@@ -134,7 +121,7 @@ async function addImagePage(
   const scale = Math.min(availWidth / canvas.width, availHeight / canvas.height)
   const drawWidth = canvas.width * scale
   const drawHeight = canvas.height * scale
-  page.drawImage(image, {
+  await embedCanvasAsPdfPage(pdfDoc, canvas, [pageWidth, pageHeight], {
     x: (pageWidth - drawWidth) / 2,
     y: (pageHeight - drawHeight) / 2,
     width: drawWidth,
@@ -166,7 +153,7 @@ export default function ImageToPdfPage() {
   const [margin, setMargin] = useState<Margin>("none")
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
+  const [result, setResult] = useState<FileResult | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [previewJob, setPreviewJob] = useState<Job | null>(null)
   const { enabled: autoRunEnabled } = useAutoRunEnabled()
@@ -208,9 +195,7 @@ export default function ImageToPdfPage() {
       const bytes = await pdfDoc.save()
       const blob = new Blob([bytes as BlobPart], { type: "application/pdf" })
 
-      if (result) URL.revokeObjectURL(result.url)
-      const url = URL.createObjectURL(blob)
-      setResult({ url, name: "images.pdf", size: blob.size })
+      setResult((prev) => setBlobResult(prev, blob, "images.pdf"))
       setStatus("done")
     } catch (err) {
       setStatus("error")

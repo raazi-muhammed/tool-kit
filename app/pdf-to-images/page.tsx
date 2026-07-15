@@ -39,7 +39,9 @@ import {
 } from "@/components/ui/dialog"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
+import { canvasToBlob } from "@/lib/canvas"
 import { downloadFile, downloadStagger } from "@/lib/download"
+import { isPdfFile, loadPdfjs } from "@/lib/pdf"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "application/pdf,.pdf"
@@ -74,49 +76,12 @@ const RESOLUTION_SCALE: Record<Resolution, number> = {
   high: 300 / 72,
 }
 
-function isPdfFile(file: File): boolean {
-  return (
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-  )
-}
-
 function pageFileName(job: Job, page: PageImage, format: Format): string {
   const base = job.name.toLowerCase().endsWith(".pdf")
     ? job.name.slice(0, -4)
     : job.name
   const ext = format === "jpeg" ? "jpg" : "png"
   return `${base}-page-${String(page.pageNumber).padStart(2, "0")}.${ext}`
-}
-
-function canvasToBlob(
-  canvas: HTMLCanvasElement,
-  mime: string,
-  quality: number
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) =>
-        blob ? resolve(blob) : reject(new Error("Encoding produced no data.")),
-      mime,
-      quality
-    )
-  })
-}
-
-// react-pdf wraps pdfjs-dist in browser-only canvas rendering, so it's
-// loaded client-side only, memoized after the first call — mirrors
-// components/pdf-preview.tsx's worker setup, needed here too since this
-// page renders pages imperatively (to export them) rather than declaratively.
-let pdfjsPromise: Promise<(typeof import("react-pdf"))["pdfjs"]> | null = null
-
-function loadPdfjs() {
-  if (!pdfjsPromise) {
-    pdfjsPromise = import("react-pdf").then((mod) => {
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
-      return mod.pdfjs
-    })
-  }
-  return pdfjsPromise
 }
 
 export default function PdfToImagesPage() {
@@ -223,16 +188,13 @@ export default function PdfToImagesPage() {
   // whenever the shared format/quality/resolution settings change, instead
   // of requiring an explicit Convert click — debounced so dragging the
   // quality slider doesn't re-render on every tick, only once it settles.
-  useDebouncedEffect(
-    () => {
-      if (!autoRunEnabled) return
-      jobs.forEach((job) => {
-        if (job.validFile && job.status !== "converting")
-          void convertJob(job, format, quality, resolution)
-      })
-    },
-    [autoRunEnabled, format, quality, resolution, jobs.length]
-  )
+  useDebouncedEffect(() => {
+    if (!autoRunEnabled) return
+    jobs.forEach((job) => {
+      if (job.validFile && job.status !== "converting")
+        void convertJob(job, format, quality, resolution)
+    })
+  }, [autoRunEnabled, format, quality, resolution, jobs.length])
 
   async function downloadPages(job: Job) {
     for (const page of job.pages) {

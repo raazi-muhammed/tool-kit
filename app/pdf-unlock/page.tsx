@@ -18,13 +18,18 @@ import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
-import { downloadFile, downloadStagger } from "@/lib/download"
+import {
+  downloadAllJobs,
+  downloadFile,
+  setBlobResult,
+  type FileResult,
+} from "@/lib/download"
+import { isPdfFile } from "@/lib/pdf"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "application/pdf,.pdf"
 
 type Status = "idle" | "unlocking" | "done" | "error"
-type Result = { url: string; name: string; size: number }
 type Job = {
   id: number
   file: File
@@ -33,17 +38,11 @@ type Job = {
   validFile: boolean
   status: Status
   error: string | null
-  result: Result | null
+  result: FileResult | null
   /** `null` until the async encryption check (below) resolves. */
   locked: boolean | null
   /** Blob URL for the original file, set once it's confirmed to have no password. */
   originalUrl: string | null
-}
-
-function isPdfFile(file: File): boolean {
-  return (
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-  )
 }
 
 function unlockedName(name: string): string {
@@ -121,15 +120,11 @@ export default function PdfUnlockPage() {
         type: "application/pdf",
       })
 
-      updateJob(job.id, (j) => {
-        if (j.result) URL.revokeObjectURL(j.result.url)
-        const url = URL.createObjectURL(blob)
-        return {
-          status: "done",
-          error: null,
-          result: { url, name: unlockedName(j.name), size: blob.size },
-        }
-      })
+      updateJob(job.id, (j) => ({
+        status: "done",
+        error: null,
+        result: setBlobResult(j.result, blob, unlockedName(j.name)),
+      }))
     } catch (err) {
       updateJob(job.id, {
         status: "error",
@@ -194,12 +189,8 @@ export default function PdfUnlockPage() {
     if (activeJob) void downloadJob(activeJob)
   }
 
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.result) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
   return (

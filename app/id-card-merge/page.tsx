@@ -35,6 +35,8 @@ import {
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { downloadCanvas, downloadFile } from "@/lib/download"
 import { isImageFile, loadImageAsCanvas } from "@/lib/image-file"
+import { prepareDisplayCanvas } from "@/lib/canvas"
+import { A4_PT, embedCanvasAsPdfPage, isPdfFile, loadPdfjs } from "@/lib/pdf"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "image/*,application/pdf,.pdf"
@@ -42,8 +44,6 @@ const ACCEPTED = "image/*,application/pdf,.pdf"
 // (matching PDF to Images' "standard" resolution) both for extracted PDF
 // pages and for rasterizing the A4 preview/output canvas below.
 const RENDER_SCALE = 150 / 72
-// A4 in PDF points (72 pt/in), portrait orientation.
-const A4_PT: [number, number] = [595.28, 841.89]
 const A4_PX: [number, number] = [
   A4_PT[0] * RENDER_SCALE,
   A4_PT[1] * RENDER_SCALE,
@@ -62,27 +62,6 @@ type SourceImage = {
   previewUrl: string
   name: string
   description: string
-}
-
-function isPdfFile(file: File): boolean {
-  return (
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-  )
-}
-
-// react-pdf wraps pdfjs-dist in browser-only canvas rendering, so it's
-// loaded client-side only, memoized after the first call — mirrors
-// components/pdf-preview.tsx's worker setup.
-let pdfjsPromise: Promise<(typeof import("react-pdf"))["pdfjs"]> | null = null
-
-function loadPdfjs() {
-  if (!pdfjsPromise) {
-    pdfjsPromise = import("react-pdf").then((mod) => {
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
-      return mod.pdfjs
-    })
-  }
-  return pdfjsPromise
 }
 
 // Renders a PDF's first two pages as canvases — page 1 is the front, page 2
@@ -231,16 +210,6 @@ function buildOutputCanvas(
   return fitCanvasToPage(content, A4_PX[0], A4_PX[1], layout, align)
 }
 
-async function canvasToPngBytes(
-  canvas: HTMLCanvasElement
-): Promise<Uint8Array> {
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob(resolve, "image/png")
-  )
-  if (!blob) throw new Error("Couldn't encode the combined page.")
-  return new Uint8Array(await blob.arrayBuffer())
-}
-
 export default function IdCardMergePage() {
   const [front, setFront] = useState<SourceImage | null>(null)
   const [back, setBack] = useState<SourceImage | null>(null)
@@ -258,13 +227,8 @@ export default function IdCardMergePage() {
   function renderDisplay(source: HTMLCanvasElement) {
     const display = displayCanvasRef.current
     if (!display) return
-    if (display.width !== source.width || display.height !== source.height) {
-      display.width = source.width
-      display.height = source.height
-    }
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, source)
     if (!ctx) return
-    ctx.clearRect(0, 0, display.width, display.height)
     ctx.drawImage(source, 0, 0)
   }
 
@@ -381,10 +345,7 @@ export default function IdCardMergePage() {
         // onto it), so it's drawn full-bleed onto a real-A4-sized PDF page.
         const pdfDoc = await PDFDocument.create()
         const [pageWidth, pageHeight] = A4_PT
-        const page = pdfDoc.addPage([pageWidth, pageHeight])
-        const pngBytes = await canvasToPngBytes(canvas)
-        const image = await pdfDoc.embedPng(pngBytes)
-        page.drawImage(image, {
+        await embedCanvasAsPdfPage(pdfDoc, canvas, A4_PT, {
           x: 0,
           y: 0,
           width: pageWidth,

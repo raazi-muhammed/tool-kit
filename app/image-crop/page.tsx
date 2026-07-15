@@ -22,8 +22,13 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useRectSelection } from "@/hooks/use-rect-selection"
-import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
-import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import {
+  drawSelectionRect,
+  prepareDisplayCanvas,
+  scaleRect,
+  type Rect,
+} from "@/lib/canvas"
+import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -96,17 +101,9 @@ export default function ImageCropPage() {
     const image = getResource()
     const display = displayCanvasRef.current
     if (!image || !display) return
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, image)
     if (!ctx) return
 
-    // Keep the visible canvas's internal resolution in sync with the image —
-    // it may have just mounted, switched jobs, or just been cropped.
-    if (display.width !== image.width || display.height !== image.height) {
-      display.width = image.width
-      display.height = image.height
-    }
-
-    ctx.clearRect(0, 0, display.width, display.height)
     if (color) {
       ctx.fillStyle = color
       ctx.fillRect(0, 0, display.width, display.height)
@@ -242,11 +239,8 @@ export default function ImageCropPage() {
     if (activeJob) void downloadJob(activeJob)
   }
 
-  async function downloadAll() {
-    for (const job of jobs) {
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, () => true, downloadJob)
   }
 
   return (

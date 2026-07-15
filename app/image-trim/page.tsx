@@ -12,8 +12,13 @@ import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
-import { drawSelectionRect, findOpaqueBounds, type Rect } from "@/lib/canvas"
-import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import {
+  drawSelectionRect,
+  findOpaqueBounds,
+  prepareDisplayCanvas,
+  type Rect,
+} from "@/lib/canvas"
+import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -81,13 +86,8 @@ export default function ImageTrimPage() {
     const image = getResource()
     const display = displayCanvasRef.current
     if (!image || !display) return
-    if (display.width !== image.width || display.height !== image.height) {
-      display.width = image.width
-      display.height = image.height
-    }
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, image)
     if (!ctx) return
-    ctx.clearRect(0, 0, display.width, display.height)
     ctx.drawImage(image, 0, 0)
 
     if (rect) {
@@ -182,12 +182,8 @@ export default function ImageTrimPage() {
 
   // Skips untrimmed images — downloading them would just hand back the
   // original file.
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.trimmed) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => job.trimmed, downloadJob)
   }
 
   return (

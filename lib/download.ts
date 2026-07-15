@@ -1,3 +1,4 @@
+import { canvasToBlob } from "@/lib/canvas"
 import { replaceExtension } from "@/lib/wav"
 
 /** Trigger a browser download for a URL via a throwaway anchor click. */
@@ -33,11 +34,43 @@ export async function downloadCanvas(
   name: string,
   mime: string
 ) {
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob(resolve, mime)
-  )
+  const blob = await canvasToBlob(canvas, mime).catch(() => null)
   if (!blob) return
   const url = URL.createObjectURL(blob)
   downloadFile(url, replaceExtension(name, extensionForMime(mime)))
   URL.revokeObjectURL(url)
+}
+
+/** A generated file kept as an object URL, ready to preview/download. */
+export type FileResult = { url: string; name: string; size: number }
+
+/**
+ * Build a fresh `FileResult` from `blob`, revoking `prev`'s object URL first
+ * (if any) — the "replace this job's result with a new one" step every
+ * generate/convert job does after producing a blob.
+ */
+export function setBlobResult(
+  prev: FileResult | null | undefined,
+  blob: Blob,
+  name: string
+): FileResult {
+  if (prev) URL.revokeObjectURL(prev.url)
+  return { url: URL.createObjectURL(blob), name, size: blob.size }
+}
+
+/**
+ * Download every job in `jobs` that `shouldDownload` accepts, staggering each
+ * one so browsers don't block a burst of downloads — the "Download all"
+ * shared by every multi-job tool.
+ */
+export async function downloadAllJobs<T>(
+  jobs: T[],
+  shouldDownload: (job: T) => boolean,
+  downloadJob: (job: T) => Promise<void>
+) {
+  for (const job of jobs) {
+    if (!shouldDownload(job)) continue
+    await downloadJob(job)
+    await downloadStagger()
+  }
 }

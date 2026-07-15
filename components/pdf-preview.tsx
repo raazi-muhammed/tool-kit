@@ -3,15 +3,16 @@
 import dynamic from "next/dynamic"
 import { useEffect, useRef, useState } from "react"
 
+import { loadPdfjs } from "@/lib/pdf"
+
 // react-pdf wraps pdfjs-dist in browser-only canvas rendering, so both are
 // loaded client-side only (`ssr: false`) — a top-level import crashes Next's
 // server-side prerendering the same way a bare pdfjs-dist import would.
 const PdfDocument = dynamic(
-  () =>
-    import("react-pdf").then((mod) => {
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"
-      return mod.Document
-    }),
+  async () => {
+    await loadPdfjs()
+    return (await import("react-pdf")).Document
+  },
   { ssr: false }
 )
 const PdfPage = dynamic(() => import("react-pdf").then((mod) => mod.Page), {
