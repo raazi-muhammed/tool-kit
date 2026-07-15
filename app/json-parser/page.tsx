@@ -18,8 +18,34 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JsonTree } from "@/components/json-tree"
 import { extractJsonSegment, safeParseJson } from "@/lib/json"
+import { readFirstFileAsText } from "@/lib/utils"
 
 type Tab = "text" | "viewer"
+
+/**
+ * Parse `raw` as JSON and re-stringify it with `stringify`, falling back to
+ * locating a JSON value embedded in surrounding text (markdown fences, a
+ * leading prefix, ...) if the whole string isn't valid JSON on its own.
+ * Returns `null` if neither attempt produces valid JSON — the caller then
+ * leaves `raw` untouched.
+ */
+function applyJsonTransform(
+  raw: string,
+  stringify: (data: unknown) => string
+): string | null {
+  try {
+    return stringify(JSON.parse(raw))
+  } catch {
+    // fall through to the segment-based attempt below
+  }
+  const segment = extractJsonSegment(raw)
+  if (!segment) return null
+  try {
+    return segment.prefix + stringify(JSON.parse(segment.json)) + segment.suffix
+  } catch {
+    return null // segment isn't valid JSON either - leave raw untouched
+  }
+}
 
 export default function JsonParserPage() {
   const [raw, setRaw] = useState("")
@@ -29,44 +55,22 @@ export default function JsonParserPage() {
   const parsed = useMemo(() => safeParseJson(raw), [raw])
 
   async function handleFiles(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-    setRaw(await file.text())
+    const text = await readFirstFileAsText(files)
+    if (text == null) return
+    setRaw(text)
     setTab("text")
   }
 
   function format() {
-    try {
-      setRaw(JSON.stringify(JSON.parse(raw), null, 2))
-      return
-    } catch {
-      // fall through to the segment-based attempt below
-    }
-    const segment = extractJsonSegment(raw)
-    if (!segment) return
-    try {
-      const data = JSON.parse(segment.json)
-      setRaw(segment.prefix + JSON.stringify(data, null, 2) + segment.suffix)
-    } catch {
-      // segment isn't valid JSON either - leave raw untouched
-    }
+    const result = applyJsonTransform(raw, (data) =>
+      JSON.stringify(data, null, 2)
+    )
+    if (result != null) setRaw(result)
   }
 
   function minify() {
-    try {
-      setRaw(JSON.stringify(JSON.parse(raw)))
-      return
-    } catch {
-      // fall through to the segment-based attempt below
-    }
-    const segment = extractJsonSegment(raw)
-    if (!segment) return
-    try {
-      const data = JSON.parse(segment.json)
-      setRaw(segment.prefix + JSON.stringify(data) + segment.suffix)
-    } catch {
-      // segment isn't valid JSON either - leave raw untouched
-    }
+    const result = applyJsonTransform(raw, (data) => JSON.stringify(data))
+    if (result != null) setRaw(result)
   }
 
   function clear() {

@@ -24,11 +24,12 @@ import {
   canvasPointFromEvent,
   drawSelectionRect,
   pointInRect,
+  prepareDisplayCanvas,
   scaleRect,
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
-import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -171,15 +172,8 @@ export default function ImageBlurPage() {
     const base = getResource()
     const display = displayCanvasRef.current
     if (!base || !display) return
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, base)
     if (!ctx) return
-
-    // Keep the visible canvas's internal resolution in sync with the image —
-    // it may have just mounted or switched to a different queued job.
-    if (display.width !== base.width || display.height !== base.height) {
-      display.width = base.width
-      display.height = base.height
-    }
 
     const allRects = rect ? [...rectsRef.current, rect] : rectsRef.current
     if (allRects.length > 0) {
@@ -280,12 +274,8 @@ export default function ImageBlurPage() {
 
   // Skips jobs with no committed blur — downloading them would just hand
   // back the original file.
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.hasEdits) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => job.hasEdits, downloadJob)
   }
 
   // Re-render whenever the blur strength or mode changes while a selection is

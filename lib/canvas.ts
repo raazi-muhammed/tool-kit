@@ -869,3 +869,47 @@ export function sampleColorAtPoint(
 
   return null
 }
+
+/** Encode `canvas` to `mime`, rejecting if encoding produced no data (e.g. a
+ *  zero-size canvas). */
+export function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mime: string,
+  quality?: number
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error("Encoding produced no data.")),
+      mime,
+      quality
+    )
+  })
+}
+
+/** Encode `canvas` as PNG and return its raw bytes — for embedding into a PDF. */
+export async function canvasToPngBytes(
+  canvas: HTMLCanvasElement
+): Promise<Uint8Array> {
+  const blob = await canvasToBlob(canvas, "image/png")
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+/**
+ * Resize `display`'s backing store to match `source`'s dimensions if they
+ * differ, clear it, and return its 2D context (or `null` if unavailable) —
+ * the common prelude every tool's `renderDisplay` needs before drawing.
+ */
+export function prepareDisplayCanvas(
+  display: HTMLCanvasElement,
+  source: { width: number; height: number }
+): CanvasRenderingContext2D | null {
+  if (display.width !== source.width || display.height !== source.height) {
+    display.width = source.width
+    display.height = source.height
+  }
+  const ctx = display.getContext("2d")
+  if (!ctx) return null
+  ctx.clearRect(0, 0, display.width, display.height)
+  return ctx
+}

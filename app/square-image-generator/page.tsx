@@ -13,7 +13,8 @@ import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
-import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { prepareDisplayCanvas } from "@/lib/canvas"
+import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -76,13 +77,8 @@ export default function SquareImageGeneratorPage() {
   ) {
     const display = displayCanvasRef.current
     if (!source || !display) return
-    if (display.width !== source.width || display.height !== source.height) {
-      display.width = source.width
-      display.height = source.height
-    }
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, source)
     if (!ctx) return
-    ctx.clearRect(0, 0, display.width, display.height)
     ctx.drawImage(source, 0, 0)
   }
 
@@ -176,12 +172,8 @@ export default function SquareImageGeneratorPage() {
 
   // Skips ungenerated images — downloading them would just hand back the
   // original file.
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.result) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
   return (

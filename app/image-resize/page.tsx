@@ -15,7 +15,8 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useLockedSize } from "@/hooks/use-locked-size"
-import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { prepareDisplayCanvas } from "@/lib/canvas"
+import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -82,13 +83,8 @@ export default function ImageResizePage() {
   ) {
     const display = displayCanvasRef.current
     if (!source || !display) return
-    if (display.width !== source.width || display.height !== source.height) {
-      display.width = source.width
-      display.height = source.height
-    }
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, source)
     if (!ctx) return
-    ctx.clearRect(0, 0, display.width, display.height)
     ctx.drawImage(source, 0, 0)
   }
 
@@ -156,13 +152,10 @@ export default function ImageResizePage() {
   // target width/height changes, instead of requiring an explicit Resize
   // click — debounced so typing a new value doesn't redraw on every
   // keystroke, only once it settles.
-  useDebouncedEffect(
-    () => {
-      if (!autoRunEnabled || jobs.length === 0) return
-      resize()
-    },
-    [autoRunEnabled, width, height, jobs.length]
-  )
+  useDebouncedEffect(() => {
+    if (!autoRunEnabled || jobs.length === 0) return
+    resize()
+  }, [autoRunEnabled, width, height, jobs.length])
 
   async function downloadJob(job: Job) {
     if (!job.result) return
@@ -175,12 +168,8 @@ export default function ImageResizePage() {
 
   // Skips unresized images — downloading them would just hand back the
   // original file.
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.result) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
   return (

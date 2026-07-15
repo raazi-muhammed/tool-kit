@@ -16,7 +16,7 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useLockedSize } from "@/hooks/use-locked-size"
-import { downloadCanvas, downloadStagger } from "@/lib/download"
+import { downloadAllJobs, downloadCanvas } from "@/lib/download"
 import { loadImage } from "@/lib/image-file"
 
 const ACCEPTED = "image/svg+xml,.svg"
@@ -176,13 +176,10 @@ export default function SvgToPngPage() {
   // target width/height/background changes, instead of requiring an
   // explicit Convert click — debounced so typing a new value doesn't
   // redraw on every keystroke, only once it settles.
-  useDebouncedEffect(
-    () => {
-      if (!autoRunEnabled || jobs.length === 0) return
-      convert()
-    },
-    [autoRunEnabled, width, height, bgColor, jobs.length]
-  )
+  useDebouncedEffect(() => {
+    if (!autoRunEnabled || jobs.length === 0) return
+    convert()
+  }, [autoRunEnabled, width, height, bgColor, jobs.length])
 
   async function downloadJob(job: Job) {
     if (!job.result) return
@@ -194,12 +191,8 @@ export default function SvgToPngPage() {
   }
 
   // Skips unconverted SVGs — downloading them would just hand back an empty result.
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.result) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
   return (

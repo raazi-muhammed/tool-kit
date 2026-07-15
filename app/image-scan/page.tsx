@@ -26,6 +26,7 @@ import { useZoomPan } from "@/hooks/use-zoom-pan"
 import {
   defaultQuad,
   drawQuadSelection,
+  prepareDisplayCanvas,
   quadOutputSize,
   rotateCanvas,
   scaleQuad,
@@ -111,15 +112,9 @@ export default function ImageScanPage() {
     const image = getResource()
     const display = displayCanvasRef.current
     if (!image || !display) return
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, image)
     if (!ctx) return
 
-    if (display.width !== image.width || display.height !== image.height) {
-      display.width = image.width
-      display.height = image.height
-    }
-
-    ctx.clearRect(0, 0, display.width, display.height)
     ctx.drawImage(image, 0, 0)
     if (quad) drawQuadSelection(display, quad)
   }

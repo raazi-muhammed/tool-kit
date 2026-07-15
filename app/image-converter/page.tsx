@@ -15,8 +15,13 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
-import { removeBackgroundColor } from "@/lib/canvas"
-import { downloadFile, downloadStagger } from "@/lib/download"
+import { canvasToBlob, removeBackgroundColor } from "@/lib/canvas"
+import {
+  downloadAllJobs,
+  downloadFile,
+  setBlobResult,
+  type FileResult,
+} from "@/lib/download"
 import { replaceExtension } from "@/lib/wav"
 
 const ACCEPTED = "image/*,.svg,.ico,.avif,.tiff,.tif,.bmp"
@@ -24,7 +29,6 @@ const SUPPORTED_LABEL = "JPG, PNG, WebP, GIF, BMP, SVG, ICO, AVIF, TIFF"
 
 type Format = "png" | "jpeg" | "webp" | "bmp"
 type Status = "idle" | "converting" | "done" | "error"
-type Result = { url: string; name: string; size: number }
 type Job = {
   id: number
   file: File
@@ -33,16 +37,62 @@ type Job = {
   previewUrl: string
   status: Status
   error: string | null
-  result: Result | null
+  result: FileResult | null
   // Independent per file, like image-crop's bgColor or image-rotate's rotation.
   format: Format
 }
 
-const FORMAT_MIME: Record<Format, string> = {
-  png: "image/png",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  bmp: "image/bmp",
+type FormatSpec = {
+  label: string
+  extension: string
+  // Whether this format can hold transparency — gates the background-color
+  // fill and "Remove background" controls.
+  supportsAlpha: boolean
+  supportsQuality: boolean
+  // Missing browser support (currently only WebP) — checked before encoding.
+  supported?: () => boolean
+  encode: (
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    quality: number
+  ) => Promise<Blob>
+}
+
+// Adding a format only means adding an entry here — everything else (type
+// picker options, alpha/quality gating, the actual encode call) reads from it.
+const FORMATS: Record<Format, FormatSpec> = {
+  png: {
+    label: "PNG",
+    extension: "png",
+    supportsAlpha: true,
+    supportsQuality: false,
+    encode: (canvas) => canvasToBlob(canvas, "image/png"),
+  },
+  jpeg: {
+    label: "JPEG",
+    extension: "jpg",
+    supportsAlpha: false,
+    supportsQuality: true,
+    encode: (canvas, _ctx, quality) =>
+      canvasToBlob(canvas, "image/jpeg", quality / 100),
+  },
+  webp: {
+    label: "WebP",
+    extension: "webp",
+    supportsAlpha: true,
+    supportsQuality: true,
+    supported: supportsWebp,
+    encode: (canvas, _ctx, quality) =>
+      canvasToBlob(canvas, "image/webp", quality / 100),
+  },
+  bmp: {
+    label: "BMP",
+    extension: "bmp",
+    supportsAlpha: false,
+    supportsQuality: false,
+    encode: async (canvas, ctx) =>
+      encodeBmp(ctx.getImageData(0, 0, canvas.width, canvas.height)),
+  },
 }
 
 // Broader than the shared isImageFile — this tool also accepts container
@@ -50,21 +100,6 @@ const FORMAT_MIME: Record<Format, string> = {
 function isImageFile(file: File): boolean {
   if (file.type.startsWith("image/")) return true
   return /\.(jpe?g|png|webp|gif|bmp|svg|ico|avif|tiff?)$/i.test(file.name)
-}
-
-function canvasToBlob(
-  canvas: HTMLCanvasElement,
-  mime: string,
-  quality: number
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) =>
-        blob ? resolve(blob) : reject(new Error("Encoding produced no data.")),
-      mime,
-      quality
-    )
-  })
 }
 
 export default function ImageConverterPage() {
@@ -111,8 +146,9 @@ export default function ImageConverterPage() {
 
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
-  const supportsAlpha =
-    activeJob?.format === "png" || activeJob?.format === "webp"
+  const supportsAlpha = activeJob
+    ? FORMATS[activeJob.format].supportsAlpha
+    : false
 
   async function convertJob(
     job: Job,
@@ -124,13 +160,11 @@ export default function ImageConverterPage() {
       tolerance: number
     }
   ) {
-    const fmt = job.format
-    const { quality: q } = opts
-    if (fmt === "webp" && !supportsWebp()) {
+    const fmt = FORMATS[job.format]
+    if (fmt.supported && !fmt.supported()) {
       updateJob(job.id, {
         status: "error",
-        error:
-          "Your browser does not support WebP output. Try Chrome or use PNG instead.",
+        error: `Your browser does not support ${fmt.label} output. Try Chrome or use PNG instead.`,
       })
       return
     }
@@ -157,25 +191,17 @@ export default function ImageConverterPage() {
         ctx.fillRect(0, 0, canvas.width, canvas.height)
       }
       ctx.drawImage(img, 0, 0)
-      if (opts.removeBg && (fmt === "png" || fmt === "webp")) {
+      if (opts.removeBg && fmt.supportsAlpha) {
         removeBackgroundColor(canvas, opts.keyColor, opts.tolerance)
       }
 
-      const blob =
-        fmt === "bmp"
-          ? encodeBmp(ctx.getImageData(0, 0, canvas.width, canvas.height))
-          : await canvasToBlob(canvas, FORMAT_MIME[fmt], q / 100)
-
-      const name = replaceExtension(job.name, fmt === "jpeg" ? "jpg" : fmt)
-      updateJob(job.id, (j) => {
-        if (j.result) URL.revokeObjectURL(j.result.url)
-        const url = URL.createObjectURL(blob)
-        return {
-          status: "done",
-          error: null,
-          result: { url, name, size: blob.size },
-        }
-      })
+      const blob = await fmt.encode(canvas, ctx, opts.quality)
+      const name = replaceExtension(job.name, fmt.extension)
+      updateJob(job.id, (j) => ({
+        status: "done",
+        error: null,
+        result: setBlobResult(j.result, blob, name),
+      }))
     } catch (err) {
       updateJob(job.id, {
         status: "error",
@@ -218,12 +244,14 @@ export default function ImageConverterPage() {
       downloadFile(activeJob.result.url, activeJob.result.name)
   }
 
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.result) continue
-      downloadFile(job.result.url, job.result.name)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(
+      jobs,
+      (job) => !!job.result,
+      async (job) => {
+        if (job.result) downloadFile(job.result.url, job.result.name)
+      }
+    )
   }
 
   return (
@@ -250,12 +278,13 @@ export default function ImageConverterPage() {
                     onValueChange: (value) =>
                       updateJob(activeJob.id, { format: value as Format }),
                     label: "Format",
-                    options: [
-                      { value: "png", label: "PNG", icon: Image01Icon },
-                      { value: "jpeg", label: "JPEG", icon: Image01Icon },
-                      { value: "webp", label: "WebP", icon: Image01Icon },
-                      { value: "bmp", label: "BMP", icon: Image01Icon },
-                    ],
+                    options: (Object.keys(FORMATS) as Format[]).map(
+                      (value) => ({
+                        value,
+                        label: FORMATS[value].label,
+                        icon: Image01Icon,
+                      })
+                    ),
                     disabled: anyBusy,
                   }
                 : undefined,
@@ -288,7 +317,7 @@ export default function ImageConverterPage() {
                   }
                 : undefined,
               slider:
-                activeJob?.format === "jpeg" || activeJob?.format === "webp"
+                activeJob && FORMATS[activeJob.format].supportsQuality
                   ? {
                       label: "Quality",
                       value: quality,

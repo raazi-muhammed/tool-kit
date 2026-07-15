@@ -22,6 +22,7 @@ import {
   groupDiffForDisplay,
   type DiffWord,
 } from "@/lib/diff"
+import { readFirstFileAsText } from "@/lib/utils"
 
 type Tab = "input" | "diff"
 type UploadTarget = "original" | "modified"
@@ -54,9 +55,8 @@ export default function TextDiffPage() {
   const isEmpty = !original.trim() && !modified.trim()
 
   async function handleFiles(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-    const text = await file.text()
+    const text = await readFirstFileAsText(files)
+    if (text == null) return
     if (uploadTarget === "original") setOriginal(text)
     else setModified(text)
     setTab("input")

@@ -1,12 +1,17 @@
 "use client"
 
-import { Eraser01Icon, Key01Icon, Upload04Icon } from "@hugeicons/core-free-icons"
+import {
+  Eraser01Icon,
+  Key01Icon,
+  Upload04Icon,
+} from "@hugeicons/core-free-icons"
 import { useMemo, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { ToolPage } from "@/components/tool-page"
 import { Textarea } from "@/components/ui/textarea"
 import { generateEnvExample } from "@/lib/env-example"
+import { readFirstFileAsText } from "@/lib/utils"
 
 export default function EnvExampleCreatorPage() {
   const [raw, setRaw] = useState("")
@@ -16,14 +21,12 @@ export default function EnvExampleCreatorPage() {
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const output = useMemo(
-    () =>
-      generateEnvExample(raw, { stripComments, onlyCommentedAssignments }),
+    () => generateEnvExample(raw, { stripComments, onlyCommentedAssignments }),
     [raw, stripComments, onlyCommentedAssignments]
   )
   async function handleFiles(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-    setRaw(await file.text())
+    const text = await readFirstFileAsText(files)
+    if (text != null) setRaw(text)
   }
 
   function clear() {

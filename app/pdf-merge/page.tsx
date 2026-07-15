@@ -38,7 +38,8 @@ import {
 } from "@/components/ui/dialog"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useOrderedFiles } from "@/hooks/use-ordered-files"
-import { downloadFile } from "@/lib/download"
+import { downloadFile, setBlobResult, type FileResult } from "@/lib/download"
+import { isPdfFile } from "@/lib/pdf"
 import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "application/pdf,.pdf"
@@ -53,13 +54,6 @@ type Job = {
 }
 
 type Status = "idle" | "merging" | "done" | "error"
-type Result = { url: string; name: string; size: number }
-
-function isPdfFile(file: File): boolean {
-  return (
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-  )
-}
 
 export default function PdfMergePage() {
   const { jobs, orderedJobs, addFilesOrdered, removeOrdered, moveJob } =
@@ -78,7 +72,7 @@ export default function PdfMergePage() {
     })
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<Result | null>(null)
+  const [result, setResult] = useState<FileResult | null>(null)
   const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const [previewJob, setPreviewJob] = useState<{
     id: number
@@ -134,9 +128,7 @@ export default function PdfMergePage() {
         type: "application/pdf",
       })
 
-      if (result) URL.revokeObjectURL(result.url)
-      const url = URL.createObjectURL(blob)
-      setResult({ url, name: "merged.pdf", size: blob.size })
+      setResult((prev) => setBlobResult(prev, blob, "merged.pdf"))
       setStatus("done")
     } catch (err) {
       setStatus("error")

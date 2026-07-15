@@ -17,7 +17,12 @@ import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useFiles } from "@/hooks/use-files"
-import { downloadFile, downloadStagger } from "@/lib/download"
+import {
+  downloadAllJobs,
+  downloadFile,
+  setBlobResult,
+  type FileResult,
+} from "@/lib/download"
 import {
   decodeAudioData,
   encodeWav,
@@ -35,7 +40,7 @@ const MP3_KBPS = 192
 type Format = "wav" | "mp3"
 type JobStatus = "idle" | "reading" | "decoding" | "encoding" | "done" | "error"
 type Source = { samples: Float32Array; sampleRate: number; baseName: string }
-type Result = { url: string; name: string; size: number; meta: string }
+type Result = FileResult & { meta: string }
 type Job = {
   id: number
   file: File
@@ -112,15 +117,11 @@ export default function VideoToAudioPage() {
         fmt === "mp3"
           ? `MP3 · ${MP3_KBPS} kbps · mono`
           : "WAV · 16-bit PCM · mono"
-      updateJob(id, (job) => {
-        if (job.result) URL.revokeObjectURL(job.result.url)
-        const url = URL.createObjectURL(blob)
-        return {
-          status: "done",
-          error: null,
-          result: { url, name, size: blob.size, meta },
-        }
-      })
+      updateJob(id, (job) => ({
+        status: "done",
+        error: null,
+        result: { ...setBlobResult(job.result, blob, name), meta },
+      }))
     }, 0)
   }
 
@@ -205,12 +206,14 @@ export default function VideoToAudioPage() {
       downloadFile(activeJob.result.url, activeJob.result.name)
   }
 
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (!job.result) continue
-      downloadFile(job.result.url, job.result.name)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(
+      jobs,
+      (job) => !!job.result,
+      async (job) => {
+        if (job.result) downloadFile(job.result.url, job.result.name)
+      }
+    )
   }
 
   return (

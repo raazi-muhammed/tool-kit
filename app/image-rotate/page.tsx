@@ -13,8 +13,8 @@ import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
-import { rotateCanvas } from "@/lib/canvas"
-import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
+import { prepareDisplayCanvas, rotateCanvas } from "@/lib/canvas"
+import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -64,13 +64,8 @@ export default function ImageRotatePage() {
     const display = displayCanvasRef.current
     if (!base || !display) return
     const rotated = rotateCanvas(base, rotation)
-    if (display.width !== rotated.width || display.height !== rotated.height) {
-      display.width = rotated.width
-      display.height = rotated.height
-    }
-    const ctx = display.getContext("2d")
+    const ctx = prepareDisplayCanvas(display, rotated)
     if (!ctx) return
-    ctx.clearRect(0, 0, display.width, display.height)
     ctx.drawImage(rotated, 0, 0)
   }
 
@@ -122,12 +117,8 @@ export default function ImageRotatePage() {
 
   // Skips unrotated images — downloading them would just hand back the
   // original file.
-  async function downloadAll() {
-    for (const job of jobs) {
-      if (job.rotation === 0) continue
-      await downloadJob(job)
-      await downloadStagger()
-    }
+  function downloadAll() {
+    return downloadAllJobs(jobs, (job) => job.rotation !== 0, downloadJob)
   }
 
   return (
