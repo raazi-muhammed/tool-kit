@@ -44,14 +44,22 @@ const ACCEPTED = "image/*,application/pdf,.pdf"
 // (matching PDF to Images' "standard" resolution) both for extracted PDF
 // pages and for rasterizing the A4 preview/output canvas below.
 const RENDER_SCALE = 150 / 72
-const A4_PX: [number, number] = [
-  A4_PT[0] * RENDER_SCALE,
-  A4_PT[1] * RENDER_SCALE,
-]
 
 type Slot = "front" | "back"
 type Format = "image" | "pdf"
 type Layout = "vertical" | "horizontal"
+
+// A4 portrait for a "vertical" (front-above-back) layout, landscape for
+// "horizontal" (front-beside-back) — so a wide, short composed page doesn't
+// get letterboxed into a narrow, tall one with huge empty margins.
+function a4PtForLayout(layout: Layout): [number, number] {
+  return layout === "horizontal" ? [A4_PT[1], A4_PT[0]] : A4_PT
+}
+
+function a4PxForLayout(layout: Layout): [number, number] {
+  const [w, h] = a4PtForLayout(layout)
+  return [w * RENDER_SCALE, h * RENDER_SCALE]
+}
 // Where front/back sit across the cross axis — the axis gap/padding don't
 // already control (horizontal position when stacked "vertical", vertical
 // position when stacked "horizontal") — useful once the two images aren't
@@ -207,7 +215,8 @@ function buildOutputCanvas(
 ): HTMLCanvasElement {
   const content = composePage(front, back, gap, padding, layout, align)
   if (format === "image") return content
-  return fitCanvasToPage(content, A4_PX[0], A4_PX[1], layout, align)
+  const [pageWidth, pageHeight] = a4PxForLayout(layout)
+  return fitCanvasToPage(content, pageWidth, pageHeight, layout, align)
 }
 
 export default function IdCardMergePage() {
@@ -342,10 +351,12 @@ export default function IdCardMergePage() {
         await downloadCanvas(canvas, "id-card.png", "image/png")
       } else {
         // `canvas` is already the full A4-shaped page (content letterboxed
-        // onto it), so it's drawn full-bleed onto a real-A4-sized PDF page.
+        // onto it), so it's drawn full-bleed onto a real-A4-sized PDF page —
+        // landscape when the layout is "horizontal", portrait otherwise.
         const pdfDoc = await PDFDocument.create()
-        const [pageWidth, pageHeight] = A4_PT
-        await embedCanvasAsPdfPage(pdfDoc, canvas, A4_PT, {
+        const pageSize = a4PtForLayout(layout)
+        const [pageWidth, pageHeight] = pageSize
+        await embedCanvasAsPdfPage(pdfDoc, canvas, pageSize, {
           x: 0,
           y: 0,
           width: pageWidth,
