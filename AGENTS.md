@@ -259,6 +259,104 @@ the settings state in the render body instead of `useState` + effect —
 body. See `app/image-converter/page.tsx` (format/quality/background) and
 `app/square-image-generator/page.tsx` (size/background).
 
+## "Run automatically" toggle
+
+For a tool with an interactive per-job commit step (a drawn crop/blur
+selection, Image Scan's quad, PDF Merge's file order, a password field) —
+unlike the always-live case above, which has no such step at all —
+`useAutoRunEnabled()` lets the user opt out of clicking the explicit
+apply/convert/scan button, via one global setting rather than a per-tool
+prop:
+
+```tsx
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
+
+const { enabled: autoRunEnabled } = useAutoRunEnabled()
+
+useDebouncedEffect(
+  () => {
+    if (!autoRunEnabled || /* the tool's own readiness check */) return
+    applyTheThing()
+  },
+  [autoRunEnabled /* the same deps the explicit action reads */],
+  500 // match the tool's own settings-debounce delay
+)
+```
+
+Gate the manual button itself out of `sidebar.actions` with `!autoRunEnabled
+&&` — its `more` variant (if any) disappears along with it, since there's
+nothing left to click "all" for once every job already applies live:
+
+```tsx
+actions: [
+  !autoRunEnabled && {
+    label: "Crop",
+    icon: CropIcon,
+    onClick: applyCrop,
+    disabled: !pendingRect,
+  },
+],
+```
+
+An idempotent action (Image Trim's trim, Video to Audio's convert) can react
+with a plain `useEffect` instead of a debounced one — re-running it for an
+unrelated dependency change is a safe no-op. Update any placeholder/empty-state
+copy in the preview to reflect the current mode too (e.g. "Adjust the corners
+— scanning runs automatically" vs "Hit Scan to see the flattened result") —
+`autoRunEnabled` is already in scope wherever that copy renders.
+
+`AutoRunProvider` is mounted once in `app/layout.tsx` (a
+`useSyncExternalStore` over `localStorage`, the same shape as
+`useAnimationsEnabled` in `motion-preference.tsx`), and the toggle itself
+lives in `ModeToggle`'s settings popover (`components/mode-toggle.tsx`), next
+to the Animations switch — don't add a second, per-tool toggle for this. See
+`app/image-crop/page.tsx`, `app/image-scan/page.tsx`, and
+`app/pdf-merge/page.tsx` for the same pattern against three different
+readiness checks/debounce delays.
+
+## Shared job-pipeline helpers
+
+Most multi-job tools (crop, blur, resize, convert, …) need the same handful
+of small operations around their per-job pipeline — don't reimplement these
+per page; they already live in `lib/`:
+
+- **`lib/canvas.ts`**: `canvasToBlob(canvas, mime, quality?)` (promise-wrapped
+  `canvas.toBlob`, rejecting if encoding produced no data) and
+  `canvasToPngBytes(canvas)` (PNG-encode + return a `Uint8Array`, for
+  embedding into a PDF). `prepareDisplayCanvas(display, source)` resizes
+  `display`'s backing store to match `source` if needed, clears it, and
+  returns its 2D context (or `null`) — the identical prelude every tool's
+  `renderDisplay` needs before drawing; the draw call itself (`drawImage`, an
+  overlay, `blurRegion`, a rotated canvas, …) stays inline per tool since
+  that part genuinely differs. See `app/image-rotate/page.tsx`.
+- **`lib/download.ts`**: `downloadAllJobs(jobs, shouldDownload, downloadJob)`
+  is the shared "Download all" loop (skip a job `shouldDownload` rejects,
+  download it, `await downloadStagger()`) — use it instead of hand-rolling
+  the same `for`/`continue`/stagger loop. `type FileResult = { url, name,
+  size }` plus `setBlobResult(prevResult, blob, name)` (revokes
+  `prevResult`'s object URL if set, then creates a fresh one) is the shared
+  shape for a job's generated output — type a job's `result` field as
+  `FileResult` instead of redeclaring the same three fields, and build it
+  with `setBlobResult` instead of hand-rolling the revoke-then-create
+  sequence.
+- **`lib/pdf.ts`**: `isPdfFile(file)`, `loadPdfjs()` (memoized lazy pdfjs
+  loader that points `GlobalWorkerOptions.workerSrc` at the copy in
+  `public/`), `A4_PT` (A4 page size in PDF points), and
+  `embedCanvasAsPdfPage(pdfDoc, canvas, [pageWidth, pageHeight], draw)` (adds
+  a page, PNG-encodes `canvas`, embeds it, and draws it at `draw`) for any
+  tool that builds a PDF from canvases. See `app/id-card-merge/page.tsx` and
+  `app/image-to-pdf/page.tsx`.
+- **`lib/utils.ts`**: `readFirstFileAsText(files)` for a plain text-upload
+  tool (env/JSON/diff-style pages) that just needs the first dropped/picked
+  file's contents as a string.
+
+When a tool's per-format (or per-page-size, per-filter, …) behavior would
+otherwise need touching several places to add a new option — a type union, a
+`Record<Format, ...>` lookup, an if/else branch, and a JSX options array —
+prefer one `Record<Format, { ...spec }>` registry that each of those reads
+from instead, so a new format is one new entry rather than four edits. See
+`FORMATS` in `app/image-converter/page.tsx`.
+
 ## Copy
 
 Never use the `→` arrow character in tool names, page copy, or code comments
