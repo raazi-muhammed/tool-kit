@@ -10,11 +10,13 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PdfPreview } from "@/components/pdf-preview"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
@@ -82,6 +84,7 @@ export default function PdfUnlockPage() {
   })
   const [password, setPassword] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const anyBusy = jobs.some((job) => job.status === "unlocking")
@@ -163,6 +166,26 @@ export default function PdfUnlockPage() {
     })
   }
 
+  // With "Run automatically" on, attempt to unlock the active job once the
+  // password stops changing, instead of requiring an explicit Unlock click —
+  // debounced so it only fires once typing pauses, not on every keystroke
+  // (which would otherwise flash a wrong-password error mid-type).
+  useDebouncedEffect(
+    () => {
+      if (
+        !autoRunEnabled ||
+        !password ||
+        !activeJob?.validFile ||
+        activeJob.locked === false ||
+        activeJob.status === "unlocking"
+      )
+        return
+      void unlockJob(activeJob, password)
+    },
+    [autoRunEnabled, password, activeId, activeJob?.locked],
+    600
+  )
+
   async function downloadJob(job: Job) {
     if (job.result) downloadFile(job.result.url, job.result.name)
   }
@@ -208,7 +231,7 @@ export default function PdfUnlockPage() {
                 },
               ],
               actions: [
-                {
+                !autoRunEnabled && {
                   label: "Unlock",
                   icon: FileUnlockedIcon,
                   onClick: unlock,
@@ -317,7 +340,9 @@ export default function PdfUnlockPage() {
                 />
               ) : (
                 <p className="px-6 text-center text-sm text-muted-foreground">
-                  Enter the password, then hit Unlock
+                  {autoRunEnabled
+                    ? "Enter the password — it unlocks automatically"
+                    : "Enter the password, then hit Unlock"}
                 </p>
               )}
             </PreviewCard>

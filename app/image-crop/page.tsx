@@ -14,10 +14,12 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import { drawSelectionRect, scaleRect, type Rect } from "@/lib/canvas"
@@ -74,6 +76,7 @@ export default function ImageCropPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -189,6 +192,20 @@ export default function ImageCropPage() {
     clearSelection()
   }
 
+  // With "Run automatically" on, commit the crop once the selection settles
+  // instead of waiting for an explicit Crop click — debounced so drawing,
+  // then dragging an edge to fine-tune, doesn't commit mid-adjustment; it
+  // only fires once the rect stops changing. `pendingRect` only updates on
+  // pointer-up (see `useRectSelection`), so this never fires mid-drag.
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || activeId == null || !pendingRect) return
+      applyCrop()
+    },
+    [autoRunEnabled, pendingRect, activeId],
+    600
+  )
+
   function onColorChange(color: string | null) {
     if (activeId == null) return
     updateJob(activeId, { bgColor: color })
@@ -281,7 +298,7 @@ export default function ImageCropPage() {
                   onClick: clearSelection,
                   variant: "outline",
                 },
-                {
+                !autoRunEnabled && {
                   label: "Crop",
                   icon: CropIcon,
                   onClick: applyCrop,

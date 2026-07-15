@@ -8,10 +8,12 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useLockedSize } from "@/hooks/use-locked-size"
 import { downloadCanvas, downloadStagger } from "@/lib/download"
@@ -63,6 +65,7 @@ export default function SvgToPngPage() {
   const [error, setError] = useState<string | null>(null)
   const [bgColor, setBgColor] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
 
   const convertedCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -169,6 +172,18 @@ export default function SvgToPngPage() {
     if (activeCanvas) paintConverted(activeCanvas)
   }
 
+  // With "Run automatically" on, re-convert every queued SVG whenever the
+  // target width/height/background changes, instead of requiring an
+  // explicit Convert click — debounced so typing a new value doesn't
+  // redraw on every keystroke, only once it settles.
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || jobs.length === 0) return
+      convert()
+    },
+    [autoRunEnabled, width, height, bgColor, jobs.length]
+  )
+
   async function downloadJob(job: Job) {
     if (!job.result) return
     await downloadCanvas(job.result.canvas, job.name, "image/png")
@@ -239,7 +254,11 @@ export default function SvgToPngPage() {
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
                 },
-                { label: "Convert", icon: Png01Icon, onClick: convert },
+                !autoRunEnabled && {
+                  label: "Convert",
+                  icon: Png01Icon,
+                  onClick: convert,
+                },
               ],
               download: {
                 onDownload: download,

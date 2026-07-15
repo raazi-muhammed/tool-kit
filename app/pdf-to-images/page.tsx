@@ -14,6 +14,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PdfPreview } from "@/components/pdf-preview"
@@ -36,6 +37,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import { downloadFile, downloadStagger } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
@@ -150,6 +152,7 @@ export default function PdfToImagesPage() {
   const [quality, setQuality] = useState(92)
   const [resolution, setResolution] = useState<Resolution>("standard")
   const [previewPage, setPreviewPage] = useState<PageImage | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const anyBusy = jobs.some((job) => job.status === "converting")
@@ -215,6 +218,21 @@ export default function PdfToImagesPage() {
         void convertJob(job, format, quality, resolution)
     })
   }
+
+  // With "Run automatically" on, re-render every queued PDF's pages
+  // whenever the shared format/quality/resolution settings change, instead
+  // of requiring an explicit Convert click — debounced so dragging the
+  // quality slider doesn't re-render on every tick, only once it settles.
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled) return
+      jobs.forEach((job) => {
+        if (job.validFile && job.status !== "converting")
+          void convertJob(job, format, quality, resolution)
+      })
+    },
+    [autoRunEnabled, format, quality, resolution, jobs.length]
+  )
 
   async function downloadPages(job: Job) {
     for (const page of job.pages) {
@@ -297,7 +315,7 @@ export default function PdfToImagesPage() {
                     }
                   : undefined,
               actions: [
-                {
+                !autoRunEnabled && {
                   label: "Convert",
                   icon: ImageDownloadIcon,
                   onClick: convert,
@@ -405,7 +423,9 @@ export default function PdfToImagesPage() {
                   ))
                 ) : (
                   <p className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                    Pick a format, then hit Convert
+                    {autoRunEnabled
+                      ? "Pick a format — pages convert automatically"
+                      : "Pick a format, then hit Convert"}
                   </p>
                 )}
               </Card>

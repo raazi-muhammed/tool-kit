@@ -9,8 +9,9 @@ import {
   MusicNote01Icon,
   Video01Icon,
 } from "@hugeicons/core-free-icons"
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
@@ -82,6 +83,7 @@ export default function VideoToAudioPage() {
       if (job.result) URL.revokeObjectURL(job.result.url)
     },
   })
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const anyBusy = jobs.some((job) => isBusy(job.status))
@@ -178,6 +180,17 @@ export default function VideoToAudioPage() {
     })
   }
 
+  // With "Run automatically" on, decode+encode every newly queued video
+  // right away instead of requiring an explicit Convert click — `convert`
+  // already only touches jobs still in "idle", so calling it again for an
+  // unrelated jobs.length change (e.g. a different job finishing) is a safe
+  // no-op for anything already in flight or done.
+  useEffect(() => {
+    if (!autoRunEnabled) return
+    convert()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunEnabled, jobs.length])
+
   // Changing a job's format only re-encodes that job (from its already
   // decoded source, if it has one) — other queued jobs keep their own format.
   function changeFormat(id: number, next: Format) {
@@ -232,7 +245,7 @@ export default function VideoToAudioPage() {
                   }
                 : undefined,
               actions: [
-                {
+                !autoRunEnabled && {
                   label: "Convert",
                   icon: ArrowDataTransferHorizontalIcon,
                   onClick: convert,
@@ -306,7 +319,9 @@ export default function VideoToAudioPage() {
                         }
                       : {
                           kind: "status",
-                          message: "Pick a format and hit Convert",
+                          message: autoRunEnabled
+                            ? "Converting starts automatically"
+                            : "Pick a format and hit Convert",
                         }
               }
             />
