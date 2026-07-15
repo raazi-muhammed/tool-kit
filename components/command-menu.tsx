@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SearchIcon } from "@hugeicons/core-free-icons"
+import { GridViewIcon, SearchIcon } from "@hugeicons/core-free-icons"
 
 import {
   CommandDialog,
@@ -38,6 +38,7 @@ export function CommandMenuProvider({
   // go stale or match the wrong node the way a selector-based lookup can.
   const triggerRef = React.useRef<HTMLButtonElement | null>(null)
   const router = useRouter()
+  const pathname = usePathname()
   const expandCard = useCardExpand()
   const { enabled: animationsEnabled } = useAnimationsEnabled()
 
@@ -65,8 +66,12 @@ export function CommandMenuProvider({
     setOpen(true)
   }
 
-  function runTool(tool: Tool) {
+  function navigate(href: string, icon: Tool["icon"]) {
     setOpen(false)
+    // Already there — the expand overlay's fade-out waits for `pathname` to
+    // change (see card-expand-transition.tsx), which a same-route push never
+    // does, so it'd get stuck covering the screen. Just close the dialog.
+    if (href === pathname) return
     // Reuse the same grow-then-shrink-to-header-icon animation as clicking a
     // homepage card, growing out of the dialog's own (settled, fully open)
     // rect rather than the individual result row — cmdk's CommandItem
@@ -75,13 +80,13 @@ export function CommandMenuProvider({
       '[data-slot="dialog-content"]'
     )
     if (!content) {
-      router.push(tool.href)
+      router.push(href)
       return
     }
     const rect = content.getBoundingClientRect()
     expandCard({
-      href: tool.href,
-      icon: tool.icon,
+      href,
+      icon,
       rect: {
         top: rect.top,
         left: rect.left,
@@ -89,6 +94,14 @@ export function CommandMenuProvider({
         height: rect.height,
       },
     })
+  }
+
+  function runTool(tool: Tool) {
+    navigate(tool.href, tool.icon)
+  }
+
+  function goHome() {
+    navigate("/", GridViewIcon)
   }
 
   return (
@@ -105,6 +118,16 @@ export function CommandMenuProvider({
         <CommandInput placeholder="Search tools..." />
         <CommandList>
           <CommandEmpty>No tools found.</CommandEmpty>
+          <CommandGroup heading="Go to">
+            <CommandItem
+              value="All tools"
+              keywords={["home", "homepage", "grid"]}
+              onSelect={goHome}
+            >
+              <HugeiconsIcon icon={GridViewIcon} aria-hidden />
+              All tools
+            </CommandItem>
+          </CommandGroup>
           <CommandGroup heading="Tools">
             {TOOLS.map((tool) => (
               <CommandItem
