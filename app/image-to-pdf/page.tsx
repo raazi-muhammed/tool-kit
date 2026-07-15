@@ -21,6 +21,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { PdfPreview } from "@/components/pdf-preview"
 import { PreviewCard } from "@/components/preview-card"
@@ -42,6 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors } from "@/hooks/use-files"
 import { useOrderedFiles } from "@/hooks/use-ordered-files"
 import { downloadFile } from "@/lib/download"
@@ -167,6 +169,7 @@ export default function ImageToPdfPage() {
   const [result, setResult] = useState<Result | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [previewJob, setPreviewJob] = useState<Job | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const busy = status === "converting"
@@ -222,6 +225,21 @@ export default function ImageToPdfPage() {
   function download() {
     if (result) downloadFile(result.url, result.name)
   }
+
+  // With "Run automatically" on, rebuild the PDF whenever the page
+  // settings or the image order changes, instead of requiring an explicit
+  // Convert click — debounced so reordering images or flipping between
+  // settings doesn't rebuild on every intermediate change, only once it
+  // settles. `convert` itself already no-ops while a build is in flight.
+  const orderKey = orderedJobs.map((job) => job.id).join(",")
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || orderedJobs.length < 1) return
+      void convert()
+    },
+    [autoRunEnabled, orderKey, pageSize, orientation, margin],
+    500
+  )
 
   return (
     <ToolPage
@@ -284,7 +302,7 @@ export default function ImageToPdfPage() {
                 },
               ],
               actions: [
-                {
+                !autoRunEnabled && {
                   label: "Convert",
                   icon: Pdf01Icon,
                   onClick: convert,
@@ -374,7 +392,9 @@ export default function ImageToPdfPage() {
                 <PdfPreview key={result.url} url={result.url} />
               ) : (
                 <p className="px-6 text-center text-sm text-muted-foreground">
-                  Add images, arrange their order, then hit Convert
+                  {autoRunEnabled
+                    ? "Add images — they'll combine into a PDF automatically"
+                    : "Add images, arrange their order, then hit Convert"}
                 </p>
               )}
             </PreviewCard>

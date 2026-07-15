@@ -14,6 +14,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { PdfPreview } from "@/components/pdf-preview"
 import { PreviewCard } from "@/components/preview-card"
@@ -35,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useOrderedFiles } from "@/hooks/use-ordered-files"
 import { downloadFile } from "@/lib/download"
 import { formatBytes } from "@/lib/wav"
@@ -77,6 +79,7 @@ export default function PdfMergePage() {
   const [status, setStatus] = useState<Status>("idle")
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const [previewJob, setPreviewJob] = useState<{
     id: number
     name: string
@@ -149,6 +152,21 @@ export default function PdfMergePage() {
     if (result) downloadFile(result.url, result.name)
   }
 
+  // With "Run automatically" on, re-merge whenever the file set or its order
+  // changes, instead of requiring an explicit Merge click — debounced so
+  // clicking the reorder arrows repeatedly doesn't re-read every PDF on each
+  // click, only once the order settles. `merge` itself already no-ops while
+  // a merge is in flight (`busy`) or there aren't 2 valid PDFs yet.
+  const orderKey = orderedJobs.map((job) => job.id).join(",")
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || validCount < 2) return
+      void merge()
+    },
+    [autoRunEnabled, orderKey, validCount],
+    500
+  )
+
   return (
     <ToolPage
       page="PDF Merge"
@@ -158,7 +176,7 @@ export default function PdfMergePage() {
         jobs.length > 0
           ? {
               actions: [
-                {
+                !autoRunEnabled && {
                   label: "Merge",
                   icon: FileStackIcon,
                   onClick: merge,
@@ -255,7 +273,9 @@ export default function PdfMergePage() {
                 <PdfPreview key={result.url} url={result.url} />
               ) : (
                 <p className="px-6 text-center text-sm text-muted-foreground">
-                  Add PDFs, arrange their order, then hit Merge
+                  {autoRunEnabled
+                    ? "Add at least 2 PDFs — they'll merge automatically"
+                    : "Add PDFs, arrange their order, then hit Merge"}
                 </p>
               )}
             </PreviewCard>

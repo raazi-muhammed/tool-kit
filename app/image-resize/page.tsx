@@ -7,10 +7,12 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useLockedSize } from "@/hooks/use-locked-size"
 import { downloadCanvas, downloadStagger, outputMime } from "@/lib/download"
@@ -52,6 +54,7 @@ export default function ImageResizePage() {
   })
   const [error, setError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -149,6 +152,18 @@ export default function ImageResizePage() {
     if (activeCanvas) renderDisplay(activeCanvas)
   }
 
+  // With "Run automatically" on, re-resize every queued image whenever the
+  // target width/height changes, instead of requiring an explicit Resize
+  // click — debounced so typing a new value doesn't redraw on every
+  // keystroke, only once it settles.
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || jobs.length === 0) return
+      resize()
+    },
+    [autoRunEnabled, width, height, jobs.length]
+  )
+
   async function downloadJob(job: Job) {
     if (!job.result) return
     await downloadCanvas(job.result.canvas, job.name, outputMime(job.file.type))
@@ -211,7 +226,11 @@ export default function ImageResizePage() {
                   onClick: toggleLockAspect,
                   variant: lockAspect ? "secondary" : "outline",
                 },
-                { label: "Resize", icon: Resize02Icon, onClick: resize },
+                !autoRunEnabled && {
+                  label: "Resize",
+                  icon: Resize02Icon,
+                  onClick: resize,
+                },
               ],
               download: {
                 onDownload: download,

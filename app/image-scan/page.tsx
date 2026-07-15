@@ -14,6 +14,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
@@ -70,6 +71,7 @@ export default function ImageScanPage() {
     }),
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const [error, setError] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [filter, setFilter] = useState<ScanFilter>("original")
@@ -177,6 +179,21 @@ export default function ImageScanPage() {
   // doesn't re-filter the whole image on every tick, only once it settles.
   useDebouncedEffect(renderResult, [filter, bwThreshold, contrast], 200)
 
+  // With "Run automatically" on, scan the active job once the quad settles
+  // instead of waiting for an explicit Scan click — debounced so dragging a
+  // corner doesn't re-warp the whole image on every pointer-move tick, only
+  // once the drag stops. Safe to re-run freely: `scanJob` writes into
+  // `scanResultsRef`, never the job's own resource, so re-scanning after
+  // nudging a corner never compounds or loses the original.
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || activeId == null || !quad) return
+      void applyScan()
+    },
+    [autoRunEnabled, quad, activeId],
+    500
+  )
+
   function removeJobAndScan(id: number) {
     scanResultsRef.current.delete(id)
     setScannedIds((prev) => {
@@ -208,7 +225,7 @@ export default function ImageScanPage() {
   }
 
   async function applyScan() {
-    if (activeId == null || !quad) return
+    if (activeId == null || !quad || processingId != null) return
     setProcessingId(activeId)
     // Yield a frame so the "Scanning…" state actually paints before the
     // (synchronous, potentially slow) per-pixel warp runs.
@@ -409,7 +426,7 @@ export default function ImageScanPage() {
                   variant: "outline",
                   disabled: anyProcessing,
                 },
-                {
+                !autoRunEnabled && {
                   label: anyProcessing ? "Scanning…" : "Scan",
                   icon: ScanIcon,
                   onClick: applyScan,
@@ -469,7 +486,9 @@ export default function ImageScanPage() {
                       ? { kind: "status", icon: Loading03Icon, spin: true }
                       : {
                           kind: "status",
-                          message: "Hit Scan to see the flattened result",
+                          message: autoRunEnabled
+                            ? "Adjust the corners — scanning runs automatically"
+                            : "Hit Scan to see the flattened result",
                         }
                 }
               />

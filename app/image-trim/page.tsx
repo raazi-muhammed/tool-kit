@@ -6,6 +6,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
@@ -60,6 +61,7 @@ export default function ImageTrimPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
 
   const displayCanvasRef = useRef<HTMLCanvasElement>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -157,6 +159,17 @@ export default function ImageTrimPage() {
     if (activeId != null) renderDisplay(null)
   }
 
+  // With "Run automatically" on, trim every newly queued image right away
+  // instead of requiring an explicit Trim click. Keyed on `jobs.length` (not
+  // `jobs` itself) so it only fires when a file is added/removed, never on
+  // the `trimmed` flag flip `trimJob` itself makes — trimming is idempotent
+  // (a job with no margin left is simply skipped), so re-running it is safe.
+  useEffect(() => {
+    if (!autoRunEnabled || jobs.length === 0) return
+    applyTrimToAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRunEnabled, jobs.length])
+
   async function downloadJob(job: Job) {
     const image = getResource(job.id)
     if (!image) return
@@ -200,7 +213,7 @@ export default function ImageTrimPage() {
                   ? "No transparent margin to trim."
                   : undefined,
               actions: [
-                {
+                !autoRunEnabled && {
                   label: "Trim",
                   icon: ScissorRectangleIcon,
                   onClick: applyTrim,

@@ -9,10 +9,12 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
+import { useAutoRunEnabled } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
@@ -76,6 +78,7 @@ export default function ImageBlurPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const [{ blur, mode }, setBlurSettings] = usePersistedState(
     "image-blur:settings",
     { blur: 20, mode: "pixelate" as BlurMode },
@@ -249,6 +252,22 @@ export default function ImageBlurPage() {
     clearAllRects()
   }
 
+  // With "Run automatically" on, commit the pending rectangle(s) once the
+  // selection settles instead of waiting for an explicit Apply click —
+  // debounced so drawing a rect, then queuing another elsewhere, doesn't
+  // commit mid-sequence; it only fires once no new rect has completed for a
+  // beat. Only reacts to `pendingRect` (a completed drag, per
+  // `useRectSelection`), never to the blur amount/mode, so adjusting the
+  // slider never re-commits an already-blurred region.
+  useDebouncedEffect(
+    () => {
+      if (!autoRunEnabled || activeId == null || !pendingRect) return
+      applyBlur()
+    },
+    [autoRunEnabled, pendingRect, activeId],
+    600
+  )
+
   async function downloadJob(job: Job) {
     const base = getResource(job.id)
     if (!base) return
@@ -342,7 +361,7 @@ export default function ImageBlurPage() {
                   onClick: clearAllRects,
                   variant: "outline",
                 },
-                {
+                !autoRunEnabled && {
                   label:
                     totalRects > 1
                       ? `Apply blur (${totalRects})`
