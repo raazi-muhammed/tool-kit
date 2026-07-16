@@ -256,6 +256,7 @@ export default function PdfUnlockPage() {
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
             <PreviewCard
               fill
+              half
               title="Original"
               layer={
                 !activeJob.validFile
@@ -292,6 +293,7 @@ export default function PdfUnlockPage() {
 
             <PreviewCard
               fill
+              half
               title="Unlocked"
               layer={
                 formError

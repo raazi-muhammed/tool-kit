@@ -344,6 +344,7 @@ export default function ImageConverterPage() {
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
               <PreviewCard
                 fill
+                half
                 checkerboard
                 title="Original"
                 layer={
@@ -364,6 +365,7 @@ export default function ImageConverterPage() {
 
               <PreviewCard
                 fill
+                half
                 checkerboard
                 title="Converted"
                 layer={

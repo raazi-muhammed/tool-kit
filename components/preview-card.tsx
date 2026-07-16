@@ -12,23 +12,42 @@ import { cn } from "@/lib/utils"
 const CHECKERBOARD =
   "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
 
-// Caps the non-`fill` preview at the viewport height minus everything else
-// ToolPage's main column can stack around it, sized for the worst case (the
-// optional header-actions row *and* the bottom bar both present) so it can
-// only under-fill on pages missing one of those rows, never overflow: p-6
-// top+bottom (48) + breadcrumb/header-row at h-8 (32 each) + bottom bar at
-// min-h-11 (44) + three gap-4 gaps between them (48) + the Card's own p-2
-// (16). The file strip (`ToolPage`'s `fileStrip` prop) now renders inside
-// that same bottom bar rather than stacking as its own row, so it no longer
-// needs a separate, taller cap. Pages with a taller header (e.g. wrapped
-// toolbar buttons) may need a bigger cap via `className`.
-const MAX_HEIGHT = "max-h-[calc(100dvh-220px)]"
+// Viewport height minus everything else ToolPage's main column can stack
+// around a preview, sized for the worst case (the optional header-actions
+// row *and* the bottom bar both present) so it only under-fills on pages
+// missing one of those rows, never overflows: p-6 top+bottom (48) +
+// breadcrumb/header-row at h-8 (32 each) + bottom bar at min-h-11 (44) +
+// three gap-4 gaps between them (48) + the Card's own p-2 (16). The file
+// strip (`ToolPage`'s `fileStrip` prop) now renders inside that same bottom
+// bar rather than stacking as its own row, so it no longer needs a
+// separate, taller cap.
+const VIEWPORT_CHROME_HEIGHT = "100dvh-220px"
+
+// Caps the non-`fill` preview at `VIEWPORT_CHROME_HEIGHT`. Pages with a
+// taller header (e.g. wrapped toolbar buttons) may need a bigger cap via
+// `className`.
+const MAX_HEIGHT = `max-h-[calc(${VIEWPORT_CHROME_HEIGHT})]`
+
+// Minimum height for a `fill` card that's one of two placed in a
+// `grid-cols-1 md:grid-cols-2` pane (e.g. Original/Converted) — see `half`
+// below. `md:` and up reuses `VIEWPORT_CHROME_HEIGHT` as-is (the pair sits
+// side by side in one row there, so each pane needs the same headroom a
+// single preview would); below `md:`, the grid collapses to one column and
+// stacks the pair into two rows, so this halves that same budget (minus the
+// `gap-4` between them) instead of each pane independently claiming it —
+// otherwise the two combined would need 200%+ of the viewport height.
+const HALF_MIN_HEIGHT = `min-h-[calc((${VIEWPORT_CHROME_HEIGHT}-16px)/2)] md:min-h-[calc(${VIEWPORT_CHROME_HEIGHT})]`
 
 type PreviewCardBaseProps = {
   /** Muted label rendered above the viewport (e.g. "Original", "Converted") — replaces a hand-rolled `<span>` above the card. */
   title?: ReactNode
   checkerboard?: boolean
   fill?: boolean
+  /**
+   * Pass when this `fill` card is one of two placed in a `grid-cols-1
+   * md:grid-cols-2` pane (e.g. Original/Converted) — see `HALF_MIN_HEIGHT`.
+   */
+  half?: boolean
   viewportRef?: Ref<HTMLDivElement>
   className?: string
 }
@@ -86,6 +105,7 @@ export function PreviewCard({
   title,
   checkerboard,
   fill,
+  half,
   viewportRef,
   className,
   layer,
@@ -118,7 +138,9 @@ export function PreviewCard({
         ref={viewportRef}
         className={cn(
           "flex w-full min-w-0 items-center justify-center overflow-hidden rounded-md",
-          fill ? "relative min-h-[60vh] flex-1" : MAX_HEIGHT,
+          fill &&
+            cn("relative flex-1", half ? HALF_MIN_HEIGHT : "min-h-[60vh]"),
+          !fill && MAX_HEIGHT,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
           className

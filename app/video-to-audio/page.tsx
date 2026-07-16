@@ -270,6 +270,7 @@ export default function VideoToAudioPage() {
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
             <PreviewCard
               fill
+              half
               title="Original"
               layer={{
                 kind: "status",
@@ -286,6 +287,7 @@ export default function VideoToAudioPage() {
 
             <PreviewCard
               fill
+              half
               title="Converted"
               layer={
                 isBusy(activeJob.status)
