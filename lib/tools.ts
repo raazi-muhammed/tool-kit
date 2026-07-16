@@ -6,6 +6,7 @@ import {
   Calculator01Icon,
   CodeIcon,
   FileDiffIcon,
+  FileLockedIcon,
   FileStackIcon,
   FileUnlockedIcon,
   IdentityCardIcon,
@@ -146,6 +147,14 @@ export const TOOLS: Tool[] = [
     name: "PDF Unlock",
     description:
       "Remove a PDF's password and download an unlocked copy, in your browser.",
+    category: "pdf",
+  },
+  {
+    href: "/pdf-lock",
+    icon: FileLockedIcon,
+    name: "PDF Lock",
+    description:
+      "Add a password to a PDF and download a locked copy, in your browser.",
     category: "pdf",
   },
   {
