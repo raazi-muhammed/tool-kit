@@ -103,7 +103,11 @@ export default function Page() {
           <DropdownMenu>
             <IconTooltip label="Connect with me">
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Connect with me">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Connect with me"
+                >
                   <HugeiconsIcon icon={Contact01Icon} aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
@@ -130,7 +134,15 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "flex items-center gap-2 overflow-x-auto",
+          // Scrolls, but stays visually clean as a pill row instead of a
+          // scrollable list — hide the scrollbar across browsers instead of
+          // the usual `pb-1` to clear it.
+          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        )}
+      >
         <FilterPill
           label="All"
           count={TOOLS.length}
@@ -216,7 +228,7 @@ function FilterPill({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+        "flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-muted text-foreground/80 hover:bg-muted/70"
