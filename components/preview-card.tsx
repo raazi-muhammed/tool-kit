@@ -110,14 +110,14 @@ export function PreviewCard({
   const card = (
     <Card
       className={cn(
-        "w-full overflow-hidden p-2 ring-0",
+        "w-full min-w-0 overflow-hidden p-2 ring-0",
         fill && "flex min-h-0 flex-1 flex-col"
       )}
     >
       <div
         ref={viewportRef}
         className={cn(
-          "flex w-full items-center justify-center overflow-hidden rounded-md",
+          "flex w-full min-w-0 items-center justify-center overflow-hidden rounded-md",
           fill ? "relative min-h-[60vh] flex-1" : MAX_HEIGHT,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
@@ -181,7 +181,9 @@ export function PreviewCard({
   if (title == null) return card
 
   return (
-    <div className={cn("flex min-h-0 flex-col gap-2", fill && "flex-1")}>
+    <div
+      className={cn("flex min-h-0 min-w-0 flex-col gap-2", fill && "flex-1")}
+    >
       <span className="text-sm text-muted-foreground">{title}</span>
       {card}
     </div>

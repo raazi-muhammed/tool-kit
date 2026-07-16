@@ -113,6 +113,59 @@ function DropzoneImpl(
     return () => document.removeEventListener("paste", onPaste)
   }, [])
 
+  // Once a file's picked, the dropzone card itself unmounts (`hidden`) so
+  // its own onDrop handler is gone — without this, dragging another file in
+  // has nowhere to land. Mirrors the paste listener above: a stable,
+  // mount-once window listener reading the latest `hidden`/`onFiles` via
+  // refs, active only while `hidden` (the visible card already handles the
+  // not-hidden case itself, so this stays out of its way).
+  const hiddenRef = React.useRef(hidden)
+  React.useEffect(() => {
+    hiddenRef.current = hidden
+  })
+  const dragCounter = React.useRef(0)
+  const [draggingOverPage, setDraggingOverPage] = React.useState(false)
+
+  React.useEffect(() => {
+    function hasFiles(e: DragEvent) {
+      return !!e.dataTransfer?.types.includes("Files")
+    }
+    function onDragEnter(e: DragEvent) {
+      if (!hiddenRef.current || !hasFiles(e)) return
+      e.preventDefault()
+      dragCounter.current += 1
+      setDraggingOverPage(true)
+    }
+    function onDragOver(e: DragEvent) {
+      if (!hiddenRef.current || !hasFiles(e)) return
+      e.preventDefault()
+    }
+    function onDragLeave() {
+      if (!hiddenRef.current) return
+      dragCounter.current = Math.max(0, dragCounter.current - 1)
+      if (dragCounter.current === 0) setDraggingOverPage(false)
+    }
+    function onDrop(e: DragEvent) {
+      dragCounter.current = 0
+      setDraggingOverPage(false)
+      if (!hiddenRef.current) return
+      const files = e.dataTransfer?.files
+      if (!files || files.length === 0) return
+      e.preventDefault()
+      onFilesRef.current(files)
+    }
+    window.addEventListener("dragenter", onDragEnter)
+    window.addEventListener("dragover", onDragOver)
+    window.addEventListener("dragleave", onDragLeave)
+    window.addEventListener("drop", onDrop)
+    return () => {
+      window.removeEventListener("dragenter", onDragEnter)
+      window.removeEventListener("dragover", onDragOver)
+      window.removeEventListener("dragleave", onDragLeave)
+      window.removeEventListener("drop", onDrop)
+    }
+  }, [])
+
   return (
     <>
       <input
@@ -184,6 +237,16 @@ function DropzoneImpl(
             </Button>
           </AttachmentActions>
         </Attachment>
+      )}
+      {hidden && draggingOverPage && (
+        <div className="pointer-events-none fixed inset-0 z-40 bg-background/80">
+          <div className="border-2 border-dashed fixed border-primary inset-12 rounded-xl flex items-center justify-center ">
+          <div className="flex items-center gap-2 text-lg font-medium text-foreground">
+            <HugeiconsIcon icon={icon} aria-hidden className="size-6" />
+            Drop to add file
+          </div>
+          </div>
+        </div>
       )}
     </>
   )

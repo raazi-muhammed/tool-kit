@@ -4,6 +4,7 @@ import {
   BlurIcon,
   BracesIcon,
   Calculator01Icon,
+  CodeIcon,
   FileDiffIcon,
   FileStackIcon,
   FileUnlockedIcon,
@@ -59,6 +60,14 @@ export const TOOLS: Tool[] = [
     icon: FileDiffIcon,
     name: "Text Diff",
     description: "Compare two text files line by line and see what changed.",
+    category: "data",
+  },
+  {
+    href: "/text-escaper",
+    icon: CodeIcon,
+    name: "Text Escaper",
+    description:
+      "Escape or decode text for HTML, JavaScript, JSON, or a URL, side by side.",
     category: "data",
   },
   {

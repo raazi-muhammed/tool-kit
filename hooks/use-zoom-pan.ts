@@ -150,17 +150,23 @@ export function useZoomPan({
         )
       }
 
-      const onResize = () => fitView()
+      // A `ResizeObserver` on the viewport itself (rather than a `window`
+      // resize listener) re-fits whenever the container's actual box size
+      // changes for any reason — not just an outer window resize, but also a
+      // layout reflow from content around it (e.g. the settings sidebar
+      // stacking below the preview on a narrow viewport) or the mobile
+      // browser chrome show/hide changing the viewport height.
+      const resizeObserver = new ResizeObserver(() => fitView())
+      resizeObserver.observe(node)
 
       node.addEventListener("wheel", onWheel, { passive: false })
       node.addEventListener("gesturestart", onGestureStart)
       node.addEventListener("gesturechange", onGestureChange)
-      window.addEventListener("resize", onResize)
       cleanupRef.current = () => {
         node.removeEventListener("wheel", onWheel)
         node.removeEventListener("gesturestart", onGestureStart)
         node.removeEventListener("gesturechange", onGestureChange)
-        window.removeEventListener("resize", onResize)
+        resizeObserver.disconnect()
       }
     },
     [zoomAt, applyView, fitView]

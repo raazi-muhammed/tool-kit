@@ -14,7 +14,7 @@ import {
   ZoomInAreaIcon,
   ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { ReactNode, RefObject } from "react"
 
 import { ColorPicker } from "@/components/color-picker"
@@ -238,6 +238,45 @@ function SidebarLabel({ children }: { children: ReactNode }) {
     <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
       {children}
     </span>
+  )
+}
+
+// A `sidebar.inputs` field that re-focuses itself once re-enabled, if it was
+// the focused element when it got disabled (e.g. PDF Unlock's password field
+// disables mid-attempt and re-enables on a wrong-password error — disabling
+// an input drops browser focus, and re-enabling it doesn't restore it).
+function SidebarInputField({ input }: { input: SidebarInput }) {
+  const ref = useRef<HTMLInputElement>(null)
+  const wasFocusedRef = useRef(false)
+
+  useEffect(() => {
+    if (!input.disabled && wasFocusedRef.current) {
+      wasFocusedRef.current = false
+      ref.current?.focus()
+    }
+  }, [input.disabled])
+
+  return (
+    <Input
+      ref={ref}
+      type={input.type ?? "text"}
+      min={input.min}
+      value={input.value}
+      onChange={(e) => input.onChange(e.target.value)}
+      disabled={input.disabled}
+      autoComplete="off"
+      onBlur={(e) => {
+        if (e.target.disabled) wasFocusedRef.current = true
+      }}
+      onKeyDown={
+        input.onEnter
+          ? (e) => {
+              if (e.key === "Enter") input.onEnter!()
+            }
+          : undefined
+      }
+      className={input.className ?? "w-full"}
+    />
   )
 }
 
@@ -542,7 +581,7 @@ export function ToolPage({
   const hasSidebarActionsBlock = allActions.length > 0 || !!sidebar?.download
 
   return (
-    <div className="flex min-h-svh">
+    <div className="flex min-h-svh flex-col md:flex-row">
       <div className="mx-auto flex min-w-0 flex-1 flex-col gap-4 p-6">
         <PageBreadcrumb page={page} icon={icon} />
 
@@ -589,7 +628,9 @@ export function ToolPage({
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+          {children}
+        </div>
 
         {hasBottomBar && (
           <div className="flex min-h-11 items-center gap-4">
@@ -629,8 +670,8 @@ export function ToolPage({
       </div>
 
       {hasSidebar && (
-        <div className="flex w-80 shrink-0 flex-col border-l bg-card">
-          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+        <div className="flex w-full flex-col border-t bg-card md:w-80 md:shrink-0 md:border-t-0 md:border-l">
+          <div className="flex flex-col gap-8 p-6 md:min-h-0 md:flex-1 md:overflow-y-auto">
             {topActionGroups.map((group, index) => (
               <SidebarActionGroupRow key={index} group={group} />
             ))}
@@ -738,22 +779,7 @@ export function ToolPage({
             {sidebar?.inputs?.map((input, index) => (
               <div key={index} className="flex flex-col gap-1.5">
                 <SidebarLabel>{input.label}</SidebarLabel>
-                <Input
-                  type={input.type ?? "text"}
-                  min={input.min}
-                  value={input.value}
-                  onChange={(e) => input.onChange(e.target.value)}
-                  disabled={input.disabled}
-                  autoComplete="off"
-                  onKeyDown={
-                    input.onEnter
-                      ? (e) => {
-                          if (e.key === "Enter") input.onEnter!()
-                        }
-                      : undefined
-                  }
-                  className={input.className ?? "w-full"}
-                />
+                <SidebarInputField input={input} />
               </div>
             ))}
 
