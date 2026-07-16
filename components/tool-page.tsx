@@ -14,7 +14,7 @@ import {
   ZoomInAreaIcon,
   ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { ReactNode, RefObject } from "react"
 
 import { ColorPicker } from "@/components/color-picker"
@@ -238,6 +238,45 @@ function SidebarLabel({ children }: { children: ReactNode }) {
     <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
       {children}
     </span>
+  )
+}
+
+// A `sidebar.inputs` field that re-focuses itself once re-enabled, if it was
+// the focused element when it got disabled (e.g. PDF Unlock's password field
+// disables mid-attempt and re-enables on a wrong-password error — disabling
+// an input drops browser focus, and re-enabling it doesn't restore it).
+function SidebarInputField({ input }: { input: SidebarInput }) {
+  const ref = useRef<HTMLInputElement>(null)
+  const wasFocusedRef = useRef(false)
+
+  useEffect(() => {
+    if (!input.disabled && wasFocusedRef.current) {
+      wasFocusedRef.current = false
+      ref.current?.focus()
+    }
+  }, [input.disabled])
+
+  return (
+    <Input
+      ref={ref}
+      type={input.type ?? "text"}
+      min={input.min}
+      value={input.value}
+      onChange={(e) => input.onChange(e.target.value)}
+      disabled={input.disabled}
+      autoComplete="off"
+      onBlur={(e) => {
+        if (e.target.disabled) wasFocusedRef.current = true
+      }}
+      onKeyDown={
+        input.onEnter
+          ? (e) => {
+              if (e.key === "Enter") input.onEnter!()
+            }
+          : undefined
+      }
+      className={input.className ?? "w-full"}
+    />
   )
 }
 
@@ -740,22 +779,7 @@ export function ToolPage({
             {sidebar?.inputs?.map((input, index) => (
               <div key={index} className="flex flex-col gap-1.5">
                 <SidebarLabel>{input.label}</SidebarLabel>
-                <Input
-                  type={input.type ?? "text"}
-                  min={input.min}
-                  value={input.value}
-                  onChange={(e) => input.onChange(e.target.value)}
-                  disabled={input.disabled}
-                  autoComplete="off"
-                  onKeyDown={
-                    input.onEnter
-                      ? (e) => {
-                          if (e.key === "Enter") input.onEnter!()
-                        }
-                      : undefined
-                  }
-                  className={input.className ?? "w-full"}
-                />
+                <SidebarInputField input={input} />
               </div>
             ))}
 
