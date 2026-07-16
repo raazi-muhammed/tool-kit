@@ -542,7 +542,7 @@ export function ToolPage({
   const hasSidebarActionsBlock = allActions.length > 0 || !!sidebar?.download
 
   return (
-    <div className="flex min-h-svh">
+    <div className="flex min-h-svh flex-col md:flex-row">
       <div className="mx-auto flex min-w-0 flex-1 flex-col gap-4 p-6">
         <PageBreadcrumb page={page} icon={icon} />
 
@@ -589,7 +589,9 @@ export function ToolPage({
           </div>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+          {children}
+        </div>
 
         {hasBottomBar && (
           <div className="flex min-h-11 items-center gap-4">
@@ -629,8 +631,8 @@ export function ToolPage({
       </div>
 
       {hasSidebar && (
-        <div className="flex w-80 shrink-0 flex-col border-l bg-card">
-          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+        <div className="flex w-full flex-col border-t bg-card md:w-80 md:shrink-0 md:border-t-0 md:border-l">
+          <div className="flex flex-col gap-8 p-6 md:min-h-0 md:flex-1 md:overflow-y-auto">
             {topActionGroups.map((group, index) => (
               <SidebarActionGroupRow key={index} group={group} />
             ))}

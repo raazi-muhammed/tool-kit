@@ -341,7 +341,7 @@ export default function ImageConverterPage() {
         {activeJob && (
           <div className="flex min-h-0 flex-1 flex-col gap-4">
             {/* Original (left) and converted (right) preview, side by side. */}
-            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
               <PreviewCard
                 fill
                 checkerboard

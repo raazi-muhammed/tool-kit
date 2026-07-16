@@ -456,7 +456,7 @@ export default function ImageScanPage() {
                 preview, side by side — the original is never mutated by a
                 scan, so the corner selection can always be re-adjusted and
                 re-scanned without losing the source photo. */}
-            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
               <PreviewCard
                 fill
                 title="Original"

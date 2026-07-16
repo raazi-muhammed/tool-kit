@@ -33,14 +33,14 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={cn(
-        "antialiased",
+        "overflow-x-hidden antialiased",
         fontMono.variable,
         "font-sans",
         inter.variable,
         fontDisplay.variable
       )}
     >
-      <body>
+      <body className="overflow-x-hidden">
         <ThemeProvider>
           <MotionPreferenceProvider>
             <AutoRunProvider>

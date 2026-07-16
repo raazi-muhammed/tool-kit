@@ -274,7 +274,7 @@ export default function SvgToPngPage() {
                 without cropping — more robust than `max-h-full`/`max-w-full`
                 alone, since it doesn't depend on the container having settled
                 on a definite height first. */}
-            <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
               <PreviewCard
                 fill
                 checkerboard

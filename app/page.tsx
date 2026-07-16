@@ -21,7 +21,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CommandMenuTrigger } from "@/components/command-menu"
+import {
+  CommandMenuIconTrigger,
+  CommandMenuTrigger,
+} from "@/components/command-menu"
 import { useCardExpand } from "@/components/card-expand-transition"
 import { useAnimationsEnabled } from "@/components/motion-preference"
 import {
@@ -122,7 +125,8 @@ export default function Page() {
             </DropdownMenuContent>
           </DropdownMenu>
           <ModeToggle />
-          <CommandMenuTrigger className="w-72" />
+          <CommandMenuTrigger className="hidden w-72 sm:flex" />
+          <CommandMenuIconTrigger className="sm:hidden" />
         </div>
       </div>
 

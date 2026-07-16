@@ -199,7 +199,7 @@ export function CommandMenuTrigger({ className }: { className?: string }) {
   )
 }
 
-export function CommandMenuIconTrigger() {
+export function CommandMenuIconTrigger({ className }: { className?: string }) {
   const context = React.useContext(CommandMenuContext)
   if (!context) {
     throw new Error(
@@ -220,6 +220,7 @@ export function CommandMenuIconTrigger() {
         size="icon"
         aria-label="Search tools"
         onClick={(e) => context.open(transformOriginFromEvent(e))}
+        className={className}
       >
         <HugeiconsIcon icon={SearchIcon} aria-hidden />
       </Button>

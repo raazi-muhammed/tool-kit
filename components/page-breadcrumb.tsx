@@ -22,7 +22,7 @@ export function PageBreadcrumb({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Breadcrumb>
+      <Breadcrumb className="min-w-0">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
@@ -43,7 +43,7 @@ export function PageBreadcrumb({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <ModeToggle />
         <CommandMenuIconTrigger />
       </div>

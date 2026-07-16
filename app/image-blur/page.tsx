@@ -380,9 +380,9 @@ export default function ImageBlurPage() {
           : undefined
       }
     >
-      <div className="flex flex-1 flex-col gap-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
         {activeJob ? (
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
             <PreviewCard
               fill
               viewportRef={viewportRef}
