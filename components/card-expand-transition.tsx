@@ -36,9 +36,8 @@ export function CardExpandProvider({
   const router = useRouter()
   const pathname = usePathname()
   const { enabled: animationsEnabled } = useAnimationsEnabled()
-  const [expandingTool, setExpandingTool] = React.useState<ExpandingTool | null>(
-    null
-  )
+  const [expandingTool, setExpandingTool] =
+    React.useState<ExpandingTool | null>(null)
   const [phase, setPhase] = React.useState<Phase>("expand")
   // `router.push` is called inside `startTransition` below so `isPending`
   // stays true until the destination page has actually rendered - not just
@@ -91,7 +90,7 @@ export function CardExpandProvider({
         {expandingTool && (
           <motion.div
             key="card-expand"
-            style={{ position: "fixed", backgroundColor: "#151519" }}
+            style={{ position: "fixed", backgroundColor: "var(--card)" }}
             initial={{
               top: expandingTool.rect.top,
               left: expandingTool.rect.left,
@@ -135,7 +134,7 @@ export function CardExpandProvider({
             >
               <HugeiconsIcon
                 icon={expandingTool.icon}
-                className="size-16 text-neutral-50"
+                className="size-16 text-card-foreground"
                 aria-hidden
               />
             </motion.div>
