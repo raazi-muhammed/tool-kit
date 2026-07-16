@@ -744,11 +744,15 @@ rather than a full position/size target.
 
 For a color that must render reliably on a `motion.div` (or any element whose
 `animate`/`initial` props drive inline styles), set it via `style={{
-backgroundColor: "#151519" }}` rather than a Tailwind arbitrary-value class
-like `bg-[#151519]` — `card-expand-transition.tsx` does this for its overlay
-background. Framer motion already manages `top`/`left`/`width`/`height`/
-`opacity`/`borderRadius` as inline styles on an animated element, so keeping
-a color that must always show up in that same inline `style` object avoids
+backgroundColor: "var(--card)" }}` rather than a Tailwind arbitrary-value
+class like `bg-card` — `card-expand-transition.tsx` does this for its overlay
+background. Reference the CSS custom property itself (`var(--card)`), not a
+hardcoded hex — a literal color stays wrong for whichever theme it wasn't
+copied from, while `var(--card)` resolves against the same `:root`/`.dark`
+cascade `bg-card` would, so it still tracks the active theme correctly.
+Framer motion already manages `top`/`left`/`width`/`height`/`opacity`/
+`borderRadius` as inline styles on an animated element, so keeping a color
+that must always show up in that same inline `style` object avoids
 any ambiguity about class-vs-inline-style precedence on that node.
 
 `CardExpandProvider` must be an *ancestor* of anything that calls

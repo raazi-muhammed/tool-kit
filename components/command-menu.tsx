@@ -18,7 +18,7 @@ import { IconTooltip } from "@/components/icon-tooltip"
 import { useCardExpand } from "@/components/card-expand-transition"
 import { useAnimationsEnabled } from "@/components/motion-preference"
 import { TOOLS, type Tool } from "@/lib/tools"
-import { cn } from "@/lib/utils"
+import { cn, transformOriginFromRect } from "@/lib/utils"
 
 const CommandMenuContext = React.createContext<{
   open: (transformOrigin?: string) => void
@@ -48,7 +48,12 @@ export function CommandMenuProvider({
         event.preventDefault()
         const trigger = triggerRef.current
         setTransformOrigin(
-          trigger ? transformOriginFromRect(trigger.getBoundingClientRect()) : ""
+          trigger
+            ? transformOriginFromRect(
+                trigger.getBoundingClientRect(),
+                COMMAND_DIALOG_ORIGIN_OPTIONS
+              )
+            : ""
         )
         setOpen((open) => !open)
       }
@@ -147,25 +152,21 @@ export function CommandMenuProvider({
   )
 }
 
-// CommandDialog is centered via `left-1/2` + `top-1/3` (see
-// components/ui/command.tsx) with the actual centering done by a
-// `translate(-50%, ...)` transform. `transform-origin` length values are
-// resolved against the element's *untransformed* layout box, not its
-// currently-rendered (possibly mid-scale-animation) box — so measuring via
-// `getBoundingClientRect()` at animation time gives the wrong reference
-// frame (a shrunken, off-position box) and produces a bogus origin. Deriving
-// the layout position analytically from the same static `left-1/2`/`top-1/3`
-// rule sidesteps that entirely.
-function transformOriginFromRect(rect: DOMRect): string {
-  const centerX = rect.left + rect.width / 2
-  const centerY = rect.top + rect.height / 2
-  const layoutLeft = window.innerWidth * 0.5
-  const layoutTop = window.innerHeight / 3
-  return `${centerX - layoutLeft}px ${centerY - layoutTop}px`
+// CommandDialog is positioned via `left-1/2` + `top-1/3`, `-translate-x-1/2`
+// (horizontal centering, from the base DialogContent) but `translate-y-0`
+// (its own override — no vertical shift, unlike the base Dialog's
+// `-translate-y-1/2`). See `transformOriginFromRect` (lib/utils.ts) for why
+// both the anchor and the translate fraction have to match the real rule.
+const COMMAND_DIALOG_ORIGIN_OPTIONS = {
+  anchor: { x: 0.5, y: 1 / 3 },
+  translate: { x: -0.5, y: 0 },
 }
 
 function transformOriginFromEvent(e: React.MouseEvent<HTMLElement>): string {
-  return transformOriginFromRect(e.currentTarget.getBoundingClientRect())
+  return transformOriginFromRect(
+    e.currentTarget.getBoundingClientRect(),
+    COMMAND_DIALOG_ORIGIN_OPTIONS
+  )
 }
 
 export function CommandMenuTrigger({ className }: { className?: string }) {

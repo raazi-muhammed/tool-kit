@@ -9,6 +9,8 @@ import {
   Copy01Icon,
   Download04Icon,
   FitToScreenIcon,
+  Files02Icon,
+  Settings01Icon,
   SparklesIcon,
   Tick02Icon,
   ZoomInAreaIcon,
@@ -23,6 +25,13 @@ import { PageBreadcrumb } from "@/components/page-breadcrumb"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +48,7 @@ import {
 } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
 // Duck-typed against `DropzoneHandle` (`components/dropzone.tsx`) rather than
 // imported directly, so `ToolPage` doesn't need a hard dependency on
@@ -580,9 +590,250 @@ export function ToolPage({
   )
   const hasSidebarActionsBlock = allActions.length > 0 || !!sidebar?.download
 
+  // Rendered twice — once inline in the desktop side panel, once inside the
+  // mobile Drawer's scrollable body — so both surfaces stay in sync with no
+  // separate copy to maintain. Each render produces its own DOM nodes (e.g.
+  // its own `<input>` per `SidebarInputField`), which is fine since only one
+  // of the two surfaces is ever visible/interactive at a time.
+  const sidebarBody = (
+    <>
+      {topActionGroups.map((group, index) => (
+        <SidebarActionGroupRow key={index} group={group} />
+      ))}
+
+      {sidebar?.zoom && (
+        <div className="flex flex-col gap-3">
+          <SidebarLabel>Zoom</SidebarLabel>
+          <div className="flex w-full items-center gap-2">
+            <div className="flex flex-1 items-center justify-between rounded-lg bg-muted">
+              <IconTooltip label="Zoom out">
+                <Button
+                  variant="ghost"
+                  onClick={sidebar.zoom.onZoomOut}
+                  disabled={sidebar.zoom.zoomOutDisabled}
+                  aria-label="Zoom out"
+                >
+                  <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
+              <span className="text-center text-sm text-muted-foreground">
+                {sidebar.zoom.percent}%
+              </span>
+              <IconTooltip label="Zoom in">
+                <Button
+                  variant="ghost"
+                  onClick={sidebar.zoom.onZoomIn}
+                  disabled={sidebar.zoom.zoomInDisabled}
+                  aria-label="Zoom in"
+                >
+                  <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
+            </div>
+            <div className="shrink-0 rounded-lg bg-muted">
+              <IconTooltip label="Fit to screen">
+                <Button
+                  variant="ghost"
+                  onClick={sidebar.zoom.onFit}
+                  aria-label="Fit to screen"
+                >
+                  <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
+                </Button>
+              </IconTooltip>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sidebarSegments && <SidebarSegmentsControl segments={sidebarSegments} />}
+
+      {sidebar?.groups?.map((group, index) => (
+        <SidebarSegmentsControl key={index} segments={group} />
+      ))}
+
+      {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
+
+      {sidebar?.toggle && (
+        <div className="flex flex-col gap-3">
+          <label className="flex cursor-pointer items-center justify-between gap-2">
+            <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
+            <Checkbox
+              checked={sidebar.toggle.pressed}
+              onCheckedChange={(checked) =>
+                sidebar.toggle!.onPressedChange(checked === true)
+              }
+            />
+          </label>
+          {sidebar.toggle.pressed && sidebar.toggle.color && (
+            <SidebarColorControl
+              color={{
+                label: sidebar.toggle.color.label,
+                value: sidebar.toggle.color.value,
+                fallback: sidebar.toggle.color.value,
+                showLabel: false,
+                onChange: (value) => {
+                  if (value !== null) sidebar.toggle!.color!.onChange(value)
+                },
+              }}
+            />
+          )}
+          {sidebar.toggle.pressed && sidebar.toggle.slider && (
+            <SidebarSliderControl slider={sidebar.toggle.slider} />
+          )}
+          {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
+            <label className="flex cursor-pointer items-center justify-between gap-2">
+              <SidebarLabel>{sidebar.toggle.checkbox.label}</SidebarLabel>
+              <Checkbox
+                checked={sidebar.toggle.checkbox.checked}
+                onCheckedChange={(checked) =>
+                  sidebar.toggle!.checkbox!.onCheckedChange(checked === true)
+                }
+              />
+            </label>
+          )}
+        </div>
+      )}
+
+      {sidebar?.inputs?.map((input, index) => (
+        <div key={index} className="flex flex-col gap-1.5">
+          <SidebarLabel>{input.label}</SidebarLabel>
+          <SidebarInputField input={input} />
+        </div>
+      ))}
+
+      {sidebar?.slider &&
+        (Array.isArray(sidebar.slider) ? (
+          sidebar.slider.map((slider, index) => (
+            <SidebarSliderControl key={index} slider={slider} />
+          ))
+        ) : (
+          <SidebarSliderControl slider={sidebar.slider} />
+        ))}
+
+      {sidebar?.hint && (
+        <span className="text-sm text-muted-foreground">{sidebar.hint}</span>
+      )}
+    </>
+  )
+
+  const sidebarActionsContent = (
+    <>
+      {secondaryActions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {secondaryActions.map((action, index) => (
+            <Button
+              key={index}
+              variant={action.variant}
+              onClick={action.onClick}
+              disabled={action.disabled}
+            >
+              <HugeiconsIcon icon={action.icon} aria-hidden />
+              {action.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {primaryActionRows.map((entry, index) =>
+        "actions" in entry ? (
+          <SidebarActionGroupRow key={index} group={entry} />
+        ) : (
+          entry.emphasis !== "secondary" && (
+            <SidebarPrimaryAction
+              key={index}
+              action={entry}
+              widthClassName="w-full"
+            />
+          )
+        )
+      )}
+
+      {sidebar?.download && (
+        <ButtonGroup className="w-full">
+          <Button
+            variant="secondary"
+            onClick={sidebar.download.onDownload}
+            disabled={sidebar.download.disabled}
+            className="flex-1"
+          >
+            <HugeiconsIcon icon={Download04Icon} aria-hidden />
+            Download
+          </Button>
+          {sidebar.download.onDownloadAll && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  disabled={sidebar.download.disabled}
+                  aria-label="More download options"
+                >
+                  <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-max">
+                <DropdownMenuItem
+                  onClick={sidebar.download.onDownloadAll}
+                  disabled={sidebar.download.downloadAllDisabled}
+                >
+                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                  Download all
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </ButtonGroup>
+      )}
+    </>
+  )
+
+  // Takes `className` rather than being a plain JSX const (like `sidebarBody`
+  // above) since its two call sites need different widths: natural/`w-fit`
+  // next to the file strip on desktop, full-width stacked under it inside
+  // the mobile Drawer.
+  function addFileButtonGroup(className: string) {
+    if (!onAddFile) return null
+    return (
+      <ButtonGroup className={className}>
+        <Button
+          variant="secondary"
+          onClick={() => onAddFile.current?.open()}
+          className="flex-1"
+        >
+          <HugeiconsIcon icon={Add01Icon} aria-hidden />
+          Add file
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label="More add file options"
+            >
+              <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-max">
+            <DropdownMenuItem onClick={() => onAddFile.current?.paste()}>
+              <HugeiconsIcon icon={ClipboardPasteIcon} aria-hidden />
+              Paste from clipboard
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ButtonGroup>
+    )
+  }
+
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
-      <div className="mx-auto flex min-w-0 flex-1 flex-col gap-4 p-6">
+      <div
+        className={cn(
+          "flex w-full min-w-0 flex-1 flex-col gap-4 p-6",
+          // Extra bottom padding on mobile so content isn't hidden behind the
+          // fixed Files/Settings bar below.
+          (fileStrip || hasSidebar) && "pb-28 md:pb-6"
+        )}
+      >
         <PageBreadcrumb page={page} icon={icon} />
 
         {inlineSegments && (
@@ -633,241 +884,93 @@ export function ToolPage({
         </div>
 
         {hasBottomBar && (
-          <div className="flex min-h-11 items-center gap-4">
-            {fileStrip && <div className="min-w-0 flex-1">{fileStrip}</div>}
-
-            {onAddFile && (
-              <ButtonGroup className="ml-auto">
-                <Button
-                  variant="secondary"
-                  onClick={() => onAddFile.current?.open()}
-                  className="flex-1"
-                >
-                  <HugeiconsIcon icon={Add01Icon} aria-hidden />
-                  Add file
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      aria-label="More add file options"
-                    >
-                      <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-max">
-                    <DropdownMenuItem onClick={() => onAddFile.current?.paste()}>
-                      <HugeiconsIcon icon={ClipboardPasteIcon} aria-hidden />
-                      Paste from clipboard
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </ButtonGroup>
+          <div
+            className={cn(
+              "flex min-h-11 items-center gap-4",
+              // On mobile, a file strip moves into the combined Files/
+              // Settings bar below instead of sharing this row — its chips
+              // are each `shrink-0` (a thumbnail/name/size never gets
+              // squished), which leaves no reliable width to share with Add
+              // file on a narrow viewport.
+              fileStrip && "hidden md:flex"
+            )}
+          >
+            {fileStrip ? (
+              <>
+                <div className="min-w-0 flex-1">{fileStrip}</div>
+                {addFileButtonGroup("ml-auto")}
+              </>
+            ) : (
+              addFileButtonGroup("ml-auto")
             )}
           </div>
         )}
       </div>
 
       {hasSidebar && (
-        <div className="flex w-full flex-col border-t bg-card md:w-80 md:shrink-0 md:border-t-0 md:border-l">
-          <div className="flex flex-col gap-8 p-6 md:min-h-0 md:flex-1 md:overflow-y-auto">
-            {topActionGroups.map((group, index) => (
-              <SidebarActionGroupRow key={index} group={group} />
-            ))}
-
-            {sidebar?.zoom && (
-              <div className="flex flex-col gap-3">
-                <SidebarLabel>Zoom</SidebarLabel>
-                <div className="flex w-full items-center gap-2">
-                  <div className="flex flex-1 items-center justify-between rounded-lg bg-muted">
-                    <IconTooltip label="Zoom out">
-                      <Button
-                        variant="ghost"
-                        onClick={sidebar.zoom.onZoomOut}
-                        disabled={sidebar.zoom.zoomOutDisabled}
-                        aria-label="Zoom out"
-                      >
-                        <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
-                      </Button>
-                    </IconTooltip>
-                    <span className="text-center text-sm text-muted-foreground">
-                      {sidebar.zoom.percent}%
-                    </span>
-                    <IconTooltip label="Zoom in">
-                      <Button
-                        variant="ghost"
-                        onClick={sidebar.zoom.onZoomIn}
-                        disabled={sidebar.zoom.zoomInDisabled}
-                        aria-label="Zoom in"
-                      >
-                        <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
-                      </Button>
-                    </IconTooltip>
-                  </div>
-                  <div className="shrink-0 rounded-lg bg-muted">
-                    <IconTooltip label="Fit to screen">
-                      <Button
-                        variant="ghost"
-                        onClick={sidebar.zoom.onFit}
-                        aria-label="Fit to screen"
-                      >
-                        <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
-                      </Button>
-                    </IconTooltip>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {sidebarSegments && (
-              <SidebarSegmentsControl segments={sidebarSegments} />
-            )}
-
-            {sidebar?.groups?.map((group, index) => (
-              <SidebarSegmentsControl key={index} segments={group} />
-            ))}
-
-            {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
-
-            {sidebar?.toggle && (
-              <div className="flex flex-col gap-3">
-                <label className="flex cursor-pointer items-center justify-between gap-2">
-                  <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
-                  <Checkbox
-                    checked={sidebar.toggle.pressed}
-                    onCheckedChange={(checked) =>
-                      sidebar.toggle!.onPressedChange(checked === true)
-                    }
-                  />
-                </label>
-                {sidebar.toggle.pressed && sidebar.toggle.color && (
-                  <SidebarColorControl
-                    color={{
-                      label: sidebar.toggle.color.label,
-                      value: sidebar.toggle.color.value,
-                      fallback: sidebar.toggle.color.value,
-                      showLabel: false,
-                      onChange: (value) => {
-                        if (value !== null)
-                          sidebar.toggle!.color!.onChange(value)
-                      },
-                    }}
-                  />
-                )}
-                {sidebar.toggle.pressed && sidebar.toggle.slider && (
-                  <SidebarSliderControl slider={sidebar.toggle.slider} />
-                )}
-                {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
-                  <label className="flex cursor-pointer items-center justify-between gap-2">
-                    <SidebarLabel>
-                      {sidebar.toggle.checkbox.label}
-                    </SidebarLabel>
-                    <Checkbox
-                      checked={sidebar.toggle.checkbox.checked}
-                      onCheckedChange={(checked) =>
-                        sidebar.toggle!.checkbox!.onCheckedChange(
-                          checked === true
-                        )
-                      }
-                    />
-                  </label>
-                )}
-              </div>
-            )}
-
-            {sidebar?.inputs?.map((input, index) => (
-              <div key={index} className="flex flex-col gap-1.5">
-                <SidebarLabel>{input.label}</SidebarLabel>
-                <SidebarInputField input={input} />
-              </div>
-            ))}
-
-            {sidebar?.slider &&
-              (Array.isArray(sidebar.slider) ? (
-                sidebar.slider.map((slider, index) => (
-                  <SidebarSliderControl key={index} slider={slider} />
-                ))
-              ) : (
-                <SidebarSliderControl slider={sidebar.slider} />
-              ))}
-
-            {sidebar?.hint && (
-              <span className="text-sm text-muted-foreground">
-                {sidebar.hint}
-              </span>
-            )}
+        // Desktop: the settings sidebar as a static side panel.
+        <div className="hidden bg-card md:flex md:w-80 md:shrink-0 md:flex-col md:border-l">
+          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
+            {sidebarBody}
           </div>
 
           {hasSidebarActionsBlock && (
             <div className="flex shrink-0 flex-col gap-3 border-t p-6">
-              {secondaryActions.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {secondaryActions.map((action, index) => (
-                    <Button
-                      key={index}
-                      variant={action.variant}
-                      onClick={action.onClick}
-                      disabled={action.disabled}
-                    >
-                      <HugeiconsIcon icon={action.icon} aria-hidden />
-                      {action.label}
-                    </Button>
-                  ))}
-                </div>
-              )}
-
-              {primaryActionRows.map((entry, index) =>
-                "actions" in entry ? (
-                  <SidebarActionGroupRow key={index} group={entry} />
-                ) : (
-                  entry.emphasis !== "secondary" && (
-                    <SidebarPrimaryAction
-                      key={index}
-                      action={entry}
-                      widthClassName="w-full"
-                    />
-                  )
-                )
-              )}
-
-              {sidebar?.download && (
-                <ButtonGroup className="w-full">
-                  <Button
-                    variant="secondary"
-                    onClick={sidebar.download.onDownload}
-                    disabled={sidebar.download.disabled}
-                    className="flex-1"
-                  >
-                    <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                    Download
-                  </Button>
-                  {sidebar.download.onDownloadAll && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="icon"
-                          disabled={sidebar.download.disabled}
-                          aria-label="More download options"
-                        >
-                          <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-max">
-                        <DropdownMenuItem
-                          onClick={sidebar.download.onDownloadAll}
-                          disabled={sidebar.download.downloadAllDisabled}
-                        >
-                          <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                          Download all
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </ButtonGroup>
-              )}
+              {sidebarActionsContent}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Mobile: Files and Settings share one fixed bottom bar, split evenly
+          — each opens its own Drawer instead of either stacking inline
+          (file strip) or living in its own full-width bar (settings). Only
+          one of the two renders if a tool has just one. */}
+      {(fileStrip || hasSidebar) && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+          {fileStrip && (
+            <Drawer>
+              <DrawerTrigger asChild>
+                <Button variant="secondary" className="flex-1">
+                  <HugeiconsIcon icon={Files02Icon} aria-hidden />
+                  Files
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent className="md:hidden">
+                <DrawerHeader>
+                  <DrawerTitle>Files</DrawerTitle>
+                </DrawerHeader>
+                <div className="flex flex-col gap-4 overflow-y-auto p-4">
+                  {fileStrip}
+                  {addFileButtonGroup("w-full")}
+                </div>
+              </DrawerContent>
+            </Drawer>
+          )}
+
+          {hasSidebar && (
+            <Drawer>
+              <DrawerTrigger asChild>
+                <Button variant="secondary" className="flex-1">
+                  <HugeiconsIcon icon={Settings01Icon} aria-hidden />
+                  Settings
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent className="md:hidden">
+                <DrawerHeader>
+                  <DrawerTitle>Settings</DrawerTitle>
+                </DrawerHeader>
+                <div className="flex flex-col gap-8 overflow-y-auto p-4">
+                  {sidebarBody}
+                </div>
+
+                {hasSidebarActionsBlock && (
+                  <div className="flex flex-col gap-3 border-t p-4">
+                    {sidebarActionsContent}
+                  </div>
+                )}
+              </DrawerContent>
+            </Drawer>
           )}
         </div>
       )}

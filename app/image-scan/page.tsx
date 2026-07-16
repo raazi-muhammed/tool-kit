@@ -459,6 +459,7 @@ export default function ImageScanPage() {
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
               <PreviewCard
                 fill
+                half
                 title="Original"
                 viewportRef={viewportRef}
                 layer={{
@@ -469,6 +470,7 @@ export default function ImageScanPage() {
               />
               <PreviewCard
                 fill
+                half
                 title="Scanned"
                 layer={
                   hasActiveScan

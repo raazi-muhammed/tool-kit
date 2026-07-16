@@ -1,10 +1,10 @@
 "use client"
 
-import { PDFDocument } from "@cantoo/pdf-lib"
+import { EncryptedPDFError, PDFDocument } from "@cantoo/pdf-lib"
 import {
   AlertCircleIcon,
   CloudUploadIcon,
-  FileUnlockedIcon,
+  FileLockedIcon,
   Loading03Icon,
   Pdf02Icon,
 } from "@hugeicons/core-free-icons"
@@ -29,7 +29,7 @@ import { formatBytes } from "@/lib/wav"
 
 const ACCEPTED = "application/pdf,.pdf"
 
-type Status = "idle" | "unlocking" | "done" | "error"
+type Status = "idle" | "locking" | "done" | "error"
 type Job = {
   id: number
   file: File
@@ -40,18 +40,18 @@ type Job = {
   error: string | null
   result: FileResult | null
   /** `null` until the async encryption check (below) resolves. */
-  locked: boolean | null
+  alreadyLocked: boolean | null
   /** Blob URL for the original file, set once it's confirmed to have no password. */
   originalUrl: string | null
 }
 
-function unlockedName(name: string): string {
+function lockedName(name: string): string {
   return name.toLowerCase().endsWith(".pdf")
-    ? `${name.slice(0, -4)}-unlocked.pdf`
-    : `${name}-unlocked.pdf`
+    ? `${name.slice(0, -4)}-locked.pdf`
+    : `${name}-locked.pdf`
 }
 
-export default function PdfUnlockPage() {
+export default function PdfLockPage() {
   const {
     jobs,
     activeId,
@@ -72,7 +72,7 @@ export default function PdfUnlockPage() {
         status: valid ? "idle" : "error",
         error: valid ? null : "This file doesn't look like a PDF.",
         result: null,
-        locked: null,
+        alreadyLocked: null,
         originalUrl: null,
       }
     },
@@ -82,102 +82,128 @@ export default function PdfUnlockPage() {
     },
   })
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [formError, setFormError] = useState<string | null>(null)
   const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
-  const anyBusy = jobs.some((job) => job.status === "unlocking")
+  const anyBusy = jobs.some((job) => job.status === "locking")
 
-  async function checkLocked(job: Job) {
+  async function checkAlreadyLocked(job: Job) {
     try {
       const bytes = await job.file.arrayBuffer()
       const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
-      const locked = doc.isEncrypted
+      const alreadyLocked = doc.isEncrypted
       updateJob(job.id, (j) => ({
-        locked,
-        originalUrl: locked ? null : URL.createObjectURL(j.file),
+        alreadyLocked,
+        originalUrl: alreadyLocked ? null : URL.createObjectURL(j.file),
       }))
     } catch {
-      updateJob(job.id, { locked: true })
+      updateJob(job.id, { alreadyLocked: true })
     }
   }
 
   async function handleFiles(fileList: FileList | null | undefined) {
     const { jobs: created } = await addFiles(fileList)
     created.forEach((job) => {
-      if (job.validFile) void checkLocked(job)
+      if (job.validFile) void checkAlreadyLocked(job)
     })
   }
 
-  async function unlockJob(job: Job, pwd: string) {
-    updateJob(job.id, { status: "unlocking", error: null })
+  async function lockJob(job: Job, pwd: string) {
+    updateJob(job.id, { status: "locking", error: null })
 
     try {
       const bytes = await job.file.arrayBuffer()
-      const doc = await PDFDocument.load(bytes, { password: pwd })
-      const unlockedBytes = await doc.save()
-      const blob = new Blob([unlockedBytes as BlobPart], {
+      const doc = await PDFDocument.load(bytes)
+      doc.encrypt({ userPassword: pwd, ownerPassword: pwd })
+      const lockedBytes = await doc.save()
+      const blob = new Blob([lockedBytes as BlobPart], {
         type: "application/pdf",
       })
 
       updateJob(job.id, (j) => ({
         status: "done",
         error: null,
-        result: setBlobResult(j.result, blob, unlockedName(j.name)),
+        result: setBlobResult(j.result, blob, lockedName(j.name)),
       }))
     } catch (err) {
       updateJob(job.id, {
         status: "error",
         error:
-          err instanceof Error && err.message === "Password incorrect"
-            ? "That password doesn't unlock this PDF."
+          err instanceof EncryptedPDFError
+            ? "This PDF already has a password. Unlock it first."
             : err instanceof Error
               ? err.message
-              : "Something went wrong while unlocking the PDF.",
+              : "Something went wrong while locking the PDF.",
       })
     }
   }
 
-  function unlock() {
+  function validatedPassword(): string | null {
     if (!password) {
-      setFormError("Enter the PDF's password.")
-      return
+      setFormError("Enter a password to lock the PDF with.")
+      return null
     }
-    if (!activeJob || !activeJob.validFile || activeJob.status === "unlocking")
-      return
+    if (password !== confirmPassword) {
+      setFormError("Passwords don't match.")
+      return null
+    }
     setFormError(null)
-    void unlockJob(activeJob, password)
+    return password
   }
 
-  function unlockAll() {
-    if (!password) {
-      setFormError("Enter the PDF's password.")
+  function lock() {
+    const pwd = validatedPassword()
+    if (!pwd) return
+    if (
+      !activeJob ||
+      !activeJob.validFile ||
+      activeJob.alreadyLocked === true ||
+      activeJob.status === "locking"
+    )
       return
-    }
-    setFormError(null)
+    void lockJob(activeJob, pwd)
+  }
+
+  function lockAll() {
+    const pwd = validatedPassword()
+    if (!pwd) return
     jobs.forEach((job) => {
-      if (job.validFile && job.status !== "unlocking")
-        void unlockJob(job, password)
+      if (
+        job.validFile &&
+        job.alreadyLocked !== true &&
+        job.status !== "locking"
+      )
+        void lockJob(job, pwd)
     })
   }
 
-  // With "Run automatically" on, attempt to unlock the active job once the
-  // password stops changing, instead of requiring an explicit Unlock click —
-  // debounced so it only fires once typing pauses, not on every keystroke
-  // (which would otherwise flash a wrong-password error mid-type).
+  // With "Run automatically" on, attempt to lock the active job once both
+  // password fields stop changing, instead of requiring an explicit Lock
+  // click — debounced so it only fires once typing pauses, not on every
+  // keystroke (which would otherwise flash a "don't match" error mid-type).
   useDebouncedEffect(
     () => {
       if (
         !autoRunEnabled ||
         !password ||
+        password !== confirmPassword ||
         !activeJob?.validFile ||
-        activeJob.locked === false ||
-        activeJob.status === "unlocking"
+        activeJob.alreadyLocked !== false ||
+        activeJob.status === "locking"
       )
         return
-      void unlockJob(activeJob, password)
+      setFormError(null)
+      void lockJob(activeJob, password)
     },
-    [autoRunEnabled, password, activeId, activeJob?.locked],
+    [
+      autoRunEnabled,
+      password,
+      confirmPassword,
+      activeId,
+      activeJob?.alreadyLocked,
+    ],
     600
   )
 
@@ -195,8 +221,8 @@ export default function PdfUnlockPage() {
 
   return (
     <ToolPage
-      page="PDF Unlock"
-      icon={FileUnlockedIcon}
+      page="PDF Lock"
+      icon={FileLockedIcon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
@@ -217,25 +243,32 @@ export default function PdfUnlockPage() {
                   type: "password",
                   value: password,
                   onChange: setPassword,
-                  disabled: anyBusy || activeJob?.locked === false,
-                  onEnter: unlock,
+                  disabled: anyBusy || activeJob?.alreadyLocked === true,
+                },
+                {
+                  label: "Confirm password",
+                  type: "password",
+                  value: confirmPassword,
+                  onChange: setConfirmPassword,
+                  disabled: anyBusy || activeJob?.alreadyLocked === true,
+                  onEnter: lock,
                 },
               ],
               actions: [
                 !autoRunEnabled && {
-                  label: "Unlock",
-                  icon: FileUnlockedIcon,
-                  onClick: unlock,
+                  label: "Lock",
+                  icon: FileLockedIcon,
+                  onClick: lock,
                   disabled:
                     anyBusy ||
                     !activeJob?.validFile ||
-                    activeJob?.locked === false,
+                    activeJob?.alreadyLocked === true,
                   more:
                     jobs.length > 1
                       ? {
-                          label: "Unlock all",
-                          icon: FileUnlockedIcon,
-                          onClick: unlockAll,
+                          label: "Lock all",
+                          icon: FileLockedIcon,
+                          onClick: lockAll,
                           disabled: anyBusy,
                         }
                       : undefined,
@@ -266,23 +299,29 @@ export default function PdfUnlockPage() {
                       tone: "destructive",
                       message: activeJob.error,
                     }
-                  : activeJob.locked === false && activeJob.originalUrl
-                    ? false
-                    : {
+                  : activeJob.alreadyLocked === true
+                    ? {
                         kind: "status",
-                        icon: Pdf02Icon,
-                        message: (
-                          <>
-                            {activeJob.name}
-                            <br />
-                            {formatBytes(activeJob.size)}
-                          </>
-                        ),
+                        icon: FileLockedIcon,
+                        message: "This PDF already has a password.",
                       }
+                    : activeJob.alreadyLocked === false && activeJob.originalUrl
+                      ? false
+                      : {
+                          kind: "status",
+                          icon: Pdf02Icon,
+                          message: (
+                            <>
+                              {activeJob.name}
+                              <br />
+                              {formatBytes(activeJob.size)}
+                            </>
+                          ),
+                        }
               }
             >
               {activeJob.validFile &&
-                activeJob.locked === false &&
+                activeJob.alreadyLocked === false &&
                 activeJob.originalUrl && (
                   <PdfPreview
                     key={activeJob.originalUrl}
@@ -294,7 +333,7 @@ export default function PdfUnlockPage() {
             <PreviewCard
               fill
               half
-              title="Unlocked"
+              title="Locked"
               layer={
                 formError
                   ? {
@@ -303,12 +342,12 @@ export default function PdfUnlockPage() {
                       tone: "destructive",
                       message: formError,
                     }
-                  : activeJob.status === "unlocking"
+                  : activeJob.status === "locking"
                     ? {
                         kind: "status",
                         icon: Loading03Icon,
                         spin: true,
-                        message: "Unlocking…",
+                        message: "Locking…",
                       }
                     : activeJob.status === "error"
                       ? {
@@ -317,28 +356,32 @@ export default function PdfUnlockPage() {
                           tone: "destructive",
                           message: activeJob.error,
                         }
-                      : activeJob.locked === false && !activeJob.result
+                      : activeJob.result
                         ? {
                             kind: "status",
-                            icon: FileUnlockedIcon,
-                            message: "This PDF doesn't have a password.",
+                            icon: FileLockedIcon,
+                            message: (
+                              <>
+                                {activeJob.result.name}
+                                <br />
+                                {formatBytes(activeJob.result.size)}
+                              </>
+                            ),
                           }
-                        : false
+                        : activeJob.alreadyLocked === true
+                          ? {
+                              kind: "status",
+                              message:
+                                "Unlock this PDF first, then lock it with a new password.",
+                            }
+                          : {
+                              kind: "status",
+                              message: autoRunEnabled
+                                ? "Enter and confirm a password — it locks automatically"
+                                : "Enter and confirm a password, then hit Lock",
+                            }
               }
-            >
-              {activeJob.result ? (
-                <PdfPreview
-                  key={activeJob.result.url}
-                  url={activeJob.result.url}
-                />
-              ) : (
-                <p className="px-6 text-center text-sm text-muted-foreground">
-                  {autoRunEnabled
-                    ? "Enter the password — it unlocks automatically"
-                    : "Enter the password, then hit Unlock"}
-                </p>
-              )}
-            </PreviewCard>
+            />
           </div>
         )}
 
@@ -348,7 +391,7 @@ export default function PdfUnlockPage() {
           ref={dropzoneRef}
           icon={CloudUploadIcon}
           title="Drag and drop PDFs to upload"
-          description="or, click to browse · remove the password from a PDF · in-browser only"
+          description="or, click to browse · add a password to a PDF · in-browser only"
           accept={ACCEPTED}
           multiple
           hidden={jobs.length > 0}

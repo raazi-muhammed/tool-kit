@@ -122,6 +122,8 @@
     }
   body {
     @apply bg-background text-foreground;
+    /* Recommended by vaul (the mobile sidebar Drawer) for iOS Safari. */
+    position: relative;
     }
   html {
     @apply font-sans;
