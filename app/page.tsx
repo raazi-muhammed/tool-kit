@@ -284,15 +284,13 @@ export default function Page() {
                 href={href}
                 target={href.startsWith("mailto:") ? undefined : "_blank"}
                 rel={href.startsWith("mailto:") ? undefined : "noreferrer"}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+                className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 text-sm transition-colors hover:bg-muted/70"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-muted">
-                  <HugeiconsIcon
-                    icon={icon}
-                    aria-hidden
-                    className="size-4 text-muted-foreground"
-                  />
-                </span>
+                <HugeiconsIcon
+                  icon={icon}
+                  aria-hidden
+                  className="size-4 shrink-0 text-muted-foreground"
+                />
                 <span className="font-medium">{label}</span>
                 <span className="ml-auto text-muted-foreground">
                   {username}
