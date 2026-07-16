@@ -38,7 +38,7 @@ import {
 import { IconTooltip } from "@/components/icon-tooltip"
 import { ModeToggle } from "@/components/mode-toggle"
 import { CATEGORIES, TOOLS, type Category } from "@/lib/tools"
-import { cn } from "@/lib/utils"
+import { cn, transformOriginFromRect } from "@/lib/utils"
 
 const CONTACT_EMAIL = "raazi6163@gmail.com"
 
@@ -79,10 +79,18 @@ export default function Page() {
   const { enabled: animationsEnabled } = useAnimationsEnabled()
   const [category, setCategory] = useState<Category | "all">("all")
   const [supportOpen, setSupportOpen] = useState(false)
+  const [supportOrigin, setSupportOrigin] = useState("")
   const tools =
     category === "all"
       ? TOOLS
       : TOOLS.filter((tool) => tool.category === category)
+
+  function openSupport(e: React.MouseEvent<HTMLElement>) {
+    setSupportOrigin(
+      transformOriginFromRect(e.currentTarget.getBoundingClientRect())
+    )
+    setSupportOpen(true)
+  }
 
   function handleCardClick(
     e: React.MouseEvent<HTMLAnchorElement>,
@@ -116,7 +124,7 @@ export default function Page() {
               variant="ghost"
               size="icon"
               aria-label="Need something?"
-              onClick={() => setSupportOpen(true)}
+              onClick={openSupport}
             >
               <HugeiconsIcon icon={Contact01Icon} aria-hidden />
             </Button>
@@ -214,7 +222,7 @@ export default function Page() {
           <button
             type="button"
             className="group block h-full w-full text-left"
-            onClick={() => setSupportOpen(true)}
+            onClick={openSupport}
           >
             <Card className="relative h-full overflow-hidden border border-dashed border-primary/40 bg-primary/5 p-3 ring-0 transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/10">
               <HugeiconsIcon
@@ -250,7 +258,18 @@ export default function Page() {
       </div>
 
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
-        <DialogContent>
+        <DialogContent
+          className={cn(animationsEnabled && "duration-200")}
+          style={
+            animationsEnabled
+              ? ({
+                  "--tw-enter-scale": 0.12,
+                  "--tw-exit-scale": 0.12,
+                  transformOrigin: supportOrigin,
+                } as React.CSSProperties)
+              : undefined
+          }
+        >
           <DialogHeader>
             <DialogTitle>Need something?</DialogTitle>
             <DialogDescription>

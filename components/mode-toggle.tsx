@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useSyncExternalStore } from "react"
+import type { CSSProperties } from "react"
 import { useTheme } from "next-themes"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Settings01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
@@ -16,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
-import { cn } from "@/lib/utils"
+import { cn, transformOriginFromRect } from "@/lib/utils"
 
 const noopSubscribe = () => () => {}
 
@@ -73,6 +74,7 @@ function ThemePreview({ value }: { value: ThemeValue }) {
 
 export function ModeToggle() {
   const [open, setOpen] = useState(false)
+  const [transformOrigin, setTransformOrigin] = useState("")
   const { theme, setTheme } = useTheme()
   const { enabled: animationsEnabled, setEnabled: setAnimationsEnabled } =
     useAnimationsEnabled()
@@ -96,13 +98,29 @@ export function ModeToggle() {
           variant="ghost"
           size="icon"
           aria-label="Settings"
-          onClick={() => setOpen(true)}
+          onClick={(e) => {
+            setTransformOrigin(
+              transformOriginFromRect(e.currentTarget.getBoundingClientRect())
+            )
+            setOpen(true)
+          }}
         >
           <HugeiconsIcon icon={Settings01Icon} aria-hidden />
         </Button>
       </IconTooltip>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="gap-4">
+        <DialogContent
+          className={cn("gap-4", animationsEnabled && "duration-200")}
+          style={
+            animationsEnabled
+              ? ({
+                  "--tw-enter-scale": 0.12,
+                  "--tw-exit-scale": 0.12,
+                  transformOrigin,
+                } as CSSProperties)
+              : undefined
+          }
+        >
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
