@@ -6,6 +6,7 @@ import {
   BracesIcon,
   Calculator01Icon,
   CodeIcon,
+  Csv01Icon,
   FileDiffIcon,
   FileEditIcon,
   FileLockedIcon,
@@ -58,6 +59,14 @@ export const TOOLS: Tool[] = [
     name: "Markdown Viewer",
     description:
       "Write Markdown and preview the rendered result, in your browser.",
+    category: "data",
+  },
+  {
+    href: "/csv-viewer",
+    icon: Csv01Icon,
+    name: "CSV Viewer",
+    description:
+      "View and edit CSV data as a table, and download the result, in your browser.",
     category: "data",
   },
   {

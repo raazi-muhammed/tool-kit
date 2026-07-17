@@ -8,8 +8,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Each tool lives under `app/<tool-name>/page.tsx`. Every tool page is wrapped in
 the shared `ToolPage` component instead of hand-rolling the breadcrumb, the
-right-hand settings sidebar, and the Copy/Load sample/Clear button row — those
-are common to every tool, so they live in the wrapper, not in each page:
+right-hand settings sidebar, and the header action row — those are common to
+every tool, so they live in the wrapper, not in each page:
 
 ```tsx
 import { ToolPage } from "@/components/tool-page"
@@ -17,14 +17,16 @@ import { ToolPage } from "@/components/tool-page"
 <ToolPage
   page="Inline Calculator"
   icon={Calculator01Icon}
-  onCopy={copy}
-  onLoadSample={loadSample}
-  onClear={clear}
-  actions={/* tool-specific buttons, e.g. Format/Minify, rendered left of Copy */}
+  actions={/* tool-specific buttons, e.g. Format/Minify */}
 >
   {/* tool content */}
 </ToolPage>
 ```
+
+Never pass `onCopy` or `onLoadSample` — the Copy / Load sample header buttons
+are retired and must not be included on any tool page, new or updated. A few
+older pages still pass them; that's legacy to be removed when those pages are
+next touched, not a pattern to copy.
 
 `ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
 and a bottom bar for the file strip/Add file), and — only once there's
@@ -64,9 +66,6 @@ Type", "Format") and an optional `placement`:
       { value: "wav", label: "WAV", icon: AudioWave01Icon },
     ],
   }}
-  onCopy={copy}
-  onLoadSample={loadSample}
-  onClear={clear}
 >
 ```
 
@@ -579,7 +578,7 @@ default size), so just drop the icon in without a `className`:
 Use the default `size` for every `Button` — don't pass `size="sm"`/`"xs"`. The
 default size carries the gradient/shadow treatment (see "Button styling"
 below) at a scale that reads well everywhere in the app, from the ToolPage
-Copy/Load sample/Clear row down to icon-only toolbar buttons (e.g. the zoom
+header action row down to icon-only toolbar buttons (e.g. the zoom
 controls in `app/image-blur/page.tsx`). The smaller sizes still exist for
 places that aren't a `Button` at all — e.g. `TabsTrigger` sizing — but don't
 reach for them on a `Button`.
