@@ -89,7 +89,9 @@ export default function CsvViewerPage() {
 
   function deleteColumn(colIndex: number) {
     setRaw(
-      serializeCsv(rows.map((row) => row.filter((_, index) => index !== colIndex)))
+      serializeCsv(
+        rows.map((row) => row.filter((_, index) => index !== colIndex))
+      )
     )
   }
 
@@ -131,18 +133,20 @@ export default function CsvViewerPage() {
             : undefined,
         actions: [
           {
-            label: "Add row",
-            icon: RowInsertIcon,
-            onClick: addRow,
-            variant: "secondary",
-            emphasis: "secondary",
-          },
-          {
-            label: "Add column",
-            icon: ColumnInsertIcon,
-            onClick: addColumn,
-            variant: "secondary",
-            emphasis: "secondary",
+            actions: [
+              {
+                label: "Add row",
+                icon: RowInsertIcon,
+                onClick: addRow,
+                variant: "secondary",
+              },
+              {
+                label: "Add column",
+                icon: ColumnInsertIcon,
+                onClick: addColumn,
+                variant: "secondary",
+              },
+            ],
           },
           {
             label: "Clear",
