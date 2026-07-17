@@ -10,33 +10,44 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useMemo, useRef, useState } from "react"
 
+import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { Card } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Textarea } from "@/components/ui/textarea"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
-import { MarkdownView } from "@/components/markdown-view"
+import { downloadFile } from "@/lib/download"
 import { renderMarkdownToHtml } from "@/lib/markdown"
 import { cn, readFirstFileAsText } from "@/lib/utils"
 
 type Tab = "text" | "preview" | "split"
 
+const DEFAULT_FILE_NAME = "document.md"
+
 export default function MarkdownViewerPage() {
   const [raw, setRaw] = useState("")
   const [tab, setTab] = useState<Tab>("text")
+  const [fileName, setFileName] = useState(DEFAULT_FILE_NAME)
   const dropzoneRef = useRef<DropzoneHandle>(null)
 
   const html = useMemo(() => renderMarkdownToHtml(raw), [raw])
 
   async function handleFiles(files: FileList | null) {
+    const file = files?.[0]
     const text = await readFirstFileAsText(files)
     if (text == null) return
     setRaw(text)
     setTab("text")
+    if (file) setFileName(file.name)
   }
 
   function clear() {
     setRaw("")
+    setFileName(DEFAULT_FILE_NAME)
+  }
+
+  function download() {
+    const blob = new Blob([raw], { type: "text/markdown" })
+    const url = URL.createObjectURL(blob)
+    downloadFile(url, fileName)
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -63,50 +74,42 @@ export default function MarkdownViewerPage() {
             variant: "outline",
           },
         ],
+        download: { onDownload: download, disabled: !raw.trim() },
       }}
     >
       <div
         className={cn(
-          "grid min-h-[60vh] flex-1 gap-4",
+          "grid flex-1 gap-4",
           tab === "split" ? "grid-cols-2" : "grid-cols-1"
         )}
       >
         {tab !== "preview" && (
-          <div className="flex min-h-0 flex-col gap-2">
-            {tab === "split" && (
-              <span className="text-sm font-medium text-muted-foreground">
-                Edit
-              </span>
-            )}
-            <Textarea
-              value={raw}
-              onChange={(e) => setRaw(e.target.value)}
-              placeholder="Write Markdown here (your text is not saved anywhere)"
-              variant="flat"
-              className="field-sizing-fixed min-h-0 flex-1 overflow-y-auto rounded-lg border border-border bg-card/40 p-4 font-mono text-xs"
-              spellCheck={false}
-            />
-          </div>
+          <PreviewCard
+            fill
+            title={tab === "split" ? "Edit" : undefined}
+            layer={{
+              kind: "textinput",
+              value: raw,
+              onChange: setRaw,
+              placeholder:
+                "Write Markdown here (your text is not saved anywhere)",
+            }}
+          />
         )}
         {tab !== "text" && (
-          <div className="flex min-h-0 flex-col gap-2">
-            {tab === "split" && (
-              <span className="text-sm font-medium text-muted-foreground">
-                Preview
-              </span>
-            )}
-            <Card className="flex min-h-0 flex-1 flex-col rounded-lg border bg-card/40 p-4 ring-0">
-              {raw.trim() ? (
-                <ScrollArea className="min-h-0 flex-1">
-                  <MarkdownView html={html} />
-                </ScrollArea>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Write Markdown in the Edit tab to see it rendered here.
-                </p>
-              )}
-            </Card>
-          </div>
+          <PreviewCard
+            fill
+            title={tab === "split" ? "Preview" : undefined}
+            layer={
+              raw.trim()
+                ? { kind: "markdown", html }
+                : {
+                    kind: "status",
+                    message:
+                      "Write Markdown in the Edit tab to see it rendered here.",
+                  }
+            }
+          />
         )}
       </div>
 

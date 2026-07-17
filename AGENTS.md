@@ -1,4 +1,5 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
@@ -14,7 +15,7 @@ every tool, so they live in the wrapper, not in each page:
 ```tsx
 import { ToolPage } from "@/components/tool-page"
 
-<ToolPage
+;<ToolPage
   page="Inline Calculator"
   icon={Calculator01Icon}
   actions={/* tool-specific buttons, e.g. Format/Minify */}
@@ -47,7 +48,7 @@ Type", "Format") and an optional `placement`:
   `Select` dropdown instead — wrapping a segmented control onto more than one
   line still looks broken inside its pill-shaped track, so don't try to make
   `TabsList` wrap for this case.
-- `"inline"` — for a *view* switch that changes what `children` renders (e.g.
+- `"inline"` — for a _view_ switch that changes what `children` renders (e.g.
   JSON Parser's Text/Viewer tabs). Renders inline above `children`, right next
   to the content it swaps, exactly like today — don't move a view switch 320px
   away from what it controls just for consistency with the settings case.
@@ -190,7 +191,7 @@ sidebar:
 
 - `color` — a settable/clearable color swatch (e.g. a background fill for
   transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
-  clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
+clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
   instead of the clear button. `ColorPicker` itself (`components/color-picker.tsx`)
   always offers both a "Pick from screen" native `EyeDropper` button (where
   the browser supports it — Chrome/Edge) and a "Pick from image" fallback
@@ -203,11 +204,11 @@ sidebar:
   and `app/image-crop/page.tsx`.
 - `toggle` — a pressable button (e.g. "Remove background") that reveals its
   own nested `color` and/or `slider` only while pressed: `{ label, icon,
-  pressed, onPressedChange, color?, slider? }`. See
+pressed, onPressedChange, color?, slider? }`. See
   `app/image-converter/page.tsx`.
 - `inputs` — an array of labeled text/number/password fields rendered
   label-above-input (e.g. resize width/height, a PDF password): `{ label,
-  value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
+value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
   give each a real label — it's stacked alone in the sidebar column, not
   side-by-side with a neighboring field, so a blank label (fine in a horizontal
   row) reads as broken here. See `app/image-resize/page.tsx` and
@@ -332,7 +333,7 @@ per page; they already live in `lib/`:
   is the shared "Download all" loop (skip a job `shouldDownload` rejects,
   download it, `await downloadStagger()`) — use it instead of hand-rolling
   the same `for`/`continue`/stagger loop. `type FileResult = { url, name,
-  size }` plus `setBlobResult(prevResult, blob, name)` (revokes
+size }` plus `setBlobResult(prevResult, blob, name)` (revokes
   `prevResult`'s object URL if set, then creates a fresh one) is the shared
   shape for a job's generated output — type a job's `result` field as
   `FileResult` instead of redeclaring the same three fields, and build it
@@ -373,20 +374,20 @@ hand-rolling a `Card` plus a centering/checkerboard wrapper div:
 ```tsx
 import { PreviewCard } from "@/components/preview-card"
 
-<PreviewCard
+;<PreviewCard
   fill
   checkerboard
   title="Converted"
   layer={
     activeJob.result
-      // An image layer (`kind: "image"`) — e.g. a converted result that's
-      // already a decoded blob URL and doesn't need a canvas draw at all.
-      ? { kind: "image", src: activeJob.result.url, alt: activeJob.result.name }
-      // Or a status layer (`kind: "status"`) — a centered icon/message for
-      // the loading/error/idle states, so the whole preview (picked file
-      // *and* its fallback) is one data-driven `layer` with no JSX children
-      // at all.
-      : activeJob.status === "converting"
+      ? // An image layer (`kind: "image"`) — e.g. a converted result that's
+        // already a decoded blob URL and doesn't need a canvas draw at all.
+        { kind: "image", src: activeJob.result.url, alt: activeJob.result.name }
+      : // Or a status layer (`kind: "status"`) — a centered icon/message for
+        // the loading/error/idle states, so the whole preview (picked file
+        // *and* its fallback) is one data-driven `layer` with no JSX children
+        // at all.
+        activeJob.status === "converting"
         ? { kind: "status", icon: Loading03Icon, spin: true }
         : { kind: "status", message: "Pick a format and hit Convert" }
   }
@@ -398,9 +399,19 @@ that stack on top of each other, positioned/sized identically so they line
 up (e.g. a base image canvas plus a separate selection-overlay canvas). It
 filters falsy values — same convention as `ToolPage`'s `sidebar.actions` —
 so inline a layer's own readiness check (`condition ? {...} : {...}`)
-instead of reaching for `children`. `children` still exists as an escape
-hatch for content none of `canvas`/`image`/`status` fits — it's shown only
-once `layer` resolves to no truthy layers. See Image Converter: its
+instead of reaching for `children`. Text-surface tools have two more layer
+kinds: `markdown` (`{ kind: "markdown", html }`, a scrollable
+rendered-markdown pane fed by `renderMarkdownToHtml` from `lib/markdown.ts`)
+and `textinput` (`{ kind: "textinput", value, onChange, placeholder? }`, an
+editable textarea surface) — both absolutely fill the viewport, so they're
+only meaningful on a `fill` card. `PreviewCard` itself caps the `fill`
+viewport at the shared viewport-chrome budget (`MAX_HEIGHT`), so these
+surfaces scroll internally with no height plumbing needed on the page — see
+`app/markdown-viewer/page.tsx`, which renders its Edit and Preview panes as
+two `PreviewCard`s with these layers inside a plain `grid flex-1` (no
+max-height or row clamping of its own). `children` still exists as an escape
+hatch for content no layer kind fits — it's shown only once `layer` resolves
+to no truthy layers. See Image Converter: its
 Original pane is a canvas layer (so its color-picker click can sample
 pixels) with a status layer for the invalid-file case, and its Converted
 pane switches between an image layer and a status layer for
@@ -459,7 +470,7 @@ actual rendered content rect, not just its CSS box, so they stay correct even
 when `object-contain` letterboxes the canvas inside a box whose aspect ratio
 doesn't match the image's. Reach for real fit-to-screen JS (Image Blur's,
 Image Scan's zoom/pan) instead only when the tool needs actual pixel-precise
-*display* control beyond fit-to-box scaling (zooming in past 100%, panning) —
+_display_ control beyond fit-to-box scaling (zooming in past 100%, panning) —
 a plain preview pane, even an interactive one, doesn't.
 `viewportRef` exposes the inner viewport node for wheel/gesture listeners or
 fit-to-screen math (see Image Blur's zoom/pan).
@@ -521,16 +532,17 @@ together in the middle):
 ```tsx
 import { CommandMenuTrigger } from "@/components/command-menu"
 
-<CommandMenuTrigger className="w-72" />
+;<CommandMenuTrigger className="w-72" />
 ```
 
 `app/page.tsx` (the homepage) renders the full `CommandMenuTrigger` bar (icon
-+ "Search" label + `⌘K` hint). `PageBreadcrumb` (used by every tool page via
-`ToolPage`) renders the icon-only `CommandMenuIconTrigger` instead, next to
-the settings `ModeToggle` — same shared `CommandMenuProvider`/dialog, just a
-smaller trigger since a tool page's header has no room for the full bar. When
-adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
-`app/page.tsx`) so it shows up in both the grid and the command menu.
+
+- "Search" label + `⌘K` hint). `PageBreadcrumb` (used by every tool page via
+  `ToolPage`) renders the icon-only `CommandMenuIconTrigger` instead, next to
+  the settings `ModeToggle` — same shared `CommandMenuProvider`/dialog, just a
+  smaller trigger since a tool page's header has no room for the full bar. When
+  adding a new tool, add it to `TOOLS` in `lib/tools.ts` (not inline in
+  `app/page.tsx`) so it shows up in both the grid and the command menu.
 
 ## Button styling
 
@@ -553,7 +565,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import { BracesIcon } from "@hugeicons/core-free-icons"
 
-<HugeiconsIcon icon={BracesIcon} className="size-4" aria-hidden />
+;<HugeiconsIcon icon={BracesIcon} className="size-4" aria-hidden />
 ```
 
 An icon is data (`IconSvgElement`), not a component — pass it via the `icon` prop
@@ -593,7 +605,7 @@ for the shadcn `Tooltip`/`TooltipTrigger`/`TooltipContent` trio directly:
 ```tsx
 import { IconTooltip } from "@/components/icon-tooltip"
 
-<IconTooltip label="Zoom in">
+;<IconTooltip label="Zoom in">
   <Button variant="ghost" onClick={onZoomIn} aria-label="Zoom in">
     <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
   </Button>
@@ -644,7 +656,7 @@ handlers on a page; use the shared `Dropzone` component
 ```tsx
 import { Dropzone } from "@/components/dropzone"
 
-<Dropzone
+;<Dropzone
   icon={CloudUploadIcon}
   title="Drag and drop an image to upload"
   description="or, click to browse · resize to any resolution · in-browser only"
@@ -695,7 +707,7 @@ conditional class instead, so there's nothing left to lose the specificity
 fight against:
 
 - `Attachment`'s `size="lg"` has no `has-data-[slot=attachment-content]:px-*
-  py-*` (unlike `default`/`sm`/`xs`), because the `dropzone` orientation sets
+py-*` (unlike `default`/`sm`/`xs`), because the `dropzone` orientation sets
   its own explicit padding — `Dropzone` always passes `size="lg"` together
   with `orientation="dropzone"`.
 - `Textarea`'s `variant="flat"` drops `border-input` and `dark:bg-input/30`
@@ -723,7 +735,7 @@ follow a measured DOM rect, or survive a route change).
 
 A page-level component (e.g. `app/page.tsx`) is unmounted the instant
 `router.push` navigates away from it, so any animation state that needs to
-keep playing *after* navigation (a fade-out, anything that finishes on the
+keep playing _after_ navigation (a fade-out, anything that finishes on the
 destination page) can't live in that page's own `useState` — it has to live
 in a provider mounted once in `app/layout.tsx`, alongside
 `ThemeProvider`/`CommandMenuProvider`/`TooltipProvider`, so it persists across
@@ -754,17 +766,17 @@ Framer motion already manages `top`/`left`/`width`/`height`/`opacity`/
 that must always show up in that same inline `style` object avoids
 any ambiguity about class-vs-inline-style precedence on that node.
 
-`CardExpandProvider` must be an *ancestor* of anything that calls
+`CardExpandProvider` must be an _ancestor_ of anything that calls
 `useCardExpand()` — in `app/layout.tsx` it wraps `CommandMenuProvider`
 specifically so `command-menu.tsx`'s tool-selection handler can trigger the
 same grow-then-fade-out transition as clicking a homepage card, rather than a
 bare `router.push`. If a new provider also needs to trigger it, it has to be
-mounted *inside* `CardExpandProvider`, not the other way round.
+mounted _inside_ `CardExpandProvider`, not the other way round.
 
 Don't call `getBoundingClientRect()` on an element while it's mid-animation
 (e.g. to compute a `transform-origin`) — `transform-origin` length values are
-resolved against the element's *untransformed* layout box, but
-`getBoundingClientRect()` reports the box *after* the currently-applied
+resolved against the element's _untransformed_ layout box, but
+`getBoundingClientRect()` reports the box _after_ the currently-applied
 transform (a mid-scale-animation element reports a shrunken, offset rect).
 Subtracting one against the other silently produces a bogus result — no
 error, just a wrong-looking animation. Either measure at rest (before/after
