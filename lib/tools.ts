@@ -1,5 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react"
 import {
+  ArrowShrink02Icon,
   AudioWave01Icon,
   BlurIcon,
   BracesIcon,
@@ -9,6 +10,7 @@ import {
   FileLockedIcon,
   FileStackIcon,
   FileUnlockedIcon,
+  Gif01Icon,
   IdentityCardIcon,
   Image01Icon,
   ImageCropIcon,
@@ -209,6 +211,22 @@ export const TOOLS: Tool[] = [
     icon: SquareRoundCornerIcon,
     name: "Image Round Corners",
     description: "Round an image's corners to any radius, in your browser.",
+    category: "image",
+  },
+  {
+    href: "/image-compress",
+    icon: ArrowShrink02Icon,
+    name: "Image Compress",
+    description:
+      "Shrink images to a quality level or a target file size, in your browser.",
+    category: "image",
+  },
+  {
+    href: "/gif-compress",
+    icon: Gif01Icon,
+    name: "GIF Compress",
+    description:
+      "Compress animated GIFs to a quality level or a target file size, in your browser.",
     category: "image",
   },
 ]
