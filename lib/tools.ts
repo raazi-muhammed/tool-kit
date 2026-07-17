@@ -7,6 +7,7 @@ import {
   Calculator01Icon,
   CodeIcon,
   FileDiffIcon,
+  FileEditIcon,
   FileLockedIcon,
   FileStackIcon,
   FileUnlockedIcon,
@@ -49,6 +50,14 @@ export const TOOLS: Tool[] = [
     icon: BracesIcon,
     name: "JSON Parser",
     description: "Validate, format, and explore JSON as a tree.",
+    category: "data",
+  },
+  {
+    href: "/markdown-viewer",
+    icon: FileEditIcon,
+    name: "Markdown Viewer",
+    description:
+      "Write Markdown and preview the rendered result, in your browser.",
     category: "data",
   },
   {
