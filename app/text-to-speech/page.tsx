@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { readFirstFileAsText } from "@/lib/utils"
 
 type Status = "idle" | "speaking" | "paused"
@@ -82,6 +83,29 @@ export default function TextToSpeechPage() {
   // we didn't ask for (macOS routes media commands across apps, so pausing a
   // video in another browser pauses Chrome's speech too) gets auto-resumed.
   const pausedByUserRef = useRef(false)
+  // `status` mirrored into a ref, for callbacks that fire after a delay
+  // (debounced slider changes) and need the status of *now*, not of the
+  // render they were created in.
+  const statusRef = useRef<Status>("idle")
+  // Live mid-speech setting changes: an utterance's rate/pitch/volume are
+  // locked in at speak() time, so "change speed on the go" is implemented as
+  // a restart from the current position. `boundary` events report how far
+  // into the utterance playback has gotten (word granularity, and not fired
+  // by every voice — without them a restart replays the utterance from its
+  // start), tracked here as an absolute index into the text captured at
+  // Speak, alongside the settings the current utterance was started with.
+  const spokenTextRef = useRef("")
+  const charIndexRef = useRef(0)
+  const appliedSettingsRef = useRef<{
+    rate: number
+    pitch: number
+    volume: number
+  } | null>(null)
+
+  function updateStatus(next: Status) {
+    statusRef.current = next
+    setStatus(next)
+  }
 
   const voices = engine.state === "ready" ? engine.voices : []
   // Prefer local voices for the default — remote (network-backed) voices are
@@ -146,16 +170,24 @@ export default function TextToSpeechPage() {
     return () => window.clearInterval(id)
   }, [status])
 
-  async function speak() {
+  // Speak `spokenTextRef` from `offset` with the current settings — offset 0
+  // for a fresh Speak, the last boundary position for a mid-speech settings
+  // change.
+  async function startSpeaking(offset: number) {
     generationRef.current += 1
     const generation = generationRef.current
-    setSpeechError(null)
+    const remaining = spokenTextRef.current.slice(offset)
+    if (!remaining.trim()) return
+    EasySpeech.cancel()
     startedRef.current = false
     pausedByUserRef.current = false
-    setStatus("speaking")
+    charIndexRef.current = offset
+    appliedSettingsRef.current = { rate, pitch, volume }
+    updateStatus("speaking")
     log("speak requested", {
       generation,
-      chars: text.length,
+      offset,
+      chars: remaining.length,
       voice: selectedVoice
         ? `${selectedVoice.name} (${selectedVoice.lang})${selectedVoice.localService ? " local" : " remote"}`
         : "(engine default)",
@@ -175,12 +207,17 @@ export default function TextToSpeechPage() {
       generationRef.current += 1
       EasySpeech.cancel()
       setSpeechError(ENGINE_STUCK)
-      setStatus("idle")
+      updateStatus("idle")
     }, 3000)
+
+    // Chrome randomly swallows a speak() issued synchronously after cancel()
+    // — an imperceptible delay before queueing sidesteps it.
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    if (generationRef.current !== generation) return
 
     try {
       await EasySpeech.speak({
-        text,
+        text: remaining,
         voice: selectedVoice,
         rate,
         pitch,
@@ -188,6 +225,10 @@ export default function TextToSpeechPage() {
         start: () => {
           startedRef.current = true
           log("utterance started", { generation, ...synthState() })
+        },
+        boundary: (event) => {
+          if (generationRef.current !== generation) return
+          charIndexRef.current = offset + event.charIndex
         },
         end: () => {
           log("utterance ended", { generation, ...synthState() })
@@ -202,7 +243,7 @@ export default function TextToSpeechPage() {
       })
       if (generationRef.current !== generation) return
       log("speak finished normally", { generation })
-      setStatus("idle")
+      updateStatus("idle")
     } catch (cause) {
       const code = errorCode(cause)
       log("speak rejected", { generation, code, cause })
@@ -212,16 +253,46 @@ export default function TextToSpeechPage() {
       if (code !== "interrupted" && code !== "canceled") {
         setSpeechError(code)
       }
-      setStatus("idle")
+      updateStatus("idle")
     }
   }
+
+  function speak() {
+    setSpeechError(null)
+    spokenTextRef.current = text
+    void startSpeaking(0)
+  }
+
+  // Rate/pitch/volume changes take effect immediately even mid-speech: an
+  // utterance can't be re-configured while playing, so restart from the last
+  // reported word boundary with the new settings. Debounced so dragging a
+  // slider restarts once, not on every tick; the settings-unchanged guard
+  // skips the restart a pre-Speak slider change would otherwise cause.
+  useDebouncedEffect(
+    () => {
+      if (statusRef.current !== "speaking") return
+      const applied = appliedSettingsRef.current
+      if (
+        applied &&
+        applied.rate === rate &&
+        applied.pitch === pitch &&
+        applied.volume === volume
+      ) {
+        return
+      }
+      log("settings changed mid-speech — restarting from", charIndexRef.current)
+      void startSpeaking(charIndexRef.current)
+    },
+    [rate, pitch, volume],
+    250
+  )
 
   function stop() {
     log("stop clicked", synthState())
     generationRef.current += 1
     pausedByUserRef.current = false
     EasySpeech.cancel()
-    setStatus("idle")
+    updateStatus("idle")
   }
 
   function togglePause() {
@@ -229,12 +300,12 @@ export default function TextToSpeechPage() {
       log("resume clicked", synthState())
       pausedByUserRef.current = false
       EasySpeech.resume()
-      setStatus("speaking")
+      updateStatus("speaking")
     } else {
       log("pause clicked", synthState())
       pausedByUserRef.current = true
       EasySpeech.pause()
-      setStatus("paused")
+      updateStatus("paused")
     }
   }
 
@@ -279,9 +350,10 @@ export default function TextToSpeechPage() {
             value: rate,
             onValueChange: setRate,
             min: 0.5,
-            // Chrome fails outright on rates above 2, despite the API
-            // nominally allowing up to 10.
-            max: 2,
+            // Heads-up: some voices (notably Chrome's remote ones) are
+            // reported to fail on rates above 2 — if a high rate goes
+            // silent, the error hint plus a lower rate is the answer.
+            max: 3,
             step: 0.1,
             unit: "x",
           },
@@ -326,7 +398,7 @@ export default function TextToSpeechPage() {
               connection.
             </span>
           ) : (
-            "Speech uses your device's built-in voices — your text never leaves the browser. Rate, pitch, and volume apply the next time you hit Speak."
+            "Speech uses your device's built-in voices — your text never leaves the browser. Rate, pitch, and volume apply right away, even mid-speech."
           ),
         actions: [
           status !== "idle" && {
