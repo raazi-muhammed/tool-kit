@@ -4,7 +4,10 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react"
 
+import { MarkdownView } from "@/components/markdown-view"
 import { Card } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 // Checkerboard behind the preview so PNG/WebP transparency (and the effect
@@ -23,9 +26,13 @@ const CHECKERBOARD =
 // separate, taller cap.
 const VIEWPORT_CHROME_HEIGHT = "100dvh-220px"
 
-// Caps the non-`fill` preview at `VIEWPORT_CHROME_HEIGHT`. Pages with a
-// taller header (e.g. wrapped toolbar buttons) may need a bigger cap via
-// `className`.
+// Caps every preview at `VIEWPORT_CHROME_HEIGHT` — the non-`fill` layer
+// classes and the `fill` viewport both carry it, so height stays budgeted
+// here in one place. ToolPage's root is min-h-svh (a floor, not a ceiling),
+// so without this cap a `fill` pane whose content drives its height (a
+// markdown/textinput surface, an unconstrained canvas) would stretch past
+// the viewport instead of scrolling inside it. Pages with a taller header
+// (e.g. wrapped toolbar buttons) may need a bigger cap via `className`.
 const MAX_HEIGHT = `max-h-[calc(${VIEWPORT_CHROME_HEIGHT})]`
 
 // Minimum height for a `fill` card that's one of two placed in a
@@ -70,9 +77,29 @@ type PreviewStatusLayer = {
   tone?: "muted" | "destructive"
   message?: ReactNode
 }
+// Or a scrollable rendered-markdown pane — sanitized HTML from
+// `renderMarkdownToHtml` (`lib/markdown.ts`). Absolutely positioned to fill
+// the viewport (it contributes no height of its own), so it's only
+// meaningful on a `fill` card whose height is otherwise bounded.
+type PreviewMarkdownLayer = {
+  kind: "markdown"
+  html: string
+}
+// Or an editable plain-text surface (e.g. Markdown Viewer's editor pane) —
+// same fill-only constraint as the markdown layer.
+type PreviewTextInputLayer = {
+  kind: "textinput"
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}
 
 export type PreviewLayer =
-  PreviewCanvasLayer | PreviewImageLayer | PreviewStatusLayer
+  | PreviewCanvasLayer
+  | PreviewImageLayer
+  | PreviewStatusLayer
+  | PreviewMarkdownLayer
+  | PreviewTextInputLayer
 // A layer, or nothing to render this pass — e.g. `activeJob.result && {...}`.
 type PreviewLayerInput = PreviewLayer | false | null | undefined
 
@@ -139,7 +166,11 @@ export function PreviewCard({
         className={cn(
           "flex w-full min-w-0 items-center justify-center overflow-hidden rounded-md",
           fill &&
-            cn("relative flex-1", half ? HALF_MIN_HEIGHT : "min-h-[60vh]"),
+            cn(
+              "relative flex-1",
+              MAX_HEIGHT,
+              half ? HALF_MIN_HEIGHT : "min-h-[60vh]"
+            ),
           !fill && MAX_HEIGHT,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
@@ -170,6 +201,38 @@ export function PreviewCard({
                       <p className="text-sm">{entry.message}</p>
                     )}
                   </div>
+                )
+              }
+              if (entry.kind === "markdown") {
+                return (
+                  // The plain wrapper carries the absolute positioning —
+                  // Radix's ScrollArea root sets an inline
+                  // `position: relative` that beats any position utility
+                  // passed via className, so positioning the root directly
+                  // silently leaves it in flex flow (centered and clipped
+                  // by the viewport) instead of filling it.
+                  <div key={index} className="absolute inset-0">
+                    <ScrollArea className="size-full">
+                      <div className="p-2">
+                        <MarkdownView html={entry.html} />
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )
+              }
+              if (entry.kind === "textinput") {
+                return (
+                  <Textarea
+                    key={index}
+                    value={entry.value}
+                    onChange={(e) => entry.onChange(e.target.value)}
+                    placeholder={entry.placeholder}
+                    variant="flat"
+                    spellCheck={false}
+                    // ring-inset keeps the focus ring visible inside the
+                    // viewport's overflow-hidden instead of clipped away.
+                    className="absolute inset-0 field-sizing-fixed resize-none overflow-y-auto p-2 font-mono text-xs ring-inset"
+                  />
                 )
               }
               if (entry.kind === "image") {

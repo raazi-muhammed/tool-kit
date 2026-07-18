@@ -6,7 +6,9 @@ import {
   BracesIcon,
   Calculator01Icon,
   CodeIcon,
+  Csv01Icon,
   FileDiffIcon,
+  FileEditIcon,
   FileLockedIcon,
   FileStackIcon,
   FileUnlockedIcon,
@@ -24,6 +26,7 @@ import {
   ScissorRectangleIcon,
   SquareIcon,
   SquareRoundCornerIcon,
+  VoiceIcon,
 } from "@hugeicons/core-free-icons"
 
 export type Category = "data" | "image" | "convert" | "pdf"
@@ -49,6 +52,22 @@ export const TOOLS: Tool[] = [
     icon: BracesIcon,
     name: "JSON Parser",
     description: "Validate, format, and explore JSON as a tree.",
+    category: "data",
+  },
+  {
+    href: "/markdown-viewer",
+    icon: FileEditIcon,
+    name: "Markdown Viewer",
+    description:
+      "Write Markdown and preview the rendered result, in your browser.",
+    category: "data",
+  },
+  {
+    href: "/csv-viewer",
+    icon: Csv01Icon,
+    name: "CSV Viewer",
+    description:
+      "View and edit CSV data as a table, and download the result, in your browser.",
     category: "data",
   },
   {
@@ -87,6 +106,14 @@ export const TOOLS: Tool[] = [
     name: "Video to Audio",
     description:
       "Extract a video's audio track to a WAV file, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/text-to-speech",
+    icon: VoiceIcon,
+    name: "Text to Speech",
+    description:
+      "Read text aloud with your device's built-in voices, in your browser.",
     category: "convert",
   },
   {
