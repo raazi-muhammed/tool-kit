@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
+import { Kbd } from "@/components/ui/kbd"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { readFirstFileAsText } from "@/lib/utils"
 
@@ -29,6 +30,12 @@ type Engine =
   | { state: "pending" }
   | { state: "ready"; voices: SpeechSynthesisVoice[] }
   | { state: "failed"; message: string }
+
+// Shared by the Rate slider and the S/D speed shortcuts so both respect the
+// same bounds.
+const RATE_MIN = 0.5
+const RATE_MAX = 3
+const RATE_STEP = 0.25
 
 // Sentinel for "speak() was accepted but nothing ever started" — Chrome's
 // speech process can wedge machine-wide (it survives page reloads) and only
@@ -287,6 +294,54 @@ export default function TextToSpeechPage() {
     250
   )
 
+  // Media-player keyboard shortcuts: Space plays/pauses, D/S nudges the rate
+  // up/down (holding the key ramps it, and the live-restart effect above
+  // applies it mid-speech). Registered without a dependency array so the
+  // handler always closes over fresh state — swapping a keydown listener per
+  // render is cheap. Keys are ignored while typing in the text area (or any
+  // editable control), where they must keep their normal meaning.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      if (key === " ") {
+        if (event.repeat) return
+        // Also swallows scroll-on-space and space-activating whichever
+        // button happens to be focused (e.g. Speak right after clicking it)
+        // — Space means play/pause on this page, nothing else.
+        event.preventDefault()
+        if (status === "idle") {
+          if (engine.state === "ready" && text.trim()) speak()
+        } else {
+          togglePause()
+        }
+      } else if (key === "d" || key === "s") {
+        event.preventDefault()
+        const delta = key === "d" ? RATE_STEP : -RATE_STEP
+        setRate((prev) =>
+          Math.min(
+            RATE_MAX,
+            Math.max(RATE_MIN, Math.round((prev + delta) * 100) / 100)
+          )
+        )
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  })
+
   function stop() {
     log("stop clicked", synthState())
     generationRef.current += 1
@@ -349,12 +404,12 @@ export default function TextToSpeechPage() {
             label: "Rate",
             value: rate,
             onValueChange: setRate,
-            min: 0.5,
             // Heads-up: some voices (notably Chrome's remote ones) are
             // reported to fail on rates above 2 — if a high rate goes
             // silent, the error hint plus a lower rate is the answer.
-            max: 3,
-            step: 0.1,
+            min: RATE_MIN,
+            max: RATE_MAX,
+            step: RATE_STEP,
             unit: "x",
           },
           {
@@ -398,7 +453,20 @@ export default function TextToSpeechPage() {
               connection.
             </span>
           ) : (
-            "Speech uses your device's built-in voices — your text never leaves the browser. Rate, pitch, and volume apply right away, even mid-speech."
+            <span className="flex flex-col gap-1.5">
+              <span className="flex items-center justify-between">
+                Play / pause
+                <Kbd>Space</Kbd>
+              </span>
+              <span className="flex items-center justify-between">
+                Speed up
+                <Kbd>D</Kbd>
+              </span>
+              <span className="flex items-center justify-between">
+                Slow down
+                <Kbd>S</Kbd>
+              </span>
+            </span>
           ),
         actions: [
           status !== "idle" && {
@@ -406,7 +474,6 @@ export default function TextToSpeechPage() {
             icon: status === "paused" ? PlayIcon : PauseIcon,
             onClick: togglePause,
             variant: "secondary",
-            emphasis: "secondary",
           },
           status === "idle"
             ? {
