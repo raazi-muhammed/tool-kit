@@ -13,6 +13,8 @@ import {
   Settings01Icon,
   SparklesIcon,
   Tick02Icon,
+  ViewIcon,
+  ViewOffSlashIcon,
   ZoomInAreaIcon,
   ZoomOutAreaIcon,
 } from "@hugeicons/core-free-icons"
@@ -255,27 +257,40 @@ function SidebarLabel({ children }: { children: ReactNode }) {
 // the focused element when it got disabled (e.g. PDF Unlock's password field
 // disables mid-attempt and re-enables on a wrong-password error — disabling
 // an input drops browser focus, and re-enabling it doesn't restore it).
+// Focus is tracked via onFocus/onBlur rather than by inspecting the blur
+// event's `disabled` flag — Chrome doesn't reliably fire blur at all when a
+// focused input becomes disabled, so the effect below has to catch that case.
+// Password fields also get a built-in show/hide toggle inside the input.
 function SidebarInputField({ input }: { input: SidebarInput }) {
   const ref = useRef<HTMLInputElement>(null)
+  const isFocusedRef = useRef(false)
   const wasFocusedRef = useRef(false)
+  const [revealed, setRevealed] = useState(false)
+  const isPassword = input.type === "password"
 
   useEffect(() => {
-    if (!input.disabled && wasFocusedRef.current) {
+    if (input.disabled) {
+      if (isFocusedRef.current) wasFocusedRef.current = true
+    } else if (wasFocusedRef.current) {
       wasFocusedRef.current = false
       ref.current?.focus()
     }
   }, [input.disabled])
 
-  return (
+  const field = (
     <Input
       ref={ref}
-      type={input.type ?? "text"}
+      type={isPassword && revealed ? "text" : (input.type ?? "text")}
       min={input.min}
       value={input.value}
       onChange={(e) => input.onChange(e.target.value)}
       disabled={input.disabled}
       autoComplete="off"
+      onFocus={() => {
+        isFocusedRef.current = true
+      }}
       onBlur={(e) => {
+        isFocusedRef.current = false
         if (e.target.disabled) wasFocusedRef.current = true
       }}
       onKeyDown={
@@ -285,8 +300,34 @@ function SidebarInputField({ input }: { input: SidebarInput }) {
             }
           : undefined
       }
-      className={input.className ?? "w-full"}
+      className={cn(input.className ?? "w-full", isPassword && "pr-10")}
     />
+  )
+
+  if (!isPassword) return field
+
+  const revealLabel = revealed ? "Hide password" : "Show password"
+  return (
+    <div className="relative">
+      {field}
+      <IconTooltip label={revealLabel}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-lg"
+          disabled={input.disabled}
+          onClick={() => setRevealed((v) => !v)}
+          aria-label={revealLabel}
+          aria-pressed={revealed}
+          className="absolute top-0.5 right-0.5 text-muted-foreground hover:bg-transparent"
+        >
+          <HugeiconsIcon
+            icon={revealed ? ViewOffSlashIcon : ViewIcon}
+            aria-hidden
+          />
+        </Button>
+      </IconTooltip>
+    </div>
   )
 }
 

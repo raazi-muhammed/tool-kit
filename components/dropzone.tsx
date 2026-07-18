@@ -13,13 +13,25 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from "@/components/ui/attachment"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export type DropzoneHandle = {
   open: () => void
   /** Reads image or text data off the system clipboard (Clipboard API) and feeds it through the same `onFiles` path as a pick or drop. Fails silently (console.error) if the browser denies clipboard access or the clipboard holds nothing usable. */
   paste: () => Promise<void>
+}
+
+// A single native drop event can reach more than one handler — the visible
+// card's own onDrop plus the window-level fallback it bubbles up to (and,
+// on a page with several Dropzones, every instance's window listener). Each
+// handler claims the event here before acting, so one drop adds its files
+// exactly once no matter how many handlers see it.
+const handledDrops = new WeakSet<Event>()
+function claimDrop(event: Event): boolean {
+  if (handledDrops.has(event)) return false
+  handledDrops.add(event)
+  return true
 }
 
 function DropzoneImpl(
@@ -116,13 +128,11 @@ function DropzoneImpl(
   // Once a file's picked, the dropzone card itself unmounts (`hidden`) so
   // its own onDrop handler is gone — without this, dragging another file in
   // has nowhere to land. Mirrors the paste listener above: a stable,
-  // mount-once window listener reading the latest `hidden`/`onFiles` via
-  // refs, active only while `hidden` (the visible card already handles the
-  // not-hidden case itself, so this stays out of its way).
-  const hiddenRef = React.useRef(hidden)
-  React.useEffect(() => {
-    hiddenRef.current = hidden
-  })
+  // mount-once window listener reading the latest `onFiles` via a ref. It
+  // stays active while the card is visible too — a file dropped next to the
+  // card (instead of on it) would otherwise hit the browser default and
+  // navigate the tab to the file. `claimDrop` keeps the two paths from both
+  // handling a drop that lands on the card itself.
   const dragCounter = React.useRef(0)
   const [draggingOverPage, setDraggingOverPage] = React.useState(false)
 
@@ -131,27 +141,26 @@ function DropzoneImpl(
       return !!e.dataTransfer?.types.includes("Files")
     }
     function onDragEnter(e: DragEvent) {
-      if (!hiddenRef.current || !hasFiles(e)) return
+      if (!hasFiles(e)) return
       e.preventDefault()
       dragCounter.current += 1
       setDraggingOverPage(true)
     }
     function onDragOver(e: DragEvent) {
-      if (!hiddenRef.current || !hasFiles(e)) return
+      if (!hasFiles(e)) return
       e.preventDefault()
     }
     function onDragLeave() {
-      if (!hiddenRef.current) return
       dragCounter.current = Math.max(0, dragCounter.current - 1)
       if (dragCounter.current === 0) setDraggingOverPage(false)
     }
     function onDrop(e: DragEvent) {
       dragCounter.current = 0
       setDraggingOverPage(false)
-      if (!hiddenRef.current) return
       const files = e.dataTransfer?.files
       if (!files || files.length === 0) return
       e.preventDefault()
+      if (!claimDrop(e)) return
       onFilesRef.current(files)
     }
     window.addEventListener("dragenter", onDragEnter)
@@ -201,6 +210,7 @@ function DropzoneImpl(
           onDrop={(e) => {
             e.preventDefault()
             setDragging(false)
+            if (!claimDrop(e.nativeEvent)) return
             onFiles(e.dataTransfer.files)
           }}
           className={cn(
