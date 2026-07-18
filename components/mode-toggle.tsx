@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Settings01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
 
 import { useAutoRunEnabled } from "@/components/auto-run-preference"
+import { useCompactViewEnabled } from "@/components/compact-view-preference"
 import { IconTooltip } from "@/components/icon-tooltip"
 import { useAnimationsEnabled } from "@/components/motion-preference"
 import { Button } from "@/components/ui/button"
@@ -72,6 +73,48 @@ function ThemePreview({ value }: { value: ThemeValue }) {
   )
 }
 
+// A mini mockup of the home-screen grid — comfortable shows a few roomy
+// cards with an icon chip and title/description lines, compact packs more,
+// smaller cards with just the icon chip and a title line. Built from theme
+// tokens (unlike `ThemePreview`'s fixed neutrals) so it follows whichever
+// theme is active.
+function LayoutPreview({ compact }: { compact: boolean }) {
+  return (
+    <div
+      className={cn(
+        "grid size-full content-start bg-muted",
+        compact ? "grid-cols-3 gap-1 p-1.5" : "grid-cols-2 gap-1.5 p-2"
+      )}
+    >
+      {Array.from({ length: compact ? 9 : 4 }).map((_, i) =>
+        compact ? (
+          <div
+            key={i}
+            className="flex items-center gap-1 rounded-xs bg-background p-1"
+          >
+            <div className="size-1.5 shrink-0 rounded-xs bg-primary/60" />
+            <div className="h-1 flex-1 rounded-full bg-foreground/20" />
+          </div>
+        ) : (
+          <div
+            key={i}
+            className="flex flex-col gap-1 rounded-xs bg-background p-1.5"
+          >
+            <div className="size-2 rounded-xs bg-primary/60" />
+            <div className="h-1 w-3/4 rounded-full bg-foreground/20" />
+            <div className="h-1 w-full rounded-full bg-foreground/10" />
+          </div>
+        )
+      )}
+    </div>
+  )
+}
+
+const LAYOUT_OPTIONS: { compact: boolean; label: string }[] = [
+  { compact: false, label: "Comfortable" },
+  { compact: true, label: "Compact" },
+]
+
 export function ModeToggle() {
   const [open, setOpen] = useState(false)
   const [transformOrigin, setTransformOrigin] = useState("")
@@ -80,6 +123,8 @@ export function ModeToggle() {
     useAnimationsEnabled()
   const { enabled: autoRunEnabled, setEnabled: setAutoRunEnabled } =
     useAutoRunEnabled()
+  const { enabled: compactViewEnabled, setEnabled: setCompactViewEnabled } =
+    useCompactViewEnabled()
   // Avoids a hydration mismatch: the server always renders before
   // localStorage's theme is known, so the active swatch can only reflect
   // `theme` once mounted on the client.
@@ -125,7 +170,7 @@ export function ModeToggle() {
             <DialogTitle>Settings</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+            <span className="pl-1 text-xs font-medium text-muted-foreground">
               Theme
             </span>
             <div className="grid grid-cols-3 gap-3">
@@ -146,6 +191,45 @@ export function ModeToggle() {
                     >
                       <div className="relative size-full">
                         <ThemePreview value={value} />
+                        {active && (
+                          <span className="absolute right-1 bottom-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <HugeiconsIcon
+                              icon={Tick02Icon}
+                              className="size-2.5"
+                              aria-hidden
+                            />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium">{label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="pl-1 text-xs font-medium text-muted-foreground">
+              Layout
+            </span>
+            <div className="grid grid-cols-2 gap-3">
+              {LAYOUT_OPTIONS.map(({ compact, label }) => {
+                const active = compactViewEnabled === compact
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setCompactViewEnabled(compact)}
+                    className="flex flex-col items-center gap-1.5"
+                  >
+                    <div
+                      className={cn(
+                        "h-16 w-full overflow-hidden rounded-lg ring-2 ring-offset-2 ring-offset-popover transition-colors",
+                        active ? "ring-primary" : "ring-transparent"
+                      )}
+                    >
+                      <div className="relative size-full">
+                        <LayoutPreview compact={compact} />
                         {active && (
                           <span className="absolute right-1 bottom-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
                             <HugeiconsIcon

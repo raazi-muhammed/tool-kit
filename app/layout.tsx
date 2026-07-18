@@ -7,6 +7,7 @@ import { CommandMenuProvider } from "@/components/command-menu"
 import { CardExpandProvider } from "@/components/card-expand-transition"
 import { MotionPreferenceProvider } from "@/components/motion-preference"
 import { AutoRunProvider } from "@/components/auto-run-preference"
+import { CompactViewProvider } from "@/components/compact-view-preference"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
@@ -44,11 +45,13 @@ export default function RootLayout({
         <ThemeProvider>
           <MotionPreferenceProvider>
             <AutoRunProvider>
-              <TooltipProvider>
-                <CardExpandProvider>
-                  <CommandMenuProvider>{children}</CommandMenuProvider>
-                </CardExpandProvider>
-              </TooltipProvider>
+              <CompactViewProvider>
+                <TooltipProvider>
+                  <CardExpandProvider>
+                    <CommandMenuProvider>{children}</CommandMenuProvider>
+                  </CardExpandProvider>
+                </TooltipProvider>
+              </CompactViewProvider>
             </AutoRunProvider>
           </MotionPreferenceProvider>
         </ThemeProvider>
