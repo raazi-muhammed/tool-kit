@@ -26,6 +26,7 @@ import {
   ScissorRectangleIcon,
   SquareIcon,
   SquareRoundCornerIcon,
+  VoiceIcon,
 } from "@hugeicons/core-free-icons"
 
 export type Category = "data" | "image" | "convert" | "pdf"
@@ -105,6 +106,14 @@ export const TOOLS: Tool[] = [
     name: "Video to Audio",
     description:
       "Extract a video's audio track to a WAV file, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/text-to-speech",
+    icon: VoiceIcon,
+    name: "Text to Speech",
+    description:
+      "Read text aloud with your device's built-in voices, in your browser.",
     category: "convert",
   },
   {
