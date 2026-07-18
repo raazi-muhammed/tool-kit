@@ -27,6 +27,7 @@ import {
   CommandMenuTrigger,
 } from "@/components/command-menu"
 import { useCardExpand } from "@/components/card-expand-transition"
+import { useCompactViewEnabled } from "@/components/compact-view-preference"
 import { useAnimationsEnabled } from "@/components/motion-preference"
 import {
   Dialog,
@@ -77,6 +78,7 @@ const SOCIAL_LINKS: {
 export default function Page() {
   const expandCard = useCardExpand()
   const { enabled: animationsEnabled } = useAnimationsEnabled()
+  const { enabled: compact } = useCompactViewEnabled()
   const [category, setCategory] = useState<Category | "all">("all")
   const [supportOpen, setSupportOpen] = useState(false)
   const [supportOrigin, setSupportOrigin] = useState("")
@@ -161,7 +163,14 @@ export default function Page() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        className={cn(
+          "grid gap-4",
+          compact
+            ? "grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        )}
+      >
         {tools.map(({ href, icon, name, description }, index) => (
           <motion.div
             key={href}
@@ -178,30 +187,58 @@ export default function Page() {
               className="group block h-full"
               onClick={(e) => handleCardClick(e, href, icon)}
             >
-              <Card className="relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary">
+              <Card
+                className={cn(
+                  "relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary",
+                  // The theme's rounded-xl (1.4rem) reads bulbous on the
+                  // short compact cards — step down the theme radius scale
+                  // to keep the curve proportional to the card.
+                  compact && "rounded-lg"
+                )}
+              >
                 <HugeiconsIcon
                   icon={icon}
                   aria-hidden
-                  className="pointer-events-none absolute -right-6 -bottom-6 size-24 rotate-12 text-foreground/5"
+                  className={cn(
+                    "pointer-events-none absolute -right-6 -bottom-6 rotate-12 text-foreground/5",
+                    compact ? "size-16" : "size-24"
+                  )}
                 />
-                <CardHeader className="flex flex-row items-start gap-3 px-0">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+                <CardHeader
+                  className={cn(
+                    "flex flex-row gap-3 px-0",
+                    compact ? "items-center" : "items-start"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex shrink-0 items-center justify-center bg-primary/10 transition-colors group-hover:bg-primary",
+                      compact ? "size-8 rounded-md" : "size-10 rounded-lg"
+                    )}
+                  >
                     <HugeiconsIcon
                       icon={icon}
-                      className="size-6 text-primary transition-colors group-hover:text-primary-foreground"
+                      className={cn(
+                        "text-primary transition-colors group-hover:text-primary-foreground",
+                        compact ? "size-5" : "size-6"
+                      )}
                       aria-hidden
                     />
                   </div>
-                  <div className="flex min-w-0 flex-col gap-1">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="mt-1">{name}</CardTitle>
+                      <CardTitle className={cn(!compact && "mt-1")}>
+                        {name}
+                      </CardTitle>
                       <HugeiconsIcon
                         icon={ArrowRight01Icon}
                         className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
                         aria-hidden
                       />
                     </div>
-                    <CardDescription>{description}</CardDescription>
+                    {!compact && (
+                      <CardDescription>{description}</CardDescription>
+                    )}
                   </div>
                 </CardHeader>
               </Card>
@@ -224,32 +261,57 @@ export default function Page() {
             className="group block h-full w-full text-left"
             onClick={openSupport}
           >
-            <Card className="relative h-full overflow-hidden border border-dashed border-primary/40 bg-primary/5 p-3 ring-0 transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/10">
+            <Card
+              className={cn(
+                "relative h-full overflow-hidden border border-dashed border-primary/40 bg-primary/5 p-3 ring-0 transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/10",
+                compact && "rounded-lg"
+              )}
+            >
               <HugeiconsIcon
                 icon={CustomerSupportIcon}
                 aria-hidden
-                className="pointer-events-none absolute -right-6 -bottom-6 size-24 rotate-12 text-primary/10"
+                className={cn(
+                  "pointer-events-none absolute -right-6 -bottom-6 rotate-12 text-primary/10",
+                  compact ? "size-16" : "size-24"
+                )}
               />
-              <CardHeader className="flex flex-row items-start gap-3 px-0">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary">
+              <CardHeader
+                className={cn(
+                  "flex flex-row gap-3 px-0",
+                  compact ? "items-center" : "items-start"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex shrink-0 items-center justify-center bg-primary/10 transition-colors group-hover:bg-primary",
+                    compact ? "size-8 rounded-md" : "size-10 rounded-lg"
+                  )}
+                >
                   <HugeiconsIcon
                     icon={CustomerSupportIcon}
-                    className="size-6 text-primary transition-colors group-hover:text-primary-foreground"
+                    className={cn(
+                      "text-primary transition-colors group-hover:text-primary-foreground",
+                      compact ? "size-5" : "size-6"
+                    )}
                     aria-hidden
                   />
                 </div>
-                <div className="flex min-w-0 flex-col gap-1">
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <div className="flex items-center justify-between gap-2">
-                    <CardTitle className="mt-1">Need something?</CardTitle>
+                    <CardTitle className={cn(!compact && "mt-1")}>
+                      Need something?
+                    </CardTitle>
                     <HugeiconsIcon
                       icon={ArrowRight01Icon}
                       className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
                       aria-hidden
                     />
                   </div>
-                  <CardDescription>
-                    Request a tool, report a bug, or just say hi.
-                  </CardDescription>
+                  {!compact && (
+                    <CardDescription>
+                      Request a tool, report a bug, or just say hi.
+                    </CardDescription>
+                  )}
                 </div>
               </CardHeader>
             </Card>
