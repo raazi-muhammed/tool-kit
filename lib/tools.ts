@@ -19,6 +19,7 @@ import {
   ImageDownloadIcon,
   ImageRotationClockwiseIcon,
   Key01Icon,
+  LoaderPinwheelIcon,
   Pdf01Icon,
   Png01Icon,
   Resize02Icon,
@@ -98,6 +99,14 @@ export const TOOLS: Tool[] = [
     name: ".env.example Creator",
     description:
       "Paste a .env file and get a .env.example with keys kept and values blanked out.",
+    category: "data",
+  },
+  {
+    href: "/wheel-spin",
+    icon: LoaderPinwheelIcon,
+    name: "Wheel Spin",
+    description:
+      "Spin a wheel of names to pick a random winner, in your browser.",
     category: "data",
   },
   {
