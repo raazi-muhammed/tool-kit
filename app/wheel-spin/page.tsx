@@ -7,11 +7,22 @@ import {
   ShuffleIcon,
   SortingAZ01Icon,
 } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import confetti from "canvas-confetti"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import { useAnimationsEnabled } from "@/components/motion-preference"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 const TWO_PI = Math.PI * 2
 // Backing-store size — the canvas scales to its box via object-contain.
@@ -102,11 +113,38 @@ function winnerIndex(rotation: number, count: number) {
   return Math.floor(normalized / (TWO_PI / count)) % count
 }
 
+// Two bursts angled in from the bottom corners, in the wheel's own colors.
+// canvas-confetti draws on its own fixed full-screen canvas at z-index 100,
+// above the winner dialog's Radix overlay (z-50), so the confetti rains over
+// the dialog rather than behind it.
+function fireConfetti() {
+  const defaults = {
+    colors: PALETTE,
+    disableForReducedMotion: true,
+    spread: 70,
+    startVelocity: 55,
+    ticks: 250,
+  }
+  confetti({
+    ...defaults,
+    particleCount: 90,
+    angle: 60,
+    origin: { x: 0.1, y: 0.9 },
+  })
+  confetti({
+    ...defaults,
+    particleCount: 90,
+    angle: 120,
+    origin: { x: 0.9, y: 0.9 },
+  })
+}
+
 export default function WheelSpinPage() {
   const [text, setText] = useState("")
   const [spinSeconds, setSpinSeconds] = useState(5)
   const [spinning, setSpinning] = useState(false)
   const [winner, setWinner] = useState<string | null>(null)
+  const [winnerOpen, setWinnerOpen] = useState(false)
   const { enabled: animationsEnabled } = useAnimationsEnabled()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rotationRef = useRef(0)
@@ -130,13 +168,22 @@ export default function WheelSpinPage() {
     if (canvas) drawWheel(canvas, names, rotationRef.current)
   }, [names])
 
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), [])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafRef.current)
+      // Drop canvas-confetti's full-screen canvas so a burst doesn't outlive
+      // the page on navigation.
+      confetti.reset()
+    },
+    []
+  )
 
   function settle() {
     const current = namesRef.current
-    if (current.length > 0) {
-      setWinner(current[winnerIndex(rotationRef.current, current.length)])
-    }
+    if (current.length === 0) return
+    setWinner(current[winnerIndex(rotationRef.current, current.length)])
+    setWinnerOpen(true)
+    if (animationsEnabled) fireConfetti()
   }
 
   function spin() {
@@ -203,6 +250,7 @@ export default function WheelSpinPage() {
 
   function removeWinner() {
     if (winner === null) return
+    setWinnerOpen(false)
     const index = names.indexOf(winner)
     if (index === -1) return
     changeText(names.filter((_, i) => i !== index).join("\n"))
@@ -237,7 +285,6 @@ export default function WheelSpinPage() {
             onClick: shuffleNames,
             disabled: spinning || names.length < 2,
             variant: "secondary",
-            emphasis: "secondary",
           },
           {
             label: "Sort",
@@ -245,14 +292,12 @@ export default function WheelSpinPage() {
             onClick: sortNames,
             disabled: spinning || names.length < 2,
             variant: "secondary",
-            emphasis: "secondary",
           },
           winner !== null && {
             label: "Remove winner",
             icon: Delete02Icon,
             onClick: removeWinner,
             variant: "secondary",
-            emphasis: "secondary",
           },
           {
             label: "Spin",
@@ -263,10 +308,18 @@ export default function WheelSpinPage() {
         ],
       }}
     >
+      {/* PreviewCard's shared height cap (100dvh-220px) budgets for a
+          header-action row and a bottom bar, neither of which this page has,
+          so the default cap leaves ~80px of dead card below the viewport —
+          visible as the entries textarea's focus ring stopping short of the
+          card's bottom edge. Raise the cap to this page's actual chrome:
+          p-6 top+bottom (48) + breadcrumb (32) + one gap-4 (16) + pane
+          title and its gap (28) + the Card's own p-2 (16) = 140. */}
       <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-[3fr_2fr]">
         <PreviewCard
           fill
           half
+          className="max-h-[calc(100dvh-140px)]"
           title="Wheel"
           layer={
             names.length > 0
@@ -289,6 +342,7 @@ export default function WheelSpinPage() {
         <PreviewCard
           fill
           half
+          className="max-h-[calc(100dvh-140px)]"
           title={`Entries${names.length > 0 ? ` (${names.length})` : ""}`}
           layer={{
             kind: "textinput",
@@ -298,6 +352,35 @@ export default function WheelSpinPage() {
           }}
         />
       </div>
+
+      <Dialog open={winnerOpen} onOpenChange={setWinnerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>We have a winner!</DialogTitle>
+            <DialogDescription>
+              Picked at random from {names.length} entries.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="py-4 text-center text-4xl font-semibold break-words">
+            {winner}
+          </p>
+          <DialogFooter>
+            <Button variant="secondary" onClick={removeWinner}>
+              <HugeiconsIcon icon={Delete02Icon} aria-hidden />
+              Remove winner
+            </Button>
+            <Button
+              onClick={() => {
+                setWinnerOpen(false)
+                spin()
+              }}
+            >
+              <HugeiconsIcon icon={PlayIcon} aria-hidden />
+              Spin again
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ToolPage>
   )
 }
