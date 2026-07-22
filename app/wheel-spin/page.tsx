@@ -32,9 +32,17 @@ const WHEEL_SIZE = 1000
 // than an arrow at the side — `winnerIndex` reads the segment under this
 // same fixed angle.
 const POINTER_ANGLE = -Math.PI / 2
-// The wheel itself is neutral/monochrome now, but the win confetti still
-// gets to be colorful — these never touch a wheel segment.
 const CONFETTI_COLORS = ["#3369e8", "#009925", "#eeb211", "#d50f25"]
+
+// Segment fills are solid colors from a fixed palette (same idea as the win
+// confetti) rather than transparent tints of the theme foreground — that
+// keeps them equally colorful in light and dark mode instead of fading
+// toward whatever the surrounding card color happens to be.
+const WHEEL_COLORS = [
+  "#2D2D2D",
+  "#232323",
+  "#171717"
+]
 
 // The hub's "spin" glyph is stroked straight onto the canvas via Path2D — the
 // React <HugeiconsIcon> wrapper used everywhere else in the app needs a real
@@ -43,17 +51,17 @@ const CONFETTI_COLORS = ["#3369e8", "#009925", "#eeb211", "#d50f25"]
 // so it can't drift from the icon if hugeicons ever changes this glyph.
 const REFRESH_ICON_PATH = String(RefreshIcon[0][1].d)
 
-// Segments alternate two shades by index parity — except an odd count can
-// never alternate cleanly all the way around (index 0 and the wrap-around
-// last index are both "even", landing on the same shade and merging into
-// one oversized band). Two shades can't fix that for every odd count: the
-// last index's neighbors are always index 0 (shade A) and the second-to-
-// last index (always shade B, since it's odd whenever the count is odd),
-// so giving the last index a third shade — distinct from both — guarantees
-// it can never clash with either neighbor, no matter the count.
-function segmentTint(index: number, count: number) {
-  if (count % 2 === 1 && index === count - 1) return 9
-  return index % 2 === 0 ? 3 : 6
+// Segments cycle through WHEEL_COLORS by index. When the count isn't a
+// multiple of the palette length, the wrap-around segment (the last index,
+// which sits right next to index 0 on the circle) can land on that same
+// color — shift it to the next palette color instead so the seam never
+// merges into one oversized band.
+function segmentColor(index: number, count: number) {
+  const color = WHEEL_COLORS[index % WHEEL_COLORS.length]
+  if (count > 1 && index === count - 1 && color === WHEEL_COLORS[0]) {
+    return WHEEL_COLORS[(index + 1) % WHEEL_COLORS.length]
+  }
+  return color
 }
 
 function fitLabel(ctx: CanvasRenderingContext2D, name: string, max: number) {
@@ -78,12 +86,14 @@ function drawWheel(
   const segmentRadius = outerRadius - ringWidth
   const hubRadius = segmentRadius * 0.42
   const seg = TWO_PI / names.length
-  // The wheel's grays are low-opacity overlays of the canvas's own computed
-  // foreground color (the same trick the old pointer used to stay theme
-  // aware) — the identical tint reads as a light gray over a dark card and
-  // a dark gray over a light one, so there's no separate light/dark palette
-  // to maintain. color-mix (not manual rgba parsing) keeps this robust
-  // regardless of what color space getComputedStyle happens to resolve to.
+  // The ring and hub accents are low-opacity overlays of the canvas's own
+  // computed foreground color (the same trick the old pointer used to stay
+  // theme aware) — the identical tint reads as a light gray over a dark card
+  // and a dark gray over a light one, so there's no separate light/dark
+  // palette to maintain. color-mix (not manual rgba parsing) keeps this
+  // robust regardless of what color space getComputedStyle happens to
+  // resolve to. Segment fills, by contrast, are solid WHEEL_COLORS entries —
+  // not run through this tint.
   const fg = getComputedStyle(canvas).color
   const tint = (percent: number) =>
     `color-mix(in srgb, ${fg} ${percent}%, transparent)`
@@ -106,7 +116,7 @@ function drawWheel(
     ctx.arc(center, center, segmentRadius, start, start + seg)
     ctx.arc(center, center, hubRadius, start + seg, start, true)
     ctx.closePath()
-    ctx.fillStyle = tint(segmentTint(index, names.length))
+    ctx.fillStyle = segmentColor(index, names.length)
     ctx.fill()
   })
 
