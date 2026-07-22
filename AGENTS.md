@@ -31,9 +31,17 @@ next touched, not a pattern to copy.
 
 `ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
 and a bottom bar for the file strip/Add file), and — only once there's
-something to put in it — a fixed-width right sidebar for settings, stacked
-top to bottom, with the primary action button(s) and Download pinned to its
-bottom edge. See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
+something to put in it — a right sidebar for settings, stacked top to bottom,
+with the primary action button(s) and Download pinned to its bottom edge. The
+sidebar is built on the shadcn **Sidebar** primitive
+(`components/ui/sidebar.tsx`, added via `npx shadcn@latest add sidebar`) with
+`collapsible="none"` (it's never toggled, just shown whenever `hasSidebar` is
+true) and is freely resizable by dragging its left edge, or by focusing that
+edge and using the arrow keys/Home/End — the chosen width is shared and
+persisted across every tool via `useSidebarWidth`
+(`components/sidebar-width-preference.tsx`), clamped between
+`SIDEBAR_MIN_WIDTH`/`SIDEBAR_MAX_WIDTH`. See `components/tool-page.tsx` and
+`components/page-breadcrumb.tsx`.
 
 For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
 `segments` prop instead of hand-rolling a button group — the wrapper renders it

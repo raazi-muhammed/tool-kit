@@ -230,8 +230,12 @@ export function PreviewCard({
                     variant="flat"
                     spellCheck={false}
                     // ring-inset keeps the focus ring visible inside the
-                    // viewport's overflow-hidden instead of clipped away.
-                    className="absolute inset-0 field-sizing-fixed resize-none overflow-y-auto p-2 font-mono text-xs ring-inset"
+                    // viewport's overflow-hidden instead of clipped away, and
+                    // rounded-md matches the viewport's own radius so the
+                    // ring traces the viewport's curve at the corners instead
+                    // of drawing a square outline that the rounded clip cuts
+                    // off mid-line.
+                    className="absolute inset-0 field-sizing-fixed resize-none overflow-y-auto rounded-md p-2 font-mono text-xs ring-inset"
                   />
                 )
               }
