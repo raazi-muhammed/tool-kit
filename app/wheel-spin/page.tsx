@@ -372,18 +372,10 @@ export default function WheelSpinPage() {
         ],
       }}
     >
-      {/* PreviewCard's shared height cap (100dvh-220px) budgets for a
-          header-action row and a bottom bar, neither of which this page has,
-          so the default cap leaves ~80px of dead card below the viewport —
-          visible as the entries textarea's focus ring stopping short of the
-          card's bottom edge. Raise the cap to this page's actual chrome:
-          p-6 top+bottom (48) + breadcrumb (32) + one gap-4 (16) + pane
-          title and its gap (28) + the Card's own p-2 (16) = 140. */}
       <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-[3fr_2fr]">
         <PreviewCard
           fill
           half
-          className="max-h-[calc(100dvh-140px)]"
           title="Wheel"
           layer={
             names.length > 0
@@ -406,7 +398,6 @@ export default function WheelSpinPage() {
         <PreviewCard
           fill
           half
-          className="max-h-[calc(100dvh-140px)]"
           title={`Entries${names.length > 0 ? ` (${names.length})` : ""}`}
           layer={{
             kind: "textinput",
