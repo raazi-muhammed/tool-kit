@@ -91,8 +91,6 @@ function drawWheel(
   const style = getComputedStyle(canvas)
   const cssVar = (name: string) => style.getPropertyValue(name).trim()
   const fg = style.color
-  const tint = (percent: number) =>
-    `color-mix(in srgb, ${fg} ${percent}%, transparent)`
   const wheelColors = WHEEL_COLOR_VARS.map(cssVar)
   const borderColor = cssVar(WHEEL_BORDER_COLOR_VAR)
   const pointerColor = cssVar(POINTER_COLOR_VAR)
@@ -117,17 +115,30 @@ function drawWheel(
     ctx.closePath()
     ctx.fillStyle = segmentColor(wheelColors, index, names.length)
     ctx.fill()
+    ctx.lineWidth = outerRadius * 0.0125
+    ctx.strokeStyle = borderColor
+    ctx.stroke()
   })
 
   // Pointer notch: a solid triangle over the ring's top, apex pointing down
-  // into the wheel.
+  // into the wheel, with rounded corners. Canvas has no rounded-polygon
+  // primitive, so each vertex is rounded via the arcTo trick: starting the
+  // path mid-edge (rather than at a vertex) means every vertex is then
+  // visited through `arcTo(vertex, nextVertex, radius)`, which draws an arc
+  // tangent to the two edges meeting there instead of a sharp lineTo corner.
   ctx.save()
   const baseHalfWidth = outerRadius * 0.075
   const noseY = center - outerRadius + ringWidth * 1.8
+  const pointerRadius = baseHalfWidth * 0.2
+  const top = center - outerRadius - 20
+  const topLeft = { x: center - baseHalfWidth, y: top }
+  const topRight = { x: center + baseHalfWidth, y: top }
+  const nose = { x: center, y: noseY }
   ctx.beginPath()
-  ctx.moveTo(center - baseHalfWidth, center - outerRadius - 20)
-  ctx.lineTo(center + baseHalfWidth, center - outerRadius - 20)
-  ctx.lineTo(center, noseY)
+  ctx.moveTo((nose.x + topLeft.x) / 2, (nose.y + topLeft.y) / 2)
+  ctx.arcTo(topLeft.x, topLeft.y, topRight.x, topRight.y, pointerRadius)
+  ctx.arcTo(topRight.x, topRight.y, nose.x, nose.y, pointerRadius)
+  ctx.arcTo(nose.x, nose.y, topLeft.x, topLeft.y, pointerRadius)
   ctx.closePath()
   ctx.fillStyle = pointerColor
   ctx.fill()
@@ -154,14 +165,11 @@ function drawWheel(
 
   // Hub / spin button: filled solid with the same border color as the
   // wheel's rim so it reads as a real button rather than a hole in the
-  // wheel, with a thin ring to separate it from the segments.
+  // wheel.
   ctx.beginPath()
   ctx.arc(center, center, hubRadius, 0, TWO_PI)
   ctx.fillStyle = borderColor
   ctx.fill()
-  ctx.lineWidth = outerRadius * 0.01
-  ctx.strokeStyle = tint(12)
-  ctx.stroke()
 
   const iconSize = hubRadius * 0.5
   const iconScale = iconSize / 24
