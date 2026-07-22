@@ -34,15 +34,13 @@ const WHEEL_SIZE = 1000
 const POINTER_ANGLE = -Math.PI / 2
 const CONFETTI_COLORS = ["#3369e8", "#009925", "#eeb211", "#d50f25"]
 
-// Segment fills are solid colors from a fixed palette (same idea as the win
-// confetti) rather than transparent tints of the theme foreground — that
-// keeps them equally colorful in light and dark mode instead of fading
-// toward whatever the surrounding card color happens to be.
-const WHEEL_COLORS = [
-  "#2D2D2D",
-  "#232323",
-  "#171717"
-]
+// The wheel's segments, border, and pointer all pull their colors straight
+// from globals.css's design tokens (read live via getComputedStyle in
+// drawWheel below) rather than hardcoded hex, so they track the site's
+// light/dark theme the same way the rest of the UI does.
+const WHEEL_COLOR_VARS = ["--chart-1", "--chart-2", "--chart-3"]
+const WHEEL_BORDER_COLOR_VAR = "--sidebar"
+const POINTER_COLOR_VAR = "--primary"
 
 // The hub's "spin" glyph is stroked straight onto the canvas via Path2D — the
 // React <HugeiconsIcon> wrapper used everywhere else in the app needs a real
@@ -51,15 +49,15 @@ const WHEEL_COLORS = [
 // so it can't drift from the icon if hugeicons ever changes this glyph.
 const REFRESH_ICON_PATH = String(RefreshIcon[0][1].d)
 
-// Segments cycle through WHEEL_COLORS by index. When the count isn't a
-// multiple of the palette length, the wrap-around segment (the last index,
+// Segments cycle through the resolved palette by index. When the count isn't
+// a multiple of the palette length, the wrap-around segment (the last index,
 // which sits right next to index 0 on the circle) can land on that same
 // color — shift it to the next palette color instead so the seam never
 // merges into one oversized band.
-function segmentColor(index: number, count: number) {
-  const color = WHEEL_COLORS[index % WHEEL_COLORS.length]
-  if (count > 1 && index === count - 1 && color === WHEEL_COLORS[0]) {
-    return WHEEL_COLORS[(index + 1) % WHEEL_COLORS.length]
+function segmentColor(colors: string[], index: number, count: number) {
+  const color = colors[index % colors.length]
+  if (count > 1 && index === count - 1 && color === colors[0]) {
+    return colors[(index + 1) % colors.length]
   }
   return color
 }
@@ -86,44 +84,44 @@ function drawWheel(
   const segmentRadius = outerRadius - ringWidth
   const hubRadius = segmentRadius * 0.42
   const seg = TWO_PI / names.length
-  // The ring and hub accents are low-opacity overlays of the canvas's own
-  // computed foreground color (the same trick the old pointer used to stay
-  // theme aware) — the identical tint reads as a light gray over a dark card
-  // and a dark gray over a light one, so there's no separate light/dark
-  // palette to maintain. color-mix (not manual rgba parsing) keeps this
-  // robust regardless of what color space getComputedStyle happens to
-  // resolve to. Segment fills, by contrast, are solid WHEEL_COLORS entries —
-  // not run through this tint.
-  const fg = getComputedStyle(canvas).color
+  // Every color below is read live off the canvas's own computed style —
+  // custom properties cascade to it from :root/.dark just like they would
+  // to any other element — so the wheel always matches the site's current
+  // theme instead of drifting out of sync with a copy-pasted hex value.
+  const style = getComputedStyle(canvas)
+  const cssVar = (name: string) => style.getPropertyValue(name).trim()
+  const fg = style.color
   const tint = (percent: number) =>
     `color-mix(in srgb, ${fg} ${percent}%, transparent)`
+  const wheelColors = WHEEL_COLOR_VARS.map(cssVar)
+  const borderColor = cssVar(WHEEL_BORDER_COLOR_VAR)
+  const pointerColor = cssVar(POINTER_COLOR_VAR)
   ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE)
 
   // Outer ring, filled first so the segments — drawn at a slightly smaller
   // radius below — leave its rim exposed as a border.
   ctx.beginPath()
   ctx.arc(center, center, outerRadius, 0, TWO_PI)
-  ctx.fillStyle = tint(10)
+  ctx.fillStyle = borderColor
   ctx.fill()
 
   // Each segment is an annular wedge (outer arc at segmentRadius, inner arc
   // at hubRadius traced backwards), not a full pie slice reaching the
-  // center — that leaves the hub an untouched hole showing the card behind
-  // it, rather than needing to know the card's actual color to fill it.
+  // center — the hub is filled separately afterward, on top, so its solid
+  // color always wins over whatever segment happens to abut it.
   names.forEach((_, index) => {
     const start = rotation + index * seg
     ctx.beginPath()
     ctx.arc(center, center, segmentRadius, start, start + seg)
     ctx.arc(center, center, hubRadius, start + seg, start, true)
     ctx.closePath()
-    ctx.fillStyle = segmentColor(index, names.length)
+    ctx.fillStyle = segmentColor(wheelColors, index, names.length)
     ctx.fill()
   })
 
-  // Pointer notch: a triangular bite erased out of the ring's top, apex
-  // pointing down into the wheel.
+  // Pointer notch: a solid triangle over the ring's top, apex pointing down
+  // into the wheel.
   ctx.save()
-  ctx.globalCompositeOperation = "destination-out"
   const baseHalfWidth = outerRadius * 0.075
   const noseY = center - outerRadius + ringWidth * 1.8
   ctx.beginPath()
@@ -131,13 +129,15 @@ function drawWheel(
   ctx.lineTo(center + baseHalfWidth, center - outerRadius - 20)
   ctx.lineTo(center, noseY)
   ctx.closePath()
-  ctx.fillStyle = "#000"
+  ctx.fillStyle = pointerColor
   ctx.fill()
   ctx.restore()
 
   // Labels stay upright (never rotated) as the wheel spins — only their
   // position moves — sized down and truncated as segments get thinner so
-  // long lists stay legible.
+  // long lists stay legible. Drawn in the plain theme foreground: every
+  // background above pairs with it as its "-foreground" token (or an
+  // identical one), so it reads clearly over all of them in both themes.
   const midRadius = hubRadius + (segmentRadius - hubRadius) * 0.6
   const maxLabelWidth = 2 * midRadius * Math.sin(seg / 2) * 0.82
   const fontSize = Math.min(40, Math.max(14, seg * segmentRadius * 0.24))
@@ -152,10 +152,13 @@ function drawWheel(
     ctx.fillText(fitLabel(ctx, name, maxLabelWidth), x, y)
   })
 
-  // Hub: left as an untouched hole so it reads as the same surface behind
-  // the wheel, with just a thin ring to separate it from the segments.
+  // Hub / spin button: filled solid with the same border color as the
+  // wheel's rim so it reads as a real button rather than a hole in the
+  // wheel, with a thin ring to separate it from the segments.
   ctx.beginPath()
   ctx.arc(center, center, hubRadius, 0, TWO_PI)
+  ctx.fillStyle = borderColor
+  ctx.fill()
   ctx.lineWidth = outerRadius * 0.01
   ctx.strokeStyle = tint(12)
   ctx.stroke()
