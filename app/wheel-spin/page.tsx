@@ -4,6 +4,7 @@ import {
   Delete02Icon,
   LoaderPinwheelIcon,
   PlayIcon,
+  RefreshIcon,
   ShuffleIcon,
   SortingAZ01Icon,
 } from "@hugeicons/core-free-icons"
@@ -27,19 +28,32 @@ import {
 const TWO_PI = Math.PI * 2
 // Backing-store size — the canvas scales to its box via object-contain.
 const WHEEL_SIZE = 1000
-const HUB_RADIUS = 90
-// Wheel segment fills cycle through these; label text is white on all of
-// them, so the palette stays fixed rather than theme-derived.
-const PALETTE = ["#3369e8", "#009925", "#eeb211", "#d50f25"]
+// The pointer is a notch cut into the top of the ring (12 o'clock) rather
+// than an arrow at the side — `winnerIndex` reads the segment under this
+// same fixed angle.
+const POINTER_ANGLE = -Math.PI / 2
+// The wheel itself is neutral/monochrome now, but the win confetti still
+// gets to be colorful — these never touch a wheel segment.
+const CONFETTI_COLORS = ["#3369e8", "#009925", "#eeb211", "#d50f25"]
 
-// Cycle the palette, except when the count leaves the last segment the same
-// color as the first (count % 4 === 1) — bump just that one so the seam
-// where the wheel wraps around doesn't show two identical neighbors.
-function segmentColor(index: number, count: number) {
-  if (count % PALETTE.length === 1 && index === count - 1 && count > 1) {
-    return PALETTE[1]
-  }
-  return PALETTE[index % PALETTE.length]
+// The hub's "spin" glyph is stroked straight onto the canvas via Path2D — the
+// React <HugeiconsIcon> wrapper used everywhere else in the app needs a real
+// DOM, not a canvas — so it's the actual RefreshIcon's path data (24x24
+// viewBox) pulled from the icon library itself, not a hand-copied string,
+// so it can't drift from the icon if hugeicons ever changes this glyph.
+const REFRESH_ICON_PATH = String(RefreshIcon[0][1].d)
+
+// Segments alternate two shades by index parity — except an odd count can
+// never alternate cleanly all the way around (index 0 and the wrap-around
+// last index are both "even", landing on the same shade and merging into
+// one oversized band). Two shades can't fix that for every odd count: the
+// last index's neighbors are always index 0 (shade A) and the second-to-
+// last index (always shade B, since it's odd whenever the count is odd),
+// so giving the last index a third shade — distinct from both — guarantees
+// it can never clash with either neighbor, no matter the count.
+function segmentTint(index: number, count: number) {
+  if (count % 2 === 1 && index === count - 1) return 9
+  return index % 2 === 0 ? 3 : 6
 }
 
 function fitLabel(ctx: CanvasRenderingContext2D, name: string, max: number) {
@@ -59,67 +73,117 @@ function drawWheel(
   const ctx = canvas.getContext("2d")
   if (!ctx || names.length === 0) return
   const center = WHEEL_SIZE / 2
-  const radius = center - 28
+  const outerRadius = center - 20
+  const ringWidth = outerRadius * 0.115
+  const segmentRadius = outerRadius - ringWidth
+  const hubRadius = segmentRadius * 0.42
   const seg = TWO_PI / names.length
+  // The wheel's grays are low-opacity overlays of the canvas's own computed
+  // foreground color (the same trick the old pointer used to stay theme
+  // aware) — the identical tint reads as a light gray over a dark card and
+  // a dark gray over a light one, so there's no separate light/dark palette
+  // to maintain. color-mix (not manual rgba parsing) keeps this robust
+  // regardless of what color space getComputedStyle happens to resolve to.
+  const fg = getComputedStyle(canvas).color
+  const tint = (percent: number) =>
+    `color-mix(in srgb, ${fg} ${percent}%, transparent)`
   ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE)
 
+  // Outer ring, filled first so the segments — drawn at a slightly smaller
+  // radius below — leave its rim exposed as a border.
+  ctx.beginPath()
+  ctx.arc(center, center, outerRadius, 0, TWO_PI)
+  ctx.fillStyle = tint(10)
+  ctx.fill()
+
+  // Each segment is an annular wedge (outer arc at segmentRadius, inner arc
+  // at hubRadius traced backwards), not a full pie slice reaching the
+  // center — that leaves the hub an untouched hole showing the card behind
+  // it, rather than needing to know the card's actual color to fill it.
   names.forEach((_, index) => {
     const start = rotation + index * seg
     ctx.beginPath()
-    ctx.moveTo(center, center)
-    ctx.arc(center, center, radius, start, start + seg)
+    ctx.arc(center, center, segmentRadius, start, start + seg)
+    ctx.arc(center, center, hubRadius, start + seg, start, true)
     ctx.closePath()
-    ctx.fillStyle = segmentColor(index, names.length)
+    ctx.fillStyle = tint(segmentTint(index, names.length))
     ctx.fill()
   })
 
-  // Labels sit along each segment's mid-angle, right-aligned toward the rim,
-  // sized down as segments get thinner so long lists stay legible.
-  const fontSize = Math.min(52, Math.max(16, seg * radius * 0.36))
-  ctx.fillStyle = "#ffffff"
+  // Pointer notch: a triangular bite erased out of the ring's top, apex
+  // pointing down into the wheel.
+  ctx.save()
+  ctx.globalCompositeOperation = "destination-out"
+  const baseHalfWidth = outerRadius * 0.075
+  const noseY = center - outerRadius + ringWidth * 1.8
+  ctx.beginPath()
+  ctx.moveTo(center - baseHalfWidth, center - outerRadius - 20)
+  ctx.lineTo(center + baseHalfWidth, center - outerRadius - 20)
+  ctx.lineTo(center, noseY)
+  ctx.closePath()
+  ctx.fillStyle = "#000"
+  ctx.fill()
+  ctx.restore()
+
+  // Labels stay upright (never rotated) as the wheel spins — only their
+  // position moves — sized down and truncated as segments get thinner so
+  // long lists stay legible.
+  const midRadius = hubRadius + (segmentRadius - hubRadius) * 0.6
+  const maxLabelWidth = 2 * midRadius * Math.sin(seg / 2) * 0.82
+  const fontSize = Math.min(40, Math.max(14, seg * segmentRadius * 0.24))
+  ctx.fillStyle = fg
   ctx.font = `600 ${fontSize}px system-ui, sans-serif`
-  ctx.textAlign = "right"
+  ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   names.forEach((name, index) => {
-    ctx.save()
-    ctx.translate(center, center)
-    ctx.rotate(rotation + (index + 0.5) * seg)
-    ctx.fillText(fitLabel(ctx, name, radius - HUB_RADIUS - 70), radius - 36, 0)
-    ctx.restore()
+    const angle = rotation + (index + 0.5) * seg
+    const x = center + Math.cos(angle) * midRadius
+    const y = center + Math.sin(angle) * midRadius
+    ctx.fillText(fitLabel(ctx, name, maxLabelWidth), x, y)
   })
 
+  // Hub: left as an untouched hole so it reads as the same surface behind
+  // the wheel, with just a thin ring to separate it from the segments.
   ctx.beginPath()
-  ctx.arc(center, center, HUB_RADIUS, 0, TWO_PI)
-  ctx.fillStyle = "#ffffff"
-  ctx.fill()
+  ctx.arc(center, center, hubRadius, 0, TWO_PI)
+  ctx.lineWidth = outerRadius * 0.01
+  ctx.strokeStyle = tint(12)
+  ctx.stroke()
 
-  // Pointer at 3 o'clock, pointing into the wheel — drawn in the canvas so
-  // it stays aligned with the wheel under object-contain scaling. The canvas
-  // inherits the theme's foreground as its CSS color, so the pointer follows
-  // light/dark mode.
-  const pointer = getComputedStyle(canvas).color
-  ctx.beginPath()
-  ctx.moveTo(center + radius - 34, center)
-  ctx.lineTo(center + radius + 26, center - 34)
-  ctx.lineTo(center + radius + 26, center + 34)
-  ctx.closePath()
-  ctx.fillStyle = pointer
-  ctx.fill()
+  const iconSize = hubRadius * 0.5
+  const iconScale = iconSize / 24
+  const iconCenterY = center - hubRadius * 0.24
+  ctx.save()
+  ctx.translate(center - iconSize / 2, iconCenterY - iconSize / 2)
+  ctx.scale(iconScale, iconScale)
+  ctx.lineWidth = 1.5
+  ctx.lineCap = "round"
+  ctx.lineJoin = "round"
+  ctx.strokeStyle = fg
+  ctx.stroke(new Path2D(REFRESH_ICON_PATH))
+  ctx.restore()
+
+  ctx.fillStyle = fg
+  ctx.font = `700 ${Math.round(hubRadius * 0.32)}px system-ui, sans-serif`
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  ctx.fillText("Spin", center, center + hubRadius * 0.32)
 }
 
-// The segment under the pointer (angle 0, 3 o'clock) for a given rotation.
+// The segment under the fixed pointer angle for a given rotation.
 function winnerIndex(rotation: number, count: number) {
-  const normalized = ((-rotation % TWO_PI) + TWO_PI) % TWO_PI
-  return Math.floor(normalized / (TWO_PI / count)) % count
+  const seg = TWO_PI / count
+  const normalized = (((POINTER_ANGLE - rotation) % TWO_PI) + TWO_PI) % TWO_PI
+  return Math.floor(normalized / seg) % count
 }
 
-// Two bursts angled in from the bottom corners, in the wheel's own colors.
-// canvas-confetti draws on its own fixed full-screen canvas at z-index 100,
-// above the winner dialog's Radix overlay (z-50), so the confetti rains over
-// the dialog rather than behind it.
+// Two bursts angled in from the bottom corners. canvas-confetti draws on
+// its own fixed full-screen canvas at z-index 100, above the winner
+// dialog's Radix overlay (z-50), so the confetti rains over the dialog
+// rather than behind it.
 function fireConfetti() {
   const defaults = {
-    colors: PALETTE,
+    colors: CONFETTI_COLORS,
     disableForReducedMotion: true,
     spread: 70,
     startVelocity: 55,
