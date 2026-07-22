@@ -1013,7 +1013,7 @@ export function ToolPage({
             <Sidebar
               side="right"
               collapsible="none"
-              className="relative border-l"
+              className="relative"
               style={
                 {
                   "--sidebar-width": `${sidebarWidth}px`,
@@ -1043,7 +1043,7 @@ export function ToolPage({
               </SidebarContent>
 
               {hasSidebarActionsBlock && (
-                <SidebarFooter className="gap-3 border-t p-6">
+                <SidebarFooter className="gap-3 p-6">
                   {sidebarActionsContent}
                 </SidebarFooter>
               )}
