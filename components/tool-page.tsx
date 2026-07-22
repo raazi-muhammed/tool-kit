@@ -24,6 +24,11 @@ import type { ReactNode, RefObject } from "react"
 import { ColorPicker } from "@/components/color-picker"
 import { IconTooltip } from "@/components/icon-tooltip"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
+import {
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  useSidebarWidth,
+} from "@/components/sidebar-width-preference"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,8 +53,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useResizableWidth } from "@/hooks/use-resizable-width"
 import { cn } from "@/lib/utils"
 
 // Duck-typed against `DropzoneHandle` (`components/dropzone.tsx`) rather than
@@ -590,6 +602,18 @@ export function ToolPage({
   children: ReactNode
 }) {
   const [copied, setCopied] = useState(false)
+  const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth()
+  const {
+    isResizing: sidebarResizing,
+    onPointerDown: onSidebarResizePointerDown,
+    onKeyDown: onSidebarResizeKeyDown,
+  } = useResizableWidth({
+    value: sidebarWidth,
+    onChange: setSidebarWidth,
+    min: SIDEBAR_MIN_WIDTH,
+    max: SIDEBAR_MAX_WIDTH,
+    edge: "left",
+  })
 
   function handleCopy() {
     onCopy?.()
@@ -949,18 +973,51 @@ export function ToolPage({
       </div>
 
       {hasSidebar && (
-        // Desktop: the settings sidebar as a static side panel.
-        <div className="hidden bg-card md:flex md:w-80 md:shrink-0 md:flex-col md:border-l">
-          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
-            {sidebarBody}
-          </div>
+        // Desktop: the settings sidebar as a static, resizable side panel.
+        // `SidebarProvider` (not `Sidebar` itself) carries the responsive
+        // hide/shrink, since it's the actual flex item in the outer row —
+        // that's what needs to be a real box (not `display: contents`) so
+        // the row's default `align-items: stretch` gives it a definite
+        // height; `Sidebar`'s own `h-full` resolves against that box, which
+        // is how its `SidebarFooter` ends up pinned to the bottom edge
+        // instead of the whole panel collapsing to its content's height.
+        // `collapsible="none"` since it's never toggled, just always shown
+        // once `hasSidebar` is true (the mobile Drawer below covers the
+        // narrow viewport instead of this component's own Sheet).
+        <SidebarProvider className="hidden w-auto shrink-0 md:flex">
+          <Sidebar
+            side="right"
+            collapsible="none"
+            className="relative border-l"
+            style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
+          >
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize settings panel"
+              aria-valuenow={Math.round(sidebarWidth)}
+              aria-valuemin={SIDEBAR_MIN_WIDTH}
+              aria-valuemax={SIDEBAR_MAX_WIDTH}
+              tabIndex={0}
+              onPointerDown={onSidebarResizePointerDown}
+              onKeyDown={onSidebarResizeKeyDown}
+              className={cn(
+                "absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize touch-none outline-none",
+                "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent after:transition-colors",
+                "hover:after:bg-primary/50 focus-visible:after:w-0.5 focus-visible:after:bg-primary",
+                sidebarResizing && "after:bg-primary"
+              )}
+            />
 
-          {hasSidebarActionsBlock && (
-            <div className="flex shrink-0 flex-col gap-3 border-t p-6">
-              {sidebarActionsContent}
-            </div>
-          )}
-        </div>
+            <SidebarContent className="gap-8 p-6">{sidebarBody}</SidebarContent>
+
+            {hasSidebarActionsBlock && (
+              <SidebarFooter className="gap-3 border-t p-6">
+                {sidebarActionsContent}
+              </SidebarFooter>
+            )}
+          </Sidebar>
+        </SidebarProvider>
       )}
 
       {/* Mobile: Files and Settings share one fixed bottom bar, split evenly
