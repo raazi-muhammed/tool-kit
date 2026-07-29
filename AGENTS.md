@@ -31,9 +31,17 @@ next touched, not a pattern to copy.
 
 `ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
 and a bottom bar for the file strip/Add file), and — only once there's
-something to put in it — a fixed-width right sidebar for settings, stacked
-top to bottom, with the primary action button(s) and Download pinned to its
-bottom edge. See `components/tool-page.tsx` and `components/page-breadcrumb.tsx`.
+something to put in it — a right sidebar for settings, stacked top to bottom,
+with the primary action button(s) and Download pinned to its bottom edge. The
+sidebar is built on the shadcn **Sidebar** primitive
+(`components/ui/sidebar.tsx`, added via `npx shadcn@latest add sidebar`) with
+`collapsible="none"` (it's never toggled, just shown whenever `hasSidebar` is
+true) and is freely resizable by dragging its left edge, or by focusing that
+edge and using the arrow keys/Home/End — the chosen width is shared and
+persisted across every tool via `useSidebarWidth`
+(`components/sidebar-width-preference.tsx`), clamped between
+`SIDEBAR_MIN_WIDTH`/`SIDEBAR_MAX_WIDTH`. See `components/tool-page.tsx` and
+`components/page-breadcrumb.tsx`.
 
 For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
 `segments` prop instead of hand-rolling a button group — the wrapper renders it
@@ -548,13 +556,14 @@ import { CommandMenuTrigger } from "@/components/command-menu"
 
 `components/ui/button.tsx` gives the `default` and `secondary` variants a
 tactile look: a faint white gradient overlay (`bg-linear-to-b from-white/8
-to-transparent` / `from-white/5`), an inset ring highlight, `shadow-sm`, and
+to-transparent` / `from-white/5`), an inset ring highlight, and
 brightness-based hover/active feedback instead of a flat opacity fade. Keep
 that contrast subtle — this has already been tuned down once after looking
 too glossy — and don't set a background/gradient class on individual `Button`
 usages; adjust the shared variants instead so every button stays consistent.
-`outline` just gets a faint `shadow-xs`; `ghost`, `destructive`, and `link`
-stay flat on purpose.
+No variant carries a drop shadow (shadows were removed from `default`,
+`secondary`, and `outline`); `ghost`, `destructive`, and `link` stay flat on
+purpose too.
 
 ## Icons
 

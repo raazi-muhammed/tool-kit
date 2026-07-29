@@ -24,6 +24,12 @@ import type { ReactNode, RefObject } from "react"
 import { ColorPicker } from "@/components/color-picker"
 import { IconTooltip } from "@/components/icon-tooltip"
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
+import { PreviewChromeProvider } from "@/components/preview-chrome"
+import {
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  useSidebarWidth,
+} from "@/components/sidebar-width-preference"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,8 +54,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useResizableWidth } from "@/hooks/use-resizable-width"
 import { cn } from "@/lib/utils"
 
 // Duck-typed against `DropzoneHandle` (`components/dropzone.tsx`) rather than
@@ -590,6 +603,18 @@ export function ToolPage({
   children: ReactNode
 }) {
   const [copied, setCopied] = useState(false)
+  const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth()
+  const {
+    isResizing: sidebarResizing,
+    onPointerDown: onSidebarResizePointerDown,
+    onKeyDown: onSidebarResizeKeyDown,
+  } = useResizableWidth({
+    value: sidebarWidth,
+    onChange: setSidebarWidth,
+    min: SIDEBAR_MIN_WIDTH,
+    max: SIDEBAR_MAX_WIDTH,
+    edge: "left",
+  })
 
   function handleCopy() {
     onCopy?.()
@@ -605,6 +630,29 @@ export function ToolPage({
   const hasHeaderRow = !!(actions || onCopy || onLoadSample)
   const hasBottomBar = !!(fileStrip || onAddFile)
   const hasSidebar = !!(sidebarSegments || sidebar)
+
+  // How much vertical chrome (in px) this page's main column actually
+  // stacks around `children`: the p-6 page padding, the always-present
+  // breadcrumb row, whichever optional rows (inline segments, header
+  // actions, bottom bar) this page happens to render, and a gap-4 between
+  // each pair of rendered rows. `PreviewCard` reads this (via
+  // `usePreviewChromePx`, provided below) to cap its `fill` viewport at
+  // exactly the space actually available here, instead of a single
+  // worst-case constant that under-fills whenever a page is missing one of
+  // the optional rows.
+  const chromeRowCount =
+    1 + // breadcrumb, always rendered
+    (inlineSegments ? 1 : 0) +
+    (hasHeaderRow ? 1 : 0) +
+    1 + // the children row, always rendered
+    (hasBottomBar ? 1 : 0)
+  const previewChromePx =
+    48 + // p-6 top+bottom
+    32 + // breadcrumb row
+    (inlineSegments ? 32 : 0) +
+    (hasHeaderRow ? 32 : 0) +
+    (hasBottomBar ? 44 : 0) +
+    (chromeRowCount - 1) * 16 // gap-4 between each pair of rendered rows
 
   const rawActions = sidebar?.actions ?? []
   const allActions = rawActions.flatMap((entry) =>
@@ -866,155 +914,196 @@ export function ToolPage({
   }
 
   return (
-    <div className="flex min-h-svh flex-col md:flex-row">
-      <div
-        className={cn(
-          "flex w-full min-w-0 flex-1 flex-col gap-4 p-6",
-          // Extra bottom padding on mobile so content isn't hidden behind the
-          // fixed Files/Settings bar below.
-          (fileStrip || hasSidebar) && "pb-28 md:pb-6"
-        )}
-      >
-        <PageBreadcrumb page={page} icon={icon} />
+    <PreviewChromeProvider value={previewChromePx}>
+      <div className="flex min-h-svh flex-col md:flex-row">
+        <div
+          className={cn(
+            "flex w-full min-w-0 flex-1 flex-col gap-4 p-6",
+            // Extra bottom padding on mobile so content isn't hidden behind the
+            // fixed Files/Settings bar below.
+            (fileStrip || hasSidebar) && "pb-28 md:pb-6"
+          )}
+        >
+          <PageBreadcrumb page={page} icon={icon} />
 
-        {inlineSegments && (
-          <Tabs
-            value={inlineSegments.value}
-            onValueChange={inlineSegments.onValueChange}
-          >
-            <TabsList>
-              {inlineSegments.options.map((option) => (
-                <TabsTrigger
-                  key={option.value}
-                  value={option.value}
-                  disabled={inlineSegments.disabled}
-                >
-                  <HugeiconsIcon icon={option.icon} aria-hidden />
-                  {option.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
+          {inlineSegments && (
+            <Tabs
+              value={inlineSegments.value}
+              onValueChange={inlineSegments.onValueChange}
+            >
+              <TabsList>
+                {inlineSegments.options.map((option) => (
+                  <TabsTrigger
+                    key={option.value}
+                    value={option.value}
+                    disabled={inlineSegments.disabled}
+                  >
+                    <HugeiconsIcon icon={option.icon} aria-hidden />
+                    {option.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
 
-        {hasHeaderRow && (
-          <div className="flex flex-wrap items-center gap-2">
-            {actions}
-            <div className="ml-auto flex items-center gap-2">
-              {onCopy && (
-                <Button variant="secondary" onClick={handleCopy}>
-                  <HugeiconsIcon
-                    icon={copied ? Tick02Icon : Copy01Icon}
-                    aria-hidden
-                  />
-                  Copy
-                </Button>
+          {hasHeaderRow && (
+            <div className="flex flex-wrap items-center gap-2">
+              {actions}
+              <div className="ml-auto flex items-center gap-2">
+                {onCopy && (
+                  <Button variant="secondary" onClick={handleCopy}>
+                    <HugeiconsIcon
+                      icon={copied ? Tick02Icon : Copy01Icon}
+                      aria-hidden
+                    />
+                    Copy
+                  </Button>
+                )}
+                {onLoadSample && (
+                  <Button variant="secondary" onClick={onLoadSample}>
+                    <HugeiconsIcon icon={SparklesIcon} aria-hidden />
+                    Load sample
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+            {children}
+          </div>
+
+          {hasBottomBar && (
+            <div
+              className={cn(
+                "flex min-h-11 items-center gap-4",
+                // On mobile, a file strip moves into the combined Files/
+                // Settings bar below instead of sharing this row — its chips
+                // are each `shrink-0` (a thumbnail/name/size never gets
+                // squished), which leaves no reliable width to share with Add
+                // file on a narrow viewport.
+                fileStrip && "hidden md:flex"
               )}
-              {onLoadSample && (
-                <Button variant="secondary" onClick={onLoadSample}>
-                  <HugeiconsIcon icon={SparklesIcon} aria-hidden />
-                  Load sample
-                </Button>
+            >
+              {fileStrip ? (
+                <>
+                  <div className="min-w-0 flex-1">{fileStrip}</div>
+                  {addFileButtonGroup("ml-auto")}
+                </>
+              ) : (
+                addFileButtonGroup("ml-auto")
               )}
             </div>
-          </div>
-        )}
-
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-          {children}
+          )}
         </div>
 
-        {hasBottomBar && (
-          <div
-            className={cn(
-              "flex min-h-11 items-center gap-4",
-              // On mobile, a file strip moves into the combined Files/
-              // Settings bar below instead of sharing this row — its chips
-              // are each `shrink-0` (a thumbnail/name/size never gets
-              // squished), which leaves no reliable width to share with Add
-              // file on a narrow viewport.
-              fileStrip && "hidden md:flex"
+        {hasSidebar && (
+          // Desktop: the settings sidebar as a static, resizable side panel.
+          // `SidebarProvider` (not `Sidebar` itself) carries the responsive
+          // hide/shrink, since it's the actual flex item in the outer row —
+          // that's what needs to be a real box (not `display: contents`) so
+          // the row's default `align-items: stretch` gives it a definite
+          // height; `Sidebar`'s own `h-full` resolves against that box, which
+          // is how its `SidebarFooter` ends up pinned to the bottom edge
+          // instead of the whole panel collapsing to its content's height.
+          // `collapsible="none"` since it's never toggled, just always shown
+          // once `hasSidebar` is true (the mobile Drawer below covers the
+          // narrow viewport instead of this component's own Sheet).
+          <SidebarProvider className="hidden w-auto shrink-0 md:flex">
+            <Sidebar
+              side="right"
+              collapsible="none"
+              className="relative"
+              style={
+                {
+                  "--sidebar-width": `${sidebarWidth}px`,
+                } as React.CSSProperties
+              }
+            >
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize settings panel"
+                aria-valuenow={Math.round(sidebarWidth)}
+                aria-valuemin={SIDEBAR_MIN_WIDTH}
+                aria-valuemax={SIDEBAR_MAX_WIDTH}
+                tabIndex={0}
+                onPointerDown={onSidebarResizePointerDown}
+                onKeyDown={onSidebarResizeKeyDown}
+                className={cn(
+                  "absolute inset-y-0 left-0 z-10 w-3 -translate-x-1/2 cursor-col-resize touch-none outline-none",
+                  "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent after:transition-colors",
+                  "hover:after:bg-primary/50 focus-visible:after:w-0.5 focus-visible:after:bg-primary",
+                  sidebarResizing && "after:bg-primary"
+                )}
+              />
+
+              <SidebarContent className="gap-8 p-6">
+                {sidebarBody}
+              </SidebarContent>
+
+              {hasSidebarActionsBlock && (
+                <SidebarFooter className="gap-3 p-6">
+                  {sidebarActionsContent}
+                </SidebarFooter>
+              )}
+            </Sidebar>
+          </SidebarProvider>
+        )}
+
+        {/* Mobile: Files and Settings share one fixed bottom bar, split evenly
+          — each opens its own Drawer instead of either stacking inline
+          (file strip) or living in its own full-width bar (settings). Only
+          one of the two renders if a tool has just one. */}
+        {(fileStrip || hasSidebar) && (
+          <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+            {fileStrip && (
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="secondary" className="flex-1">
+                    <HugeiconsIcon icon={Files02Icon} aria-hidden />
+                    Files
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent className="md:hidden">
+                  <DrawerHeader>
+                    <DrawerTitle>Files</DrawerTitle>
+                  </DrawerHeader>
+                  <div className="flex flex-col gap-4 overflow-y-auto p-4">
+                    {fileStrip}
+                    {addFileButtonGroup("w-full")}
+                  </div>
+                </DrawerContent>
+              </Drawer>
             )}
-          >
-            {fileStrip ? (
-              <>
-                <div className="min-w-0 flex-1">{fileStrip}</div>
-                {addFileButtonGroup("ml-auto")}
-              </>
-            ) : (
-              addFileButtonGroup("ml-auto")
+
+            {hasSidebar && (
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="secondary" className="flex-1">
+                    <HugeiconsIcon icon={Settings01Icon} aria-hidden />
+                    Settings
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent className="md:hidden">
+                  <DrawerHeader>
+                    <DrawerTitle>Settings</DrawerTitle>
+                  </DrawerHeader>
+                  <div className="flex flex-col gap-8 overflow-y-auto p-4">
+                    {sidebarBody}
+                  </div>
+
+                  {hasSidebarActionsBlock && (
+                    <div className="flex flex-col gap-3 border-t p-4">
+                      {sidebarActionsContent}
+                    </div>
+                  )}
+                </DrawerContent>
+              </Drawer>
             )}
           </div>
         )}
       </div>
-
-      {hasSidebar && (
-        // Desktop: the settings sidebar as a static side panel.
-        <div className="hidden bg-card md:flex md:w-80 md:shrink-0 md:flex-col md:border-l">
-          <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto p-6">
-            {sidebarBody}
-          </div>
-
-          {hasSidebarActionsBlock && (
-            <div className="flex shrink-0 flex-col gap-3 border-t p-6">
-              {sidebarActionsContent}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Mobile: Files and Settings share one fixed bottom bar, split evenly
-          — each opens its own Drawer instead of either stacking inline
-          (file strip) or living in its own full-width bar (settings). Only
-          one of the two renders if a tool has just one. */}
-      {(fileStrip || hasSidebar) && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
-          {fileStrip && (
-            <Drawer>
-              <DrawerTrigger asChild>
-                <Button variant="secondary" className="flex-1">
-                  <HugeiconsIcon icon={Files02Icon} aria-hidden />
-                  Files
-                </Button>
-              </DrawerTrigger>
-              <DrawerContent className="md:hidden">
-                <DrawerHeader>
-                  <DrawerTitle>Files</DrawerTitle>
-                </DrawerHeader>
-                <div className="flex flex-col gap-4 overflow-y-auto p-4">
-                  {fileStrip}
-                  {addFileButtonGroup("w-full")}
-                </div>
-              </DrawerContent>
-            </Drawer>
-          )}
-
-          {hasSidebar && (
-            <Drawer>
-              <DrawerTrigger asChild>
-                <Button variant="secondary" className="flex-1">
-                  <HugeiconsIcon icon={Settings01Icon} aria-hidden />
-                  Settings
-                </Button>
-              </DrawerTrigger>
-              <DrawerContent className="md:hidden">
-                <DrawerHeader>
-                  <DrawerTitle>Settings</DrawerTitle>
-                </DrawerHeader>
-                <div className="flex flex-col gap-8 overflow-y-auto p-4">
-                  {sidebarBody}
-                </div>
-
-                {hasSidebarActionsBlock && (
-                  <div className="flex flex-col gap-3 border-t p-4">
-                    {sidebarActionsContent}
-                  </div>
-                )}
-              </DrawerContent>
-            </Drawer>
-          )}
-        </div>
-      )}
-    </div>
+    </PreviewChromeProvider>
   )
 }

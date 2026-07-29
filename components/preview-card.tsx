@@ -2,9 +2,15 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
-import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react"
+import type {
+  ComponentPropsWithoutRef,
+  CSSProperties,
+  ReactNode,
+  Ref,
+} from "react"
 
 import { MarkdownView } from "@/components/markdown-view"
+import { usePreviewChromePx } from "@/components/preview-chrome"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,24 +21,21 @@ import { cn } from "@/lib/utils"
 const CHECKERBOARD =
   "bg-[length:16px_16px] [background-image:repeating-conic-gradient(#00000014_0%_25%,transparent_0%_50%)]"
 
-// Viewport height minus everything else ToolPage's main column can stack
-// around a preview, sized for the worst case (the optional header-actions
-// row *and* the bottom bar both present) so it only under-fills on pages
-// missing one of those rows, never overflows: p-6 top+bottom (48) +
-// breadcrumb/header-row at h-8 (32 each) + bottom bar at min-h-11 (44) +
-// three gap-4 gaps between them (48) + the Card's own p-2 (16). The file
-// strip (`ToolPage`'s `fileStrip` prop) now renders inside that same bottom
-// bar rather than stacking as its own row, so it no longer needs a
-// separate, taller cap.
-const VIEWPORT_CHROME_HEIGHT = "100dvh-220px"
+// Viewport height minus everything else stacked around a preview — the
+// `--preview-chrome` custom property is set per-instance below (from
+// `ToolPage`'s actual chrome, via `usePreviewChromePx`, plus this card's own
+// padding and title row), so this stays a static string Tailwind can turn
+// into one real utility class instead of a value baked in at build time.
+const VIEWPORT_CHROME_HEIGHT = "100dvh-var(--preview-chrome)"
 
 // Caps every preview at `VIEWPORT_CHROME_HEIGHT` — the non-`fill` layer
 // classes and the `fill` viewport both carry it, so height stays budgeted
 // here in one place. ToolPage's root is min-h-svh (a floor, not a ceiling),
 // so without this cap a `fill` pane whose content drives its height (a
 // markdown/textinput surface, an unconstrained canvas) would stretch past
-// the viewport instead of scrolling inside it. Pages with a taller header
-// (e.g. wrapped toolbar buttons) may need a bigger cap via `className`.
+// the viewport instead of scrolling inside it. A page with a taller header
+// than `usePreviewChromePx` accounts for (e.g. wrapped toolbar buttons) may
+// still need a bigger cap via `className`.
 const MAX_HEIGHT = `max-h-[calc(${VIEWPORT_CHROME_HEIGHT})]`
 
 // Minimum height for a `fill` card that's one of two placed in a
@@ -138,6 +141,15 @@ export function PreviewCard({
   layer,
   children,
 }: PreviewCardProps) {
+  const chromePx = usePreviewChromePx()
+  // Card's own p-2 (16) plus, when `title` renders its muted label row above
+  // the viewport, that row's own height and the gap-2 beneath it (28) — both
+  // are chrome this specific card stacks on top of whatever `ToolPage`
+  // already budgeted for the page as a whole.
+  const previewChromeStyle = {
+    "--preview-chrome": `${chromePx + 16 + (title != null ? 28 : 0)}px`,
+  } as CSSProperties
+
   const layers = (Array.isArray(layer) ? layer : [layer]).filter(
     (entry): entry is PreviewLayer => !!entry
   )
@@ -156,6 +168,7 @@ export function PreviewCard({
 
   const card = (
     <Card
+      style={previewChromeStyle}
       className={cn(
         "w-full min-w-0 overflow-hidden p-2 ring-0",
         fill && "flex min-h-0 flex-1 flex-col"
@@ -165,12 +178,7 @@ export function PreviewCard({
         ref={viewportRef}
         className={cn(
           "flex w-full min-w-0 items-center justify-center overflow-hidden rounded-md",
-          fill &&
-            cn(
-              "relative flex-1",
-              MAX_HEIGHT,
-              half ? HALF_MIN_HEIGHT : "min-h-[60vh]"
-            ),
+          fill && cn("relative flex-1", MAX_HEIGHT, half && HALF_MIN_HEIGHT),
           !fill && MAX_HEIGHT,
           !fill && stacked && "relative",
           checkerboard && CHECKERBOARD,
@@ -229,9 +237,7 @@ export function PreviewCard({
                     placeholder={entry.placeholder}
                     variant="flat"
                     spellCheck={false}
-                    // ring-inset keeps the focus ring visible inside the
-                    // viewport's overflow-hidden instead of clipped away.
-                    className="absolute inset-0 field-sizing-fixed resize-none overflow-y-auto p-2 font-mono text-xs ring-inset"
+                    className="absolute inset-0 field-sizing-fixed resize-none overflow-y-auto rounded-md p-2 font-mono text-xs focus-visible:ring-0"
                   />
                 )
               }
