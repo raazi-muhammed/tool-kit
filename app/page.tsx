@@ -11,7 +11,7 @@ import {
   Linkedin01Icon,
   Mail01Icon,
 } from "@hugeicons/core-free-icons"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -171,36 +171,117 @@ export default function Page() {
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         )}
       >
-        {tools.map(({ href, icon, name, description }, index) => (
+        <AnimatePresence>
+          {tools.map(({ href, icon, name, description }, index) => (
+            <motion.div
+              key={href}
+              layout={animationsEnabled}
+              initial={animationsEnabled ? { opacity: 0, y: 16 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              exit={animationsEnabled ? { opacity: 0, scale: 0.9 } : undefined}
+              transition={{
+                default: {
+                  duration: 0.2,
+                  delay: animationsEnabled ? index * 0.015 : 0,
+                  ease: [0.4, 0, 0.2, 1],
+                },
+                layout: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
+              }}
+            >
+              <Link
+                href={href}
+                className="group block h-full"
+                onClick={(e) => handleCardClick(e, href, icon)}
+              >
+                <Card
+                  className={cn(
+                    "relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary",
+                    // The theme's rounded-xl (1.4rem) reads bulbous on the
+                    // short compact cards — step down the theme radius scale
+                    // to keep the curve proportional to the card.
+                    compact && "rounded-lg"
+                  )}
+                >
+                  <HugeiconsIcon
+                    icon={icon}
+                    aria-hidden
+                    className={cn(
+                      "pointer-events-none absolute -right-6 -bottom-6 rotate-12 text-foreground/5",
+                      compact ? "size-16" : "size-24"
+                    )}
+                  />
+                  <CardHeader
+                    className={cn(
+                      "flex flex-row gap-3 px-0",
+                      compact ? "items-center" : "items-start"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex shrink-0 items-center justify-center bg-primary/10 transition-colors group-hover:bg-primary",
+                        compact ? "size-8 rounded-md" : "size-10 rounded-lg"
+                      )}
+                    >
+                      <HugeiconsIcon
+                        icon={icon}
+                        className={cn(
+                          "text-primary transition-colors group-hover:text-primary-foreground",
+                          compact ? "size-5" : "size-6"
+                        )}
+                        aria-hidden
+                      />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <CardTitle className={cn(!compact && "mt-1")}>
+                          {name}
+                        </CardTitle>
+                        <HugeiconsIcon
+                          icon={ArrowRight01Icon}
+                          className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
+                          aria-hidden
+                        />
+                      </div>
+                      {!compact && (
+                        <CardDescription>{description}</CardDescription>
+                      )}
+                    </div>
+                  </CardHeader>
+                </Card>
+              </Link>
+            </motion.div>
+          ))}
+
           <motion.div
-            key={href}
+            key="support"
+            layout={animationsEnabled}
             initial={animationsEnabled ? { opacity: 0, y: 16 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{
-              duration: 0.2,
-              delay: animationsEnabled ? index * 0.015 : 0,
-              ease: [0.4, 0, 0.2, 1],
+              default: {
+                duration: 0.2,
+                delay: animationsEnabled ? tools.length * 0.015 : 0,
+                ease: [0.4, 0, 0.2, 1],
+              },
+              layout: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
             }}
           >
-            <Link
-              href={href}
-              className="group block h-full"
-              onClick={(e) => handleCardClick(e, href, icon)}
+            <button
+              type="button"
+              className="group block h-full w-full text-left"
+              onClick={openSupport}
             >
               <Card
                 className={cn(
-                  "relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary",
-                  // The theme's rounded-xl (1.4rem) reads bulbous on the
-                  // short compact cards — step down the theme radius scale
-                  // to keep the curve proportional to the card.
+                  "relative h-full overflow-hidden border border-dashed border-primary/40 bg-primary/5 p-3 ring-0 transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/10",
                   compact && "rounded-lg"
                 )}
               >
                 <HugeiconsIcon
-                  icon={icon}
+                  icon={CustomerSupportIcon}
                   aria-hidden
                   className={cn(
-                    "pointer-events-none absolute -right-6 -bottom-6 rotate-12 text-foreground/5",
+                    "pointer-events-none absolute -right-6 -bottom-6 rotate-12 text-primary/10",
                     compact ? "size-16" : "size-24"
                   )}
                 />
@@ -217,7 +298,7 @@ export default function Page() {
                     )}
                   >
                     <HugeiconsIcon
-                      icon={icon}
+                      icon={CustomerSupportIcon}
                       className={cn(
                         "text-primary transition-colors group-hover:text-primary-foreground",
                         compact ? "size-5" : "size-6"
@@ -228,7 +309,7 @@ export default function Page() {
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className={cn(!compact && "mt-1")}>
-                        {name}
+                        Need something?
                       </CardTitle>
                       <HugeiconsIcon
                         icon={ArrowRight01Icon}
@@ -237,86 +318,16 @@ export default function Page() {
                       />
                     </div>
                     {!compact && (
-                      <CardDescription>{description}</CardDescription>
+                      <CardDescription>
+                        Request a tool, report a bug, or just say hi.
+                      </CardDescription>
                     )}
                   </div>
                 </CardHeader>
               </Card>
-            </Link>
+            </button>
           </motion.div>
-        ))}
-
-        <motion.div
-          key="support"
-          initial={animationsEnabled ? { opacity: 0, y: 16 } : false}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.2,
-            delay: animationsEnabled ? tools.length * 0.015 : 0,
-            ease: [0.4, 0, 0.2, 1],
-          }}
-        >
-          <button
-            type="button"
-            className="group block h-full w-full text-left"
-            onClick={openSupport}
-          >
-            <Card
-              className={cn(
-                "relative h-full overflow-hidden border border-dashed border-primary/40 bg-primary/5 p-3 ring-0 transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/10",
-                compact && "rounded-lg"
-              )}
-            >
-              <HugeiconsIcon
-                icon={CustomerSupportIcon}
-                aria-hidden
-                className={cn(
-                  "pointer-events-none absolute -right-6 -bottom-6 rotate-12 text-primary/10",
-                  compact ? "size-16" : "size-24"
-                )}
-              />
-              <CardHeader
-                className={cn(
-                  "flex flex-row gap-3 px-0",
-                  compact ? "items-center" : "items-start"
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex shrink-0 items-center justify-center bg-primary/10 transition-colors group-hover:bg-primary",
-                    compact ? "size-8 rounded-md" : "size-10 rounded-lg"
-                  )}
-                >
-                  <HugeiconsIcon
-                    icon={CustomerSupportIcon}
-                    className={cn(
-                      "text-primary transition-colors group-hover:text-primary-foreground",
-                      compact ? "size-5" : "size-6"
-                    )}
-                    aria-hidden
-                  />
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <CardTitle className={cn(!compact && "mt-1")}>
-                      Need something?
-                    </CardTitle>
-                    <HugeiconsIcon
-                      icon={ArrowRight01Icon}
-                      className="size-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100"
-                      aria-hidden
-                    />
-                  </div>
-                  {!compact && (
-                    <CardDescription>
-                      Request a tool, report a bug, or just say hi.
-                    </CardDescription>
-                  )}
-                </div>
-              </CardHeader>
-            </Card>
-          </button>
-        </motion.div>
+        </AnimatePresence>
       </div>
 
       <Dialog open={supportOpen} onOpenChange={setSupportOpen}>
