@@ -21,6 +21,7 @@ import {
   Key01Icon,
   LoaderPinwheelIcon,
   Pdf01Icon,
+  PodiumIcon,
   Png01Icon,
   Resize02Icon,
   ScanIcon,
@@ -107,6 +108,14 @@ export const TOOLS: Tool[] = [
     name: "Wheel Spin",
     description:
       "Spin a wheel of names to pick a random winner, in your browser.",
+    category: "data",
+  },
+  {
+    href: "/score-keeper",
+    icon: PodiumIcon,
+    name: "Score Keeper",
+    description:
+      "Track running scores for any number of players, in your browser.",
     category: "data",
   },
   {
