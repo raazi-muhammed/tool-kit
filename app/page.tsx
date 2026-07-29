@@ -171,18 +171,26 @@ export default function Page() {
             : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
         )}
       >
-        <AnimatePresence>
+        <AnimatePresence mode="popLayout">
           {tools.map(({ href, icon, name, description }, index) => (
             <motion.div
               key={href}
               layout={animationsEnabled}
               initial={animationsEnabled ? { opacity: 0, y: 16 } : false}
               animate={{ opacity: 1, y: 0 }}
-              exit={animationsEnabled ? { opacity: 0, scale: 0.9 } : undefined}
+              exit={
+                animationsEnabled
+                  ? {
+                      opacity: 0,
+                      scale: 0.9,
+                      transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] },
+                    }
+                  : undefined
+              }
               transition={{
                 default: {
                   duration: 0.2,
-                  delay: animationsEnabled ? index * 0.015 : 0,
+                  delay: animationsEnabled ? index * 0.012 : 0,
                   ease: [0.4, 0, 0.2, 1],
                 },
                 layout: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
@@ -260,7 +268,7 @@ export default function Page() {
             transition={{
               default: {
                 duration: 0.2,
-                delay: animationsEnabled ? tools.length * 0.015 : 0,
+                delay: animationsEnabled ? tools.length * 0.012 : 0,
                 ease: [0.4, 0, 0.2, 1],
               },
               layout: { duration: 0.25, ease: [0.4, 0, 0.2, 1] },
