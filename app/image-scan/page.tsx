@@ -34,7 +34,13 @@ import {
   type Quad,
 } from "@/lib/canvas"
 import { detectDocumentQuad } from "@/lib/document-detect"
-import { downloadFile, downloadStagger, extensionForMime } from "@/lib/download"
+import {
+  downloadFile,
+  downloadStagger,
+  downloadZip as bundleZip,
+  extensionForMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 import { applyScanFilter, type ScanFilter } from "@/lib/image-filter"
 import { replaceExtension } from "@/lib/wav"
@@ -280,7 +286,7 @@ export default function ImageScanPage() {
     fitView()
   }
 
-  async function downloadJob(job: Job) {
+  async function blobForJob(job: Job): Promise<ZipEntry> {
     const scanned = scanResultsRef.current.get(job.id)
     if (!scanned) throw new Error(`"${job.name}" hasn't been scanned yet.`)
     const filtered = applyScanFilter(scanned, filter, bwThreshold, contrast)
@@ -293,9 +299,13 @@ export default function ImageScanPage() {
       filtered.toBlob(resolve, mime)
     )
     if (!blob) throw new Error(`Couldn't encode "${job.name}" for download.`)
-    const name = replaceExtension(job.name, extensionForMime(mime))
-    const url = URL.createObjectURL(blob)
-    downloadFile(url, name)
+    return { name: replaceExtension(job.name, extensionForMime(mime)), blob }
+  }
+
+  async function downloadJob(job: Job) {
+    const entry = await blobForJob(job)
+    const url = URL.createObjectURL(entry.blob)
+    downloadFile(url, entry.name)
     URL.revokeObjectURL(url)
   }
 
@@ -328,6 +338,26 @@ export default function ImageScanPage() {
     }
     if (failed.length > 0) {
       setError(`Couldn't download: ${failed.join(", ")}`)
+    }
+  }
+
+  // Same skip/keep-going semantics as `downloadAll`, but bundles every
+  // scanned job into one .zip instead of a burst of individual downloads.
+  async function downloadZip() {
+    setError(null)
+    const failed: string[] = []
+    const entries: ZipEntry[] = []
+    for (const job of jobs) {
+      if (!scanResultsRef.current.has(job.id)) continue
+      try {
+        entries.push(await blobForJob(job))
+      } catch {
+        failed.push(job.name)
+      }
+    }
+    await bundleZip(entries, "scanned-images.zip")
+    if (failed.length > 0) {
+      setError(`Couldn't include in ZIP: ${failed.join(", ")}`)
     }
   }
 
@@ -442,6 +472,10 @@ export default function ImageScanPage() {
                 disabled: !hasActiveScan,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) =>
+                  scannedIds.has(job.id)
+                ),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) =>
                   scannedIds.has(job.id)
                 ),
               },

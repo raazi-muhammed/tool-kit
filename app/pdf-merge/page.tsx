@@ -29,7 +29,6 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@/components/ui/attachment"
-import { Card } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -188,10 +187,13 @@ export default function PdfMergePage() {
       <div className="flex flex-1 flex-col gap-4">
         {jobs.length > 0 && (
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
-              <span className="text-sm text-muted-foreground">Files</span>
-              <Card className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
-                {orderedJobs.map((job, index) => (
+            <PreviewCard
+              fill
+              half
+              title="Files"
+              layer={{
+                kind: "list",
+                children: orderedJobs.map((job, index) => (
                   <Attachment
                     key={job.id}
                     state={job.validFile ? "done" : "error"}
@@ -236,12 +238,13 @@ export default function PdfMergePage() {
                       </AttachmentAction>
                     </AttachmentActions>
                   </Attachment>
-                ))}
-              </Card>
-            </div>
+                )),
+              }}
+            />
 
             <PreviewCard
               fill
+              half
               title="Merged"
               layer={
                 busy

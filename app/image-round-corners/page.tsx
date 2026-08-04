@@ -14,7 +14,14 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { prepareDisplayCanvas, roundCorners } from "@/lib/canvas"
-import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadCanvas,
+  downloadJobsAsZip,
+  outputMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -133,6 +140,23 @@ export default function ImageRoundCornersPage() {
     return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
+    if (!job.result) return Promise.resolve(null)
+    const mime = job.result.transparent
+      ? "image/png"
+      : outputMime(job.file.type)
+    return canvasBlobNamed(job.result.canvas, job.name, mime)
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      blobForJob,
+      "rounded-images.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="Image Round Corners"
@@ -170,6 +194,8 @@ export default function ImageRoundCornersPage() {
                 disabled: !activeJob.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined

@@ -17,8 +17,10 @@ import { useFiles } from "@/hooks/use-files"
 import { encodeBmp, supportsWebp } from "@/lib/bmp"
 import { canvasToBlob, removeBackgroundColor } from "@/lib/canvas"
 import {
+  blobFromUrl,
   downloadAllJobs,
   downloadFile,
+  downloadJobsAsZip,
   setBlobResult,
   type FileResult,
 } from "@/lib/download"
@@ -254,6 +256,18 @@ export default function ImageConverterPage() {
     )
   }
 
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      async (job) =>
+        job.result
+          ? { name: job.result.name, blob: await blobFromUrl(job.result.url) }
+          : null,
+      "converted-images.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="Image Converter"
@@ -332,6 +346,8 @@ export default function ImageConverterPage() {
                 disabled: !activeJob?.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined
