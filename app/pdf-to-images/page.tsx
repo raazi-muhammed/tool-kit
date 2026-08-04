@@ -354,43 +354,50 @@ export default function PdfToImagesPage() {
                             ? "Pick a format — pages convert automatically"
                             : "Pick a format, then hit Convert",
                         }
-                      : false
-              }
-            >
-              <div className="absolute inset-0 flex flex-col gap-2 overflow-y-auto p-3">
-                {activeJob.pages.map((page) => (
-                  <Attachment key={page.pageNumber} className="w-full">
-                    <AttachmentTrigger
-                      aria-label={`Preview page ${page.pageNumber}`}
-                      onClick={() => setPreviewPage(page)}
-                    />
-                    <AttachmentMedia variant="image">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={page.url} alt="" />
-                    </AttachmentMedia>
-                    <AttachmentContent>
-                      <AttachmentTitle>Page {page.pageNumber}</AttachmentTitle>
-                      <AttachmentDescription>
-                        {formatBytes(page.size)}
-                      </AttachmentDescription>
-                    </AttachmentContent>
-                    <AttachmentActions>
-                      <AttachmentAction
-                        aria-label={`Download page ${page.pageNumber}`}
-                        onClick={() =>
-                          downloadFile(
-                            page.url,
-                            pageFileName(activeJob, page, format)
-                          )
+                      : {
+                          kind: "list",
+                          children: activeJob.pages.map((page) => (
+                            <Attachment
+                              key={page.pageNumber}
+                              className="w-full"
+                            >
+                              <AttachmentTrigger
+                                aria-label={`Preview page ${page.pageNumber}`}
+                                onClick={() => setPreviewPage(page)}
+                              />
+                              <AttachmentMedia variant="image">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={page.url} alt="" />
+                              </AttachmentMedia>
+                              <AttachmentContent>
+                                <AttachmentTitle>
+                                  Page {page.pageNumber}
+                                </AttachmentTitle>
+                                <AttachmentDescription>
+                                  {formatBytes(page.size)}
+                                </AttachmentDescription>
+                              </AttachmentContent>
+                              <AttachmentActions>
+                                <AttachmentAction
+                                  aria-label={`Download page ${page.pageNumber}`}
+                                  onClick={() =>
+                                    downloadFile(
+                                      page.url,
+                                      pageFileName(activeJob, page, format)
+                                    )
+                                  }
+                                >
+                                  <HugeiconsIcon
+                                    icon={Download04Icon}
+                                    aria-hidden
+                                  />
+                                </AttachmentAction>
+                              </AttachmentActions>
+                            </Attachment>
+                          )),
                         }
-                      >
-                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                      </AttachmentAction>
-                    </AttachmentActions>
-                  </Attachment>
-                ))}
-              </div>
-            </PreviewCard>
+              }
+            />
           </div>
         )}
 

@@ -96,6 +96,15 @@ type PreviewTextInputLayer = {
   onChange: (value: string) => void
   placeholder?: string
 }
+// Or a scrollable list of rows (e.g. a queued-file list, a page-thumbnail
+// list) shown next to another preview pane — same fill-only, absolute
+// inset-0 + internal-scroll technique as `markdown`/`textinput`, but the
+// caller supplies its own rows (typically `Attachment`s) as `children`
+// instead of pre-rendered HTML or a controlled value.
+type PreviewListLayer = {
+  kind: "list"
+  children: ReactNode
+}
 
 export type PreviewLayer =
   | PreviewCanvasLayer
@@ -103,6 +112,7 @@ export type PreviewLayer =
   | PreviewStatusLayer
   | PreviewMarkdownLayer
   | PreviewTextInputLayer
+  | PreviewListLayer
 // A layer, or nothing to render this pass — e.g. `activeJob.result && {...}`.
 type PreviewLayerInput = PreviewLayer | false | null | undefined
 
@@ -239,6 +249,16 @@ export function PreviewCard({
                     spellCheck={false}
                     className="absolute inset-0 field-sizing-fixed resize-none overflow-y-auto rounded-md p-2 font-mono text-xs focus-visible:ring-0"
                   />
+                )
+              }
+              if (entry.kind === "list") {
+                return (
+                  <div
+                    key={index}
+                    className="absolute inset-0 flex flex-col gap-2 overflow-y-auto p-3"
+                  >
+                    {entry.children}
+                  </div>
                 )
               }
               if (entry.kind === "image") {

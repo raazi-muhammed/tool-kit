@@ -412,9 +412,12 @@ kinds: `markdown` (`{ kind: "markdown", html }`, a scrollable
 rendered-markdown pane fed by `renderMarkdownToHtml` from `lib/markdown.ts`)
 and `textinput` (`{ kind: "textinput", value, onChange, placeholder? }`, an
 editable textarea surface) — both absolutely fill the viewport, so they're
-only meaningful on a `fill` card. `PreviewCard` itself caps the `fill`
-viewport at the shared viewport-chrome budget (`MAX_HEIGHT`), so these
-surfaces scroll internally with no height plumbing needed on the page — see
+only meaningful on a `fill` card. A third, `list` (`{ kind: "list", children }`),
+is the same shape for a scrollable row of arbitrary content (typically
+`Attachment`s) the caller renders itself — see below. `PreviewCard` itself
+caps the `fill` viewport at the shared viewport-chrome budget (`MAX_HEIGHT`),
+so these surfaces scroll internally with no height plumbing needed on the
+page — see
 `app/markdown-viewer/page.tsx`, which renders its Edit and Preview panes as
 two `PreviewCard`s with these layers inside a plain `grid flex-1` (no
 max-height or row clamping of its own). `children` still exists as an escape
@@ -438,20 +441,18 @@ thing (which would need 200%+ of the viewport combined once stacked). Set
 `app/gif-compress/page.tsx` for the same "Original" + transformed-output
 pairing.
 
-A pane that isn't a picked-file preview at all — a scrollable custom list
-sitting next to the real preview — still belongs in a `PreviewCard fill half`
-via the `children` escape hatch, rather than hand-rolling a sibling `Card`
-plus its own `overflow-y-auto`. A hand-rolled `Card` has no cap on its own
-height, and `ToolPage`'s root is only `min-h-svh` (a floor, not a ceiling),
-so with enough list items it grows past the viewport and drags the whole
-page into scroll instead of scrolling internally — while the `PreviewCard`
-beside it stays correctly capped, so the two panes visibly mismatch in
-height on top of the overflow bug. Wrap the scrollable content in
-`absolute inset-0 overflow-y-auto` — the same technique the built-in
-`markdown`/`textinput` layers use above to escape the viewport's own
-`items-center justify-center overflow-hidden` — and drive the
-loading/error/empty states through `layer`'s `status` kind exactly like a
-real preview would, so only the list itself renders via `children`:
+A pane that isn't a picked-file preview at all — a queued-file list, a
+page-thumbnail list — still belongs in a `PreviewCard fill half` via the
+`list` layer, rather than hand-rolling a sibling `Card` plus its own
+`overflow-y-auto`. A hand-rolled `Card` has no cap on its own height, and
+`ToolPage`'s root is only `min-h-svh` (a floor, not a ceiling), so with
+enough list items it grows past the viewport and drags the whole page into
+scroll instead of scrolling internally — while the `PreviewCard` beside it
+stays correctly capped, so the two panes visibly mismatch in height on top
+of the overflow bug. `{ kind: "list", children }` fits it in the same
+ternary as the other layer kinds — resolve to a `status` layer for the
+loading/error/empty states, and to `list` once there's content, so only one
+of the two ever renders:
 
 ```tsx
 <PreviewCard
@@ -463,20 +464,20 @@ real preview would, so only the list itself renders via `children`:
       ? { kind: "status", icon: Loading03Icon, spin: true, message: "Converting…" }
       : activeJob.pages.length === 0
         ? { kind: "status", message: "Pick a format, then hit Convert" }
-        : false
+        : {
+            kind: "list",
+            children: activeJob.pages.map((page) => (
+              <Attachment key={page.pageNumber} className="w-full">
+                {/* ... */}
+              </Attachment>
+            )),
+          }
   }
->
-  <div className="absolute inset-0 flex flex-col gap-2 overflow-y-auto p-3">
-    {activeJob.pages.map((page) => (
-      <Attachment key={page.pageNumber} className="w-full">
-        {/* ... */}
-      </Attachment>
-    ))}
-  </div>
-</PreviewCard>
+/>
 ```
 
-See the "Images" pane in `app/pdf-to-images/page.tsx`.
+See the "Images" pane in `app/pdf-to-images/page.tsx`, the "Files" pane in
+`app/pdf-merge/page.tsx`, and the "Images" pane in `app/image-to-pdf/page.tsx`.
 
 Pass `fill` (the default choice for a new tool) for a viewport that grows to
 the available height — every current preview tool (Image Crop, Image Rotate,
