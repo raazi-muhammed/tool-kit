@@ -18,7 +18,14 @@ import {
   prepareDisplayCanvas,
   type Rect,
 } from "@/lib/canvas"
-import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadCanvas,
+  downloadJobsAsZip,
+  outputMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -186,6 +193,21 @@ export default function ImageTrimPage() {
     return downloadAllJobs(jobs, (job) => job.trimmed, downloadJob)
   }
 
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
+    const image = getResource(job.id)
+    if (!image) return Promise.resolve(null)
+    return canvasBlobNamed(image, job.name, outputMime(job.file.type))
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => job.trimmed,
+      blobForJob,
+      "trimmed-images.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="Image Trim"
@@ -229,6 +251,8 @@ export default function ImageTrimPage() {
                 disabled: !activeJob.trimmed,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.trimmed),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.trimmed),
               },
             }
           : undefined

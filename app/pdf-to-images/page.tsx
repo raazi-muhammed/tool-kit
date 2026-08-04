@@ -39,7 +39,12 @@ import {
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import { canvasToBlob } from "@/lib/canvas"
-import { downloadFile, downloadStagger } from "@/lib/download"
+import {
+  blobFromUrl,
+  downloadFile,
+  downloadStagger,
+  downloadZip as bundleZip,
+} from "@/lib/download"
 import { isPdfFile, loadPdfjs } from "@/lib/pdf"
 import { formatBytes } from "@/lib/wav"
 
@@ -210,6 +215,24 @@ export default function PdfToImagesPage() {
     for (const job of jobs) await downloadPages(job)
   }
 
+  async function downloadZip() {
+    const entries = await Promise.all(
+      jobs.flatMap((job) =>
+        job.pages.map(async (page) => ({
+          name: pageFileName(job, page, format),
+          blob: await blobFromUrl(page.url),
+        }))
+      )
+    )
+    await bundleZip(entries, "images.zip")
+  }
+
+  // Unlike `downloadAll` (which only adds anything past a single job's own
+  // "Download" once there's more than one queued PDF), zipping is useful even
+  // for one PDF as soon as it has more than one page — so this counts pages
+  // across every job rather than gating on `jobs.length`.
+  const totalPages = jobs.reduce((sum, job) => sum + job.pages.length, 0)
+
   return (
     <ToolPage
       page="PDF to Images"
@@ -297,6 +320,7 @@ export default function PdfToImagesPage() {
                 disabled: !activeJob?.pages.length,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.pages.length),
+                onDownloadZip: totalPages > 1 ? downloadZip : undefined,
               },
             }
           : undefined

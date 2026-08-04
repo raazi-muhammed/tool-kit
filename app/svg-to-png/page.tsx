@@ -16,7 +16,13 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useLockedSize } from "@/hooks/use-locked-size"
-import { downloadAllJobs, downloadCanvas } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadCanvas,
+  downloadJobsAsZip,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImage } from "@/lib/image-file"
 
 const ACCEPTED = "image/svg+xml,.svg"
@@ -195,6 +201,20 @@ export default function SvgToPngPage() {
     return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
+    if (!job.result) return Promise.resolve(null)
+    return canvasBlobNamed(job.result.canvas, job.name, "image/png")
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      blobForJob,
+      "converted-images.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="SVG to PNG"
@@ -258,6 +278,8 @@ export default function SvgToPngPage() {
                 disabled: !activeJob.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined

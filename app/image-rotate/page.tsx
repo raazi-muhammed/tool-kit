@@ -14,7 +14,14 @@ import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { prepareDisplayCanvas, rotateCanvas } from "@/lib/canvas"
-import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadCanvas,
+  downloadJobsAsZip,
+  outputMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -121,6 +128,22 @@ export default function ImageRotatePage() {
     return downloadAllJobs(jobs, (job) => job.rotation !== 0, downloadJob)
   }
 
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
+    const base = getResource(job.id)
+    if (!base) return Promise.resolve(null)
+    const rotated = rotateCanvas(base, job.rotation)
+    return canvasBlobNamed(rotated, job.name, outputMime(job.file.type))
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => job.rotation !== 0,
+      blobForJob,
+      "rotated-images.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="Image Rotate"
@@ -182,6 +205,8 @@ export default function ImageRotatePage() {
                 disabled: activeJob.rotation === 0,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.rotation !== 0),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.rotation !== 0),
               },
             }
           : undefined

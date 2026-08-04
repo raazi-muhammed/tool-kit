@@ -19,8 +19,10 @@ import { useFiles } from "@/hooks/use-files"
 import { supportsWebp } from "@/lib/bmp"
 import { canvasToBlob } from "@/lib/canvas"
 import {
+  blobFromUrl,
   downloadAllJobs,
   downloadFile,
+  downloadJobsAsZip,
   setBlobResult,
   type FileResult,
 } from "@/lib/download"
@@ -254,6 +256,18 @@ export default function ImageCompressPage() {
     )
   }
 
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      async (job) =>
+        job.result
+          ? { name: job.result.name, blob: await blobFromUrl(job.result.url) }
+          : null,
+      "compressed-images.zip"
+    )
+  }
+
   const savings = activeJob?.result
     ? Math.round((1 - activeJob.result.size / activeJob.size) * 100)
     : null
@@ -320,6 +334,8 @@ export default function ImageCompressPage() {
                 disabled: !activeJob?.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined

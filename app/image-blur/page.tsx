@@ -29,7 +29,14 @@ import {
   type BlurMode,
   type Rect,
 } from "@/lib/canvas"
-import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadCanvas,
+  downloadJobsAsZip,
+  outputMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -278,6 +285,21 @@ export default function ImageBlurPage() {
     return downloadAllJobs(jobs, (job) => job.hasEdits, downloadJob)
   }
 
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
+    const base = getResource(job.id)
+    if (!base) return Promise.resolve(null)
+    return canvasBlobNamed(base, job.name, outputMime(job.file.type))
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => job.hasEdits,
+      blobForJob,
+      "blurred-images.zip"
+    )
+  }
+
   // Re-render whenever the blur strength or mode changes while a selection is
   // pending, so the preview stays live. New values are passed explicitly —
   // the state in these closures is still the old one.
@@ -375,6 +397,8 @@ export default function ImageBlurPage() {
                 disabled: !activeJob.hasEdits,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.hasEdits),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.hasEdits),
               },
             }
           : undefined

@@ -16,7 +16,14 @@ import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useLockedSize } from "@/hooks/use-locked-size"
 import { prepareDisplayCanvas } from "@/lib/canvas"
-import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadCanvas,
+  downloadJobsAsZip,
+  outputMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -172,6 +179,20 @@ export default function ImageResizePage() {
     return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
+    if (!job.result) return Promise.resolve(null)
+    return canvasBlobNamed(job.result.canvas, job.name, outputMime(job.file.type))
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      blobForJob,
+      "resized-images.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="Image Resize"
@@ -226,6 +247,8 @@ export default function ImageResizePage() {
                 disabled: !activeJob.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined

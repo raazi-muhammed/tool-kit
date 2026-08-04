@@ -28,7 +28,14 @@ import {
   scaleRect,
   type Rect,
 } from "@/lib/canvas"
-import { downloadAllJobs, downloadCanvas, outputMime } from "@/lib/download"
+import {
+  canvasBlobNamed,
+  downloadAllJobs,
+  downloadFile,
+  downloadJobsAsZip,
+  outputMime,
+  type ZipEntry,
+} from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
 
 const ACCEPTED = "image/*"
@@ -218,21 +225,29 @@ export default function ImageCropPage() {
     clearSelection()
   }
 
-  async function downloadJob(job: Job) {
+  function blobForJob(job: Job): Promise<ZipEntry | null> {
     const image = getResource(job.id)
-    if (!image) return
+    if (!image) return Promise.resolve(null)
     const out = document.createElement("canvas")
     out.width = image.width
     out.height = image.height
     const ctx = out.getContext("2d")
-    if (!ctx) return
+    if (!ctx) return Promise.resolve(null)
     if (job.bgColor) {
       ctx.fillStyle = job.bgColor
       ctx.fillRect(0, 0, out.width, out.height)
     }
     ctx.drawImage(image, 0, 0)
 
-    await downloadCanvas(out, job.name, outputMime(job.file.type))
+    return canvasBlobNamed(out, job.name, outputMime(job.file.type))
+  }
+
+  async function downloadJob(job: Job) {
+    const entry = await blobForJob(job)
+    if (!entry) return
+    const url = URL.createObjectURL(entry.blob)
+    downloadFile(url, entry.name)
+    URL.revokeObjectURL(url)
   }
 
   function download() {
@@ -241,6 +256,10 @@ export default function ImageCropPage() {
 
   function downloadAll() {
     return downloadAllJobs(jobs, () => true, downloadJob)
+  }
+
+  function downloadZip() {
+    return downloadJobsAsZip(jobs, () => true, blobForJob, "cropped-images.zip")
   }
 
   return (
@@ -311,6 +330,7 @@ export default function ImageCropPage() {
               download: {
                 onDownload: download,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
               },
             }
           : undefined

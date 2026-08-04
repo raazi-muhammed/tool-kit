@@ -18,8 +18,10 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import {
+  blobFromUrl,
   downloadAllJobs,
   downloadFile,
+  downloadJobsAsZip,
   setBlobResult,
   type FileResult,
 } from "@/lib/download"
@@ -248,6 +250,18 @@ export default function GifCompressPage() {
     )
   }
 
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      async (job) =>
+        job.result
+          ? { name: job.result.name, blob: await blobFromUrl(job.result.url) }
+          : null,
+      "compressed-gifs.zip"
+    )
+  }
+
   const savings = activeJob?.result
     ? Math.round((1 - activeJob.result.size / activeJob.size) * 100)
     : null
@@ -314,6 +328,8 @@ export default function GifCompressPage() {
                 disabled: !activeJob?.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined

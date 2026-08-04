@@ -19,8 +19,10 @@ import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { useFiles } from "@/hooks/use-files"
 import {
+  blobFromUrl,
   downloadAllJobs,
   downloadFile,
+  downloadJobsAsZip,
   setBlobResult,
   type FileResult,
 } from "@/lib/download"
@@ -219,6 +221,18 @@ export default function PdfLockPage() {
     return downloadAllJobs(jobs, (job) => !!job.result, downloadJob)
   }
 
+  function downloadZip() {
+    return downloadJobsAsZip(
+      jobs,
+      (job) => !!job.result,
+      async (job) =>
+        job.result
+          ? { name: job.result.name, blob: await blobFromUrl(job.result.url) }
+          : null,
+      "locked-pdfs.zip"
+    )
+  }
+
   return (
     <ToolPage
       page="PDF Lock"
@@ -279,6 +293,8 @@ export default function PdfLockPage() {
                 disabled: !activeJob?.result,
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
                 downloadAllDisabled: !jobs.some((job) => job.result),
+                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+                downloadZipDisabled: !jobs.some((job) => job.result),
               },
             }
           : undefined

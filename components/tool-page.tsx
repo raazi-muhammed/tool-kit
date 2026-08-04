@@ -8,6 +8,7 @@ import {
   ClipboardPasteIcon,
   Copy01Icon,
   Download04Icon,
+  FileZipIcon,
   FitToScreenIcon,
   Files02Icon,
   Settings01Icon,
@@ -181,6 +182,9 @@ type SidebarDownload = {
   disabled?: boolean
   onDownloadAll?: () => void
   downloadAllDisabled?: boolean
+  /** Bundles every job into a single .zip instead of a burst of individual downloads — only meaningful alongside `onDownloadAll`, so it's rendered in the same dropdown right below "Download all". */
+  onDownloadZip?: () => void
+  downloadZipDisabled?: boolean
 }
 
 // A color swatch that can also be "unset" (e.g. a transparent background) —
@@ -848,7 +852,7 @@ export function ToolPage({
             <HugeiconsIcon icon={Download04Icon} aria-hidden />
             Download
           </Button>
-          {sidebar.download.onDownloadAll && (
+          {(sidebar.download.onDownloadAll || sidebar.download.onDownloadZip) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -861,13 +865,24 @@ export function ToolPage({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-max">
-                <DropdownMenuItem
-                  onClick={sidebar.download.onDownloadAll}
-                  disabled={sidebar.download.downloadAllDisabled}
-                >
-                  <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                  Download all
-                </DropdownMenuItem>
+                {sidebar.download.onDownloadAll && (
+                  <DropdownMenuItem
+                    onClick={sidebar.download.onDownloadAll}
+                    disabled={sidebar.download.downloadAllDisabled}
+                  >
+                    <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                    Download all
+                  </DropdownMenuItem>
+                )}
+                {sidebar.download.onDownloadZip && (
+                  <DropdownMenuItem
+                    onClick={sidebar.download.onDownloadZip}
+                    disabled={sidebar.download.downloadZipDisabled}
+                  >
+                    <HugeiconsIcon icon={FileZipIcon} aria-hidden />
+                    Download as ZIP
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
