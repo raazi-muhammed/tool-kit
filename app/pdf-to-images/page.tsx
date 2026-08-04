@@ -30,7 +30,6 @@ import {
   AttachmentTitle,
   AttachmentTrigger,
 } from "@/components/ui/attachment"
-import { Card } from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -308,6 +307,7 @@ export default function PdfToImagesPage() {
           <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
             <PreviewCard
               fill
+              half
               title="Original"
               layer={
                 activeJob.validFile
@@ -328,70 +328,69 @@ export default function PdfToImagesPage() {
               )}
             </PreviewCard>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-2">
-              <span className="text-sm text-muted-foreground">Images</span>
-              <Card className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
-                {activeJob.status === "converting" ? (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <HugeiconsIcon
-                      icon={Loading03Icon}
-                      className="size-8 animate-spin"
-                      aria-hidden
+            <PreviewCard
+              fill
+              half
+              title="Images"
+              layer={
+                activeJob.status === "converting"
+                  ? {
+                      kind: "status",
+                      icon: Loading03Icon,
+                      spin: true,
+                      message: "Converting…",
+                    }
+                  : activeJob.status === "error"
+                    ? {
+                        kind: "status",
+                        icon: AlertCircleIcon,
+                        tone: "destructive",
+                        message: activeJob.error,
+                      }
+                    : activeJob.pages.length === 0
+                      ? {
+                          kind: "status",
+                          message: autoRunEnabled
+                            ? "Pick a format — pages convert automatically"
+                            : "Pick a format, then hit Convert",
+                        }
+                      : false
+              }
+            >
+              <div className="absolute inset-0 flex flex-col gap-2 overflow-y-auto p-3">
+                {activeJob.pages.map((page) => (
+                  <Attachment key={page.pageNumber} className="w-full">
+                    <AttachmentTrigger
+                      aria-label={`Preview page ${page.pageNumber}`}
+                      onClick={() => setPreviewPage(page)}
                     />
-                    <p className="text-sm">Converting…</p>
-                  </div>
-                ) : activeJob.status === "error" ? (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-2 text-destructive">
-                    <HugeiconsIcon
-                      icon={AlertCircleIcon}
-                      className="size-8"
-                      aria-hidden
-                    />
-                    <p className="text-sm">{activeJob.error}</p>
-                  </div>
-                ) : activeJob.pages.length > 0 ? (
-                  activeJob.pages.map((page) => (
-                    <Attachment key={page.pageNumber} className="w-full">
-                      <AttachmentTrigger
-                        aria-label={`Preview page ${page.pageNumber}`}
-                        onClick={() => setPreviewPage(page)}
-                      />
-                      <AttachmentMedia variant="image">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={page.url} alt="" />
-                      </AttachmentMedia>
-                      <AttachmentContent>
-                        <AttachmentTitle>
-                          Page {page.pageNumber}
-                        </AttachmentTitle>
-                        <AttachmentDescription>
-                          {formatBytes(page.size)}
-                        </AttachmentDescription>
-                      </AttachmentContent>
-                      <AttachmentActions>
-                        <AttachmentAction
-                          aria-label={`Download page ${page.pageNumber}`}
-                          onClick={() =>
-                            downloadFile(
-                              page.url,
-                              pageFileName(activeJob, page, format)
-                            )
-                          }
-                        >
-                          <HugeiconsIcon icon={Download04Icon} aria-hidden />
-                        </AttachmentAction>
-                      </AttachmentActions>
-                    </Attachment>
-                  ))
-                ) : (
-                  <p className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                    {autoRunEnabled
-                      ? "Pick a format — pages convert automatically"
-                      : "Pick a format, then hit Convert"}
-                  </p>
-                )}
-              </Card>
-            </div>
+                    <AttachmentMedia variant="image">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={page.url} alt="" />
+                    </AttachmentMedia>
+                    <AttachmentContent>
+                      <AttachmentTitle>Page {page.pageNumber}</AttachmentTitle>
+                      <AttachmentDescription>
+                        {formatBytes(page.size)}
+                      </AttachmentDescription>
+                    </AttachmentContent>
+                    <AttachmentActions>
+                      <AttachmentAction
+                        aria-label={`Download page ${page.pageNumber}`}
+                        onClick={() =>
+                          downloadFile(
+                            page.url,
+                            pageFileName(activeJob, page, format)
+                          )
+                        }
+                      >
+                        <HugeiconsIcon icon={Download04Icon} aria-hidden />
+                      </AttachmentAction>
+                    </AttachmentActions>
+                  </Attachment>
+                ))}
+              </div>
+            </PreviewCard>
           </div>
         )}
 
