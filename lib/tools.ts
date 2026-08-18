@@ -46,6 +46,27 @@ export type Tool = {
   name: string
   description: string
   category: Category
+  /**
+   * For a tool with a "Run automatically" interactive commit step (a drawn
+   * selection, …): whether it opts into `defersBake: true` on
+   * `useEngine` (see `components/auto-run-preference.tsx`),
+   * keeping a settled rectangle live/movable and committing it lazily at
+   * job-switch or export time — instead of the hook's default eager bake
+   * shortly after the selection settles, which clears it immediately. The
+   * tool's own page reads this via `getTool(href).autoRunDefersBake` and
+   * passes it straight through to the hook, so this is the single source
+   * of truth for the setting, not just documentation of it.
+   */
+  autoRunDefersBake?: boolean
+}
+
+/** Looks up a tool's own registry entry by its route — e.g. for a page to
+ *  read back a config field (like `autoRunDefersBake`) it declared about
+ *  itself here, instead of duplicating the value inline. */
+export function getTool(href: string): Tool {
+  const tool = TOOLS.find((t) => t.href === href)
+  if (!tool) throw new Error(`Unknown tool: ${href}`)
+  return tool
 }
 
 export const TOOLS: Tool[] = [
@@ -149,6 +170,7 @@ export const TOOLS: Tool[] = [
     description:
       "Select a rectangle on an image and blur just that region, in your browser.",
     category: "image",
+    autoRunDefersBake: true,
   },
   {
     href: "/image-crop",
@@ -157,6 +179,7 @@ export const TOOLS: Tool[] = [
     description:
       "Crop images to a selection, and give transparent PNGs a background color.",
     category: "image",
+    autoRunDefersBake: true,
   },
   {
     href: "/image-trim",

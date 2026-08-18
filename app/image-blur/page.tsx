@@ -9,12 +9,11 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { useAutoRunEnabled } from "@/components/auto-run-preference"
+import { useEngine } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import { useRectSelection } from "@/hooks/use-rect-selection"
@@ -38,6 +37,7 @@ import {
   type ZipEntry,
 } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
+import { getTool } from "@/lib/tools"
 
 const ACCEPTED = "image/*"
 
@@ -86,7 +86,6 @@ export default function ImageBlurPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const [{ blur, mode }, setBlurSettings] = usePersistedState(
     "image-blur:settings",
     { blur: 20, mode: "pixelate" as BlurMode },
@@ -192,10 +191,26 @@ export default function ImageBlurPage() {
     for (const r of allRects) drawSelectionRect(display, r)
   }
 
+  // The "Run automatically" engine — whether this tool defers baking
+  // instead of the default eager bake-on-settle is declared once, in this
+  // tool's own lib/tools.ts entry, and read back here rather than
+  // duplicated as a literal. Deferred keeps a drawn rectangle movable
+  // indefinitely; `applyBlur` both bakes and clears the current selection,
+  // so it doubles as the "commit before switching away" fallback in that
+  // mode. See `useEngine` in auto-run-preference.tsx.
+  const { autoRunEnabled, commitBeforeSwitch } = useEngine({
+    activeId,
+    pendingRect,
+    hasPending: () => totalRects > 0,
+    commit: applyBlur,
+    defersBake: getTool("/image-blur").autoRunDefersBake,
+  })
+
   // Paint + fit the visible canvas whenever the active job changes — it only
   // exists in the DOM once a file has been picked, so this can't happen
   // synchronously when a file is added.
   useEffect(() => {
+    commitBeforeSwitch(activeId)
     if (activeId == null) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     clearAllRects()
@@ -225,10 +240,15 @@ export default function ImageBlurPage() {
     updateJob(id, { hasEdits: true })
   }
 
-  function applyBlur() {
-    if (activeId == null || totalRects === 0 || !activeJob) return
+  // Bakes (and clears) whatever's pending for `id` — the active job by
+  // default, for the manual "Apply blur" button, but also callable for a
+  // job other than the active one (see `useEngine` above).
+  function applyBlur(id: number | null = activeId) {
+    if (id == null || totalRects === 0) return
+    const job = jobs.find((j) => j.id === id)
+    if (!job) return
     const allRects = pendingRect ? [...rects, pendingRect] : rects
-    blurJob(activeId, allRects, activeJob.mode)
+    blurJob(id, allRects, job.mode)
     clearAllRects()
   }
 
@@ -253,51 +273,54 @@ export default function ImageBlurPage() {
     clearAllRects()
   }
 
-  // With "Run automatically" on, commit the pending rectangle(s) once the
-  // selection settles instead of waiting for an explicit Apply click —
-  // debounced so drawing a rect, then queuing another elsewhere, doesn't
-  // commit mid-sequence; it only fires once no new rect has completed for a
-  // beat. Only reacts to `pendingRect` (a completed drag, per
-  // `useRectSelection`), never to the blur amount/mode, so adjusting the
-  // slider never re-commits an already-blurred region.
-  useDebouncedEffect(
-    () => {
-      if (!autoRunEnabled || activeId == null || !pendingRect) return
-      applyBlur()
-    },
-    [autoRunEnabled, pendingRect, activeId],
-    600
-  )
+  // A job "has blur" either because it was explicitly committed (manual
+  // Apply/Apply-to-all, or a prior job switch while auto-run was on), or —
+  // for the job currently being edited — because it has a live, uncommitted
+  // selection that export can render on the fly.
+  function jobHasBlur(job: Job) {
+    return job.hasEdits || (job.id === activeId && totalRects > 0)
+  }
+
+  // Renders a job's export image without mutating its stored resource: for
+  // the active job with a pending (not-yet-applied) selection, blur is
+  // applied fresh onto a scratch canvas so the on-screen rectangle stays
+  // exactly as movable after downloading as it was before.
+  function exportCanvasForJob(job: Job): HTMLCanvasElement | null {
+    const base = getResource(job.id)
+    if (!base) return null
+    if (job.id !== activeId || totalRects === 0) return base
+    const allRects = pendingRect ? [...rects, pendingRect] : rects
+    const canvas = document.createElement("canvas")
+    canvas.width = base.width
+    canvas.height = base.height
+    blurRegion(canvas, base, allRects, blur, job.mode)
+    return canvas
+  }
 
   async function downloadJob(job: Job) {
-    const base = getResource(job.id)
-    if (!base) return
-    await downloadCanvas(base, job.name, outputMime(job.file.type))
+    const canvas = exportCanvasForJob(job)
+    if (!canvas) return
+    await downloadCanvas(canvas, job.name, outputMime(job.file.type))
   }
 
   function download() {
     if (activeJob) void downloadJob(activeJob)
   }
 
-  // Skips jobs with no committed blur — downloading them would just hand
-  // back the original file.
+  // Skips jobs with no blur (committed or pending) — downloading them would
+  // just hand back the original file.
   function downloadAll() {
-    return downloadAllJobs(jobs, (job) => job.hasEdits, downloadJob)
+    return downloadAllJobs(jobs, jobHasBlur, downloadJob)
   }
 
   function blobForJob(job: Job): Promise<ZipEntry | null> {
-    const base = getResource(job.id)
-    if (!base) return Promise.resolve(null)
-    return canvasBlobNamed(base, job.name, outputMime(job.file.type))
+    const canvas = exportCanvasForJob(job)
+    if (!canvas) return Promise.resolve(null)
+    return canvasBlobNamed(canvas, job.name, outputMime(job.file.type))
   }
 
   function downloadZip() {
-    return downloadJobsAsZip(
-      jobs,
-      (job) => job.hasEdits,
-      blobForJob,
-      "blurred-images.zip"
-    )
+    return downloadJobsAsZip(jobs, jobHasBlur, blobForJob, "blurred-images.zip")
   }
 
   // Re-render whenever the blur strength or mode changes while a selection is
@@ -379,7 +402,7 @@ export default function ImageBlurPage() {
                       ? `Apply blur (${totalRects})`
                       : "Apply blur",
                   icon: BlurIcon,
-                  onClick: applyBlur,
+                  onClick: () => applyBlur(),
                   disabled: totalRects === 0,
                   more:
                     jobs.length > 1
@@ -394,11 +417,11 @@ export default function ImageBlurPage() {
               ],
               download: {
                 onDownload: download,
-                disabled: !activeJob.hasEdits,
+                disabled: !jobHasBlur(activeJob),
                 onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.hasEdits),
+                downloadAllDisabled: !jobs.some(jobHasBlur),
                 onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.hasEdits),
+                downloadZipDisabled: !jobs.some(jobHasBlur),
               },
             }
           : undefined
