@@ -47,7 +47,7 @@ function PlayerScoreCard({
   onRemove: () => void
 }) {
   return (
-    <Card size="sm" className="h-full">
+    <Card size="sm" className="h-full ring-0">
       <CardHeader>
         <CardTitle className="truncate">{player.name}</CardTitle>
         <CardAction>

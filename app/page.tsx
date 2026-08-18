@@ -203,7 +203,7 @@ export default function Page() {
               >
                 <Card
                   className={cn(
-                    "relative h-full overflow-hidden p-3 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary",
+                    "relative h-full overflow-hidden p-3 ring-0 transition-all hover:-translate-y-0.5 hover:ring-2 hover:ring-primary",
                     // The theme's rounded-xl (1.4rem) reads bulbous on the
                     // short compact cards — step down the theme radius scale
                     // to keep the curve proportional to the card.
