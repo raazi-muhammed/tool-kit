@@ -14,12 +14,14 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { useAutoRunEnabled } from "@/components/auto-run-preference"
+import {
+  useAutoRunEnabled,
+  useDeferredRectCommit,
+} from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
-import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
 import { addFilesReportingErrors, useFiles } from "@/hooks/use-files"
 import { useRectSelection } from "@/hooks/use-rect-selection"
 import {
@@ -37,6 +39,7 @@ import {
   type ZipEntry,
 } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
+import { getTool } from "@/lib/tools"
 
 const ACCEPTED = "image/*"
 type Aspect = "free" | "1:1" | "4:3" | "3:4" | "16:9" | "9:16"
@@ -130,10 +133,27 @@ export default function ImageCropPage() {
     }
   }
 
+  // Whether this tool defers baking (see `useDeferredRectCommit` in
+  // auto-run-preference.tsx) instead of the hook's default eager
+  // bake-on-settle is declared once, in this tool's own lib/tools.ts entry
+  // — read back here rather than duplicated as a literal. Deferred keeps a
+  // drawn rectangle movable indefinitely; `applyCrop` both bakes and
+  // clears the current selection, so it doubles as the "commit before
+  // switching away" fallback in that mode.
+  const { commitBeforeSwitch } = useDeferredRectCommit({
+    autoRunEnabled,
+    activeId,
+    pendingRect,
+    hasPending: () => !!pendingRect,
+    commit: applyCrop,
+    defersBake: getTool("/image-crop").autoRunDefersBake,
+  })
+
   // Paint the visible canvas whenever the active job changes — it only
   // exists in the DOM once a file has been picked, so this can't happen
   // synchronously when a file is added.
   useEffect(() => {
+    commitBeforeSwitch(activeId)
     if (activeId != null) clearSelection()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId])
@@ -147,9 +167,10 @@ export default function ImageCropPage() {
     )
   }
 
-  function cropJob(id: number, rect: Rect) {
-    const image = getResource(id)
-    if (!image) return
+  function buildCroppedCanvas(
+    image: HTMLCanvasElement,
+    rect: Rect
+  ): HTMLCanvasElement | null {
     const clamped = {
       x: Math.round(rect.x),
       y: Math.round(rect.y),
@@ -160,7 +181,7 @@ export default function ImageCropPage() {
     cropped.width = clamped.width
     cropped.height = clamped.height
     const ctx = cropped.getContext("2d")
-    if (!ctx) return
+    if (!ctx) return null
     ctx.drawImage(
       image,
       clamped.x,
@@ -172,12 +193,22 @@ export default function ImageCropPage() {
       clamped.width,
       clamped.height
     )
-    setResource(id, cropped)
+    return cropped
   }
 
-  function applyCrop() {
-    if (activeId == null || !pendingRect) return
-    cropJob(activeId, pendingRect)
+  function cropJob(id: number, rect: Rect) {
+    const image = getResource(id)
+    if (!image) return
+    const cropped = buildCroppedCanvas(image, rect)
+    if (cropped) setResource(id, cropped)
+  }
+
+  // Bakes (and clears) whatever's pending for `id` — the active job by
+  // default, for the manual "Crop" button, but also callable for a job
+  // other than the active one (see `useDeferredRectCommit` above).
+  function applyCrop(id: number | null = activeId) {
+    if (id == null || !pendingRect) return
+    cropJob(id, pendingRect)
     clearSelection()
   }
 
@@ -196,19 +227,16 @@ export default function ImageCropPage() {
     clearSelection()
   }
 
-  // With "Run automatically" on, commit the crop once the selection settles
-  // instead of waiting for an explicit Crop click — debounced so drawing,
-  // then dragging an edge to fine-tune, doesn't commit mid-adjustment; it
-  // only fires once the rect stops changing. `pendingRect` only updates on
-  // pointer-up (see `useRectSelection`), so this never fires mid-drag.
-  useDebouncedEffect(
-    () => {
-      if (!autoRunEnabled || activeId == null || !pendingRect) return
-      applyCrop()
-    },
-    [autoRunEnabled, pendingRect, activeId],
-    600
-  )
+  // Renders a job's export image without mutating its stored resource: for
+  // the active job with a pending (not-yet-applied) selection, the crop is
+  // resolved onto a scratch canvas so the on-screen rectangle stays exactly
+  // as movable after downloading as it was before.
+  function exportCanvasForJob(job: Job): HTMLCanvasElement | null {
+    const image = getResource(job.id)
+    if (!image) return null
+    if (job.id !== activeId || !pendingRect) return image
+    return buildCroppedCanvas(image, pendingRect) ?? image
+  }
 
   function onColorChange(color: string | null) {
     if (activeId == null) return
@@ -226,7 +254,7 @@ export default function ImageCropPage() {
   }
 
   function blobForJob(job: Job): Promise<ZipEntry | null> {
-    const image = getResource(job.id)
+    const image = exportCanvasForJob(job)
     if (!image) return Promise.resolve(null)
     const out = document.createElement("canvas")
     out.width = image.width
@@ -314,7 +342,7 @@ export default function ImageCropPage() {
                 !autoRunEnabled && {
                   label: "Crop",
                   icon: CropIcon,
-                  onClick: applyCrop,
+                  onClick: () => applyCrop(),
                   disabled: !pendingRect,
                   more:
                     jobs.length > 1

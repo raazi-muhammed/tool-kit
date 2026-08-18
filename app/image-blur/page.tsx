@@ -9,7 +9,10 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import { useAutoRunEnabled } from "@/components/auto-run-preference"
+import {
+  useAutoRunEnabled,
+  useDeferredRectCommit,
+} from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
@@ -37,6 +40,7 @@ import {
   type ZipEntry,
 } from "@/lib/download"
 import { loadImageAsCanvas } from "@/lib/image-file"
+import { getTool } from "@/lib/tools"
 
 const ACCEPTED = "image/*"
 
@@ -191,28 +195,27 @@ export default function ImageBlurPage() {
     for (const r of allRects) drawSelectionRect(display, r)
   }
 
-  // Which job the previously-active rects/pendingRect belong to — read
-  // inside the effect below, before they get wiped for the newly-active job.
-  const prevActiveIdRef = useRef<number | null>(null)
+  // Whether this tool defers baking (see `useDeferredRectCommit` in
+  // auto-run-preference.tsx) instead of the hook's default eager
+  // bake-on-settle is declared once, in this tool's own lib/tools.ts entry
+  // — read back here rather than duplicated as a literal. Deferred keeps a
+  // drawn rectangle movable indefinitely; `applyBlur` both bakes and
+  // clears the current selection, so it doubles as the "commit before
+  // switching away" fallback in that mode.
+  const { commitBeforeSwitch } = useDeferredRectCommit({
+    autoRunEnabled,
+    activeId,
+    pendingRect,
+    hasPending: () => totalRects > 0,
+    commit: applyBlur,
+    defersBake: getTool("/image-blur").autoRunDefersBake,
+  })
 
   // Paint + fit the visible canvas whenever the active job changes — it only
   // exists in the DOM once a file has been picked, so this can't happen
   // synchronously when a file is added.
   useEffect(() => {
-    const prevId = prevActiveIdRef.current
-    prevActiveIdRef.current = activeId
-    // With "Run automatically" on, rectangles are never baked in while
-    // you're still editing them (see the comment on `applyBlur` below) — so
-    // navigating away from a job would otherwise silently drop its
-    // in-progress blur. Commit it into that job's image before switching.
-    if (prevId != null && prevId !== activeId && autoRunEnabled) {
-      const allRects = pendingRect
-        ? [...rectsRef.current, pendingRect]
-        : rectsRef.current
-      const prevJob = jobs.find((job) => job.id === prevId)
-      if (prevJob && allRects.length > 0)
-        blurJob(prevId, allRects, prevJob.mode)
-    }
+    commitBeforeSwitch(activeId)
     if (activeId == null) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     clearAllRects()
@@ -242,10 +245,15 @@ export default function ImageBlurPage() {
     updateJob(id, { hasEdits: true })
   }
 
-  function applyBlur() {
-    if (activeId == null || totalRects === 0 || !activeJob) return
+  // Bakes (and clears) whatever's pending for `id` — the active job by
+  // default, for the manual "Apply blur" button, but also callable for a
+  // job other than the active one (see `useDeferredRectCommit` above).
+  function applyBlur(id: number | null = activeId) {
+    if (id == null || totalRects === 0) return
+    const job = jobs.find((j) => j.id === id)
+    if (!job) return
     const allRects = pendingRect ? [...rects, pendingRect] : rects
-    blurJob(activeId, allRects, activeJob.mode)
+    blurJob(id, allRects, job.mode)
     clearAllRects()
   }
 
@@ -269,14 +277,6 @@ export default function ImageBlurPage() {
     })
     clearAllRects()
   }
-
-  // With "Run automatically" on, the drawn rectangle(s) already preview live
-  // via `renderDisplay` — there's nothing further to "run", so unlike other
-  // auto-run tools this never bakes/clears on its own. That keeps a settled
-  // rectangle movable/resizable indefinitely instead of freezing into
-  // pixels the instant you finish dragging it. The pending selection is
-  // committed lazily instead: when switching jobs (see the effect above) or
-  // when exporting (see `exportCanvasForJob` below).
 
   // A job "has blur" either because it was explicitly committed (manual
   // Apply/Apply-to-all, or a prior job switch while auto-run was on), or —
@@ -407,7 +407,7 @@ export default function ImageBlurPage() {
                       ? `Apply blur (${totalRects})`
                       : "Apply blur",
                   icon: BlurIcon,
-                  onClick: applyBlur,
+                  onClick: () => applyBlur(),
                   disabled: totalRects === 0,
                   more:
                     jobs.length > 1
