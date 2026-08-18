@@ -46,6 +46,18 @@ export type Tool = {
   name: string
   description: string
   category: Category
+  /**
+   * For a tool with a "Run automatically" interactive commit step (a drawn
+   * selection, a password field, file order, …) — see AGENTS.md's "Run
+   * automatically" section — the default is to bake the pending edit into
+   * the result and clear it the instant it settles. Set this when a tool
+   * deliberately opts out of that: Image Blur keeps a settled rectangle
+   * live/movable and only commits it lazily, at job-switch or export time,
+   * instead of baking eagerly on a debounce. Leave unset for tools with no
+   * auto-run commit step, or where eager baking is fine (Image Crop, Image
+   * Scan, PDF Merge).
+   */
+  autoRunDefersBake?: boolean
 }
 
 export const TOOLS: Tool[] = [
@@ -149,6 +161,7 @@ export const TOOLS: Tool[] = [
     description:
       "Select a rectangle on an image and blur just that region, in your browser.",
     category: "image",
+    autoRunDefersBake: true,
   },
   {
     href: "/image-crop",
