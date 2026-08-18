@@ -9,10 +9,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { useEffect, useRef, useState } from "react"
 
-import {
-  useAutoRunEnabled,
-  useDeferredRectCommit,
-} from "@/components/auto-run-preference"
+import { useEngine } from "@/components/auto-run-preference"
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
 import { PreviewCard } from "@/components/preview-card"
@@ -89,7 +86,6 @@ export default function ImageBlurPage() {
     cleanupJob: (job) => URL.revokeObjectURL(job.previewUrl),
   })
   const [error, setError] = useState<string | null>(null)
-  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const [{ blur, mode }, setBlurSettings] = usePersistedState(
     "image-blur:settings",
     { blur: 20, mode: "pixelate" as BlurMode },
@@ -195,15 +191,14 @@ export default function ImageBlurPage() {
     for (const r of allRects) drawSelectionRect(display, r)
   }
 
-  // Whether this tool defers baking (see `useDeferredRectCommit` in
-  // auto-run-preference.tsx) instead of the hook's default eager
-  // bake-on-settle is declared once, in this tool's own lib/tools.ts entry
-  // — read back here rather than duplicated as a literal. Deferred keeps a
-  // drawn rectangle movable indefinitely; `applyBlur` both bakes and
-  // clears the current selection, so it doubles as the "commit before
-  // switching away" fallback in that mode.
-  const { commitBeforeSwitch } = useDeferredRectCommit({
-    autoRunEnabled,
+  // The "Run automatically" engine — whether this tool defers baking
+  // instead of the default eager bake-on-settle is declared once, in this
+  // tool's own lib/tools.ts entry, and read back here rather than
+  // duplicated as a literal. Deferred keeps a drawn rectangle movable
+  // indefinitely; `applyBlur` both bakes and clears the current selection,
+  // so it doubles as the "commit before switching away" fallback in that
+  // mode. See `useEngine` in auto-run-preference.tsx.
+  const { autoRunEnabled, commitBeforeSwitch } = useEngine({
     activeId,
     pendingRect,
     hasPending: () => totalRects > 0,
@@ -247,7 +242,7 @@ export default function ImageBlurPage() {
 
   // Bakes (and clears) whatever's pending for `id` — the active job by
   // default, for the manual "Apply blur" button, but also callable for a
-  // job other than the active one (see `useDeferredRectCommit` above).
+  // job other than the active one (see `useEngine` above).
   function applyBlur(id: number | null = activeId) {
     if (id == null || totalRects === 0) return
     const job = jobs.find((j) => j.id === id)

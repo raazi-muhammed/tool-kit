@@ -49,7 +49,7 @@ export type Tool = {
   /**
    * For a tool with a "Run automatically" interactive commit step (a drawn
    * selection, …): whether it opts into `defersBake: true` on
-   * `useDeferredRectCommit` (see `components/auto-run-preference.tsx`),
+   * `useEngine` (see `components/auto-run-preference.tsx`),
    * keeping a settled rectangle live/movable and committing it lazily at
    * job-switch or export time — instead of the hook's default eager bake
    * shortly after the selection settles, which clears it immediately. The

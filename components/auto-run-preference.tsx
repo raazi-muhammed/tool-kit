@@ -72,9 +72,11 @@ export function useAutoRunEnabled() {
 }
 
 /**
- * Shared "Run automatically" commit timing for tools with a movable
- * selection rectangle (a drawn crop/blur region, …). Each tool opts in via
- * `defersBake` (default `false`, i.e. the original auto-run behavior):
+ * The full "Run automatically" engine for a tool with a movable selection
+ * rectangle (a drawn crop/blur region, …): reads the global setting itself
+ * (no need for the caller to also call `useAutoRunEnabled`) and decides
+ * the commit timing around it. Each tool opts in via `defersBake` (default
+ * `false`, i.e. the original auto-run behavior):
  *
  * - `defersBake: true` — never bakes on a timer, so the selection stays
  *   live/movable indefinitely. Instead, call the returned
@@ -91,16 +93,16 @@ export function useAutoRunEnabled() {
  *
  * `commit` is expected to both bake and clear the caller's own pending
  * selection state — the same function a manual "Apply" button would call.
+ * Returns `autoRunEnabled` too, since the page still needs it to gate its
+ * own manual button out of `sidebar.actions`.
  */
-export function useDeferredRectCommit({
-  autoRunEnabled,
+export function useEngine({
   activeId,
   pendingRect,
   hasPending,
   commit,
   defersBake = false,
 }: {
-  autoRunEnabled: boolean
   activeId: number | null
   /** The rect whose settling triggers a commit in eager mode. */
   pendingRect: Rect | null | undefined
@@ -112,6 +114,7 @@ export function useDeferredRectCommit({
    *  to `false` (eager) so a tool has to opt in explicitly. */
   defersBake?: boolean
 }) {
+  const { enabled: autoRunEnabled } = useAutoRunEnabled()
   const prevActiveIdRef = React.useRef<number | null>(null)
 
   useDebouncedEffect(
@@ -132,5 +135,5 @@ export function useDeferredRectCommit({
     if (hasPending()) commit(prevId)
   }
 
-  return { commitBeforeSwitch }
+  return { autoRunEnabled, commitBeforeSwitch }
 }
