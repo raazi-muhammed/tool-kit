@@ -221,7 +221,7 @@ export default function ScoreKeeperPage() {
           ))}
         </div>
       ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-md border bg-card/40 py-16 text-center text-muted-foreground">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-md bg-card py-16 text-center text-muted-foreground">
           <HugeiconsIcon icon={PodiumIcon} className="size-8" aria-hidden />
           <p className="text-sm">Add a player to start keeping score.</p>
         </div>

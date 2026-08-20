@@ -1,7 +1,9 @@
 import { PaintBoardIcon } from "@hugeicons/core-free-icons"
 
 import { PageBreadcrumb } from "@/components/page-breadcrumb"
+import { Button, type buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import type { VariantProps } from "class-variance-authority"
 
 // The core theme colors — every non-foreground swatch, plus its foreground
 // pairing, shown together as one grid rather than split into many small
@@ -100,6 +102,21 @@ const LAYER_EXAMPLES: {
     inner: { name: "card", bg: "bg-card", fg: "text-card-foreground" },
   },
 ]
+
+const BUTTON_VARIANTS: NonNullable<
+  VariantProps<typeof buttonVariants>["variant"]
+>[] = [
+  "default",
+  "secondary",
+  "card",
+  "outline",
+  "ghost",
+  "destructive",
+  "link",
+]
+
+const BUTTON_SIZES: NonNullable<VariantProps<typeof buttonVariants>["size"]>[] =
+  ["xs", "sm", "default", "lg"]
 
 const RADII: { name: string; className: string }[] = [
   { name: "xs", className: "rounded-xs" },
@@ -215,6 +232,40 @@ export default function DesignTokensPage() {
               </span>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <SectionHeading>Buttons</SectionHeading>
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-muted-foreground">
+              Variants
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {BUTTON_VARIANTS.map((variant) => (
+                <div key={variant} className="flex flex-col items-center gap-2">
+                  <Button variant={variant}>Button</Button>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {variant}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-medium text-muted-foreground">Sizes</p>
+            <div className="flex flex-wrap items-end gap-3">
+              {BUTTON_SIZES.map((size) => (
+                <div key={size} className="flex flex-col items-center gap-2">
+                  <Button size={size}>Button</Button>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {size}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
