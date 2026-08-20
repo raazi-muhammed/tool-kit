@@ -68,7 +68,7 @@
     --destructive: hsl(357 100% 45%);
     --destructive-foreground: var(--primary-foreground);
     --border: hsl(0 0% 90%);
-    --input: var(--border);
+    --input: var(--card);
     --ring: hsl(0 0% 63%);
     --chart-1: hsl(244 49% 90%);
     --chart-2: hsl(227 49% 90%);
@@ -104,7 +104,7 @@
     --destructive: hsl(359 100% 70%);
     --destructive-foreground: var(--foreground);
     --border: hsl(240 1% 15%);
-    --input: hsl(240 1% 19%);
+    --input: var(--card);
     --ring: hsl(0 0% 45%);
     --chart-1: hsl(244 39% 10%);
     --chart-2: hsl(227 49% 10%);
