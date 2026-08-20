@@ -188,13 +188,13 @@ export default function ImageRotatePage() {
                           label: "Rotate left",
                           icon: RotateCcwSquareIcon,
                           onClick: () => rotateAll(-90),
-                          variant: "secondary",
+                          variant: "card",
                         },
                         {
                           label: "Rotate right",
                           icon: RotateCwSquareIcon,
                           onClick: () => rotateAll(90),
-                          variant: "secondary",
+                          variant: "card",
                         },
                       ],
                     }

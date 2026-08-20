@@ -473,7 +473,7 @@ export default function TextToSpeechPage() {
             label: status === "paused" ? "Resume" : "Pause",
             icon: status === "paused" ? PlayIcon : PauseIcon,
             onClick: togglePause,
-            variant: "secondary",
+            variant: "card",
           },
           status === "idle"
             ? {
@@ -487,7 +487,7 @@ export default function TextToSpeechPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "outline",
+            variant: "card",
           },
         ],
       }}

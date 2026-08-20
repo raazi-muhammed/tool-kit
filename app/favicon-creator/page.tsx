@@ -199,7 +199,7 @@ export default function FaviconCreatorPage() {
       label: `${size}px`,
       icon: SquareIcon,
       onClick: () => toggleSize(size),
-      variant: selected ? ("secondary" as const) : ("outline" as const),
+      variant: selected ? ("card" as const) : ("ghost" as const),
     }
   }
 

@@ -54,7 +54,7 @@ export default function EnvExampleCreatorPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "outline",
+            variant: "card",
           },
         ],
       }}

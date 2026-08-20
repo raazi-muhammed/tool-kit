@@ -265,7 +265,7 @@ export default function SvgToPngPage() {
                     : "Lock aspect ratio",
                   icon: LinkIcon,
                   onClick: toggleLockAspect,
-                  variant: lockAspect ? "secondary" : "outline",
+                  variant: lockAspect ? "card" : "ghost",
                 },
                 !autoRunEnabled && {
                   label: "Convert",

@@ -369,20 +369,20 @@ export default function WheelSpinPage() {
             icon: ShuffleIcon,
             onClick: shuffleNames,
             disabled: spinning || names.length < 2,
-            variant: "secondary",
+            variant: "card",
           },
           {
             label: "Sort",
             icon: SortingAZ01Icon,
             onClick: sortNames,
             disabled: spinning || names.length < 2,
-            variant: "secondary",
+            variant: "card",
           },
           winner !== null && {
             label: "Remove winner",
             icon: Delete02Icon,
             onClick: removeWinner,
-            variant: "secondary",
+            variant: "card",
           },
           {
             label: "Spin",

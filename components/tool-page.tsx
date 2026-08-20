@@ -139,7 +139,7 @@ type SidebarAction = {
   icon: IconSvgElement
   onClick: () => void
   disabled?: boolean
-  variant?: "default" | "outline" | "ghost" | "secondary"
+  variant?: "default" | "ghost" | "card"
   // A secondary "do this to every job" option (e.g. "Apply blur to all"),
   // rendered as a Download-style ButtonGroup + dropdown chevron instead of a
   // separate button.
@@ -155,7 +155,7 @@ type SidebarAction = {
    * width, in a row above that stack (e.g. a momentary "Cancel selection" or
    * a pressed/unpressed toggle button) — set explicitly per action rather
    * than inferred from `variant`, since a toggle's `variant` can itself
-   * change between "secondary"/"outline" depending on its pressed state.
+   * change between "card"/"ghost" depending on its pressed state.
    */
   emphasis?: "primary" | "secondary"
 }
@@ -844,7 +844,7 @@ export function ToolPage({
       {sidebar?.download && (
         <ButtonGroup className="w-full">
           <Button
-            variant="secondary"
+            variant="card"
             onClick={sidebar.download.onDownload}
             disabled={sidebar.download.disabled}
             className="flex-1"
@@ -856,7 +856,7 @@ export function ToolPage({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="secondary"
+                  variant="card"
                   size="icon"
                   disabled={sidebar.download.disabled}
                   aria-label="More download options"
