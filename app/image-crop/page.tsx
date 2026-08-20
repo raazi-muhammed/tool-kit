@@ -332,7 +332,7 @@ export default function ImageCropPage() {
                   label: "Cancel selection",
                   icon: Cancel01Icon,
                   onClick: clearSelection,
-                  variant: "outline",
+                  variant: "card",
                 },
                 !autoRunEnabled && {
                   label: "Crop",

@@ -101,13 +101,13 @@ export default function TextDiffPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "outline",
+            variant: "card",
           },
           {
             label: "Swap",
             icon: ArrowLeftRightIcon,
             onClick: swap,
-            variant: "secondary",
+            variant: "card",
           },
         ],
       }}

@@ -264,10 +264,52 @@ colors: {
 
 Source: [src/index.css](src/index.css), [tailwind.config.js](tailwind.config.js)
 
+## Buttons
+
+Built with `class-variance-authority` on top of the color tokens above — no variant carries
+a drop shadow, and only `default` keeps an inset highlight ring (the gradient needs it to
+read as raised); `secondary`/`card` are flat fills, `ghost`/`outline`/`link` carry no fill at
+rest.
+
+- **default** — `bg-primary` with a subtle top-highlight gradient and inset white ring.
+- **secondary** — flat `bg-secondary` fill.
+- **card** — flat `bg-card` fill; same treatment as `secondary` but for contexts already
+  sitting on a `secondary`/`background` surface, so the button reads as its own elevated
+  card instead of blending in.
+- **outline** — `border-border`, transparent at rest, `bg-muted` on hover.
+- **ghost** — no border, transparent at rest, `bg-muted` on hover.
+- **destructive** — `bg-destructive/10` tint, not a solid fill.
+- **link** — text-only, `text-primary` with an underline on hover.
+
+Sizes: `xs`, `sm`, `default`, `lg`, plus square `icon`/`icon-xs`/`icon-sm`/`icon-lg` for
+icon-only buttons.
+
+```js
+// class-variance-authority variants — see components/ui/button.tsx
+{
+    variant: {
+        default:
+            "bg-primary bg-linear-to-b from-white/8 to-transparent text-primary-foreground ring-1 ring-white/10 ring-inset hover:brightness-102 active:brightness-97 dark:ring-white/5",
+        outline:
+            "border-border bg-transparent hover:bg-muted hover:text-foreground dark:border-input dark:hover:bg-input/50",
+        secondary:
+            "bg-secondary text-secondary-foreground hover:brightness-102 active:brightness-97",
+        card:
+            "bg-card text-card-foreground hover:brightness-102 active:brightness-97",
+        ghost:
+            "hover:bg-muted hover:text-foreground dark:hover:bg-muted/50",
+        destructive:
+            "bg-destructive/10 text-destructive hover:bg-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30",
+        link: "text-primary underline-offset-4 hover:underline",
+    },
+}
+```
+
 ## Preview page
 
 This project has a `/design-tokens` route ([src/pages/design-tokens/index.tsx](src/pages/design-tokens/index.tsx))
-that renders every color group, both fonts, the full radius scale, and a "Surface Layering"
-section showing how `background`/`card`/`secondary` look nested against each other — plus a
-light/dark toggle. When applying this token system to a new project, create the same kind
-of page so the whole palette can be checked at a glance instead of guessing from CSS alone.
+that renders every color group, both fonts, the full radius scale, every `Button` variant and
+size, and a "Surface Layering" section showing how `background`/`card`/`secondary` look
+nested against each other — plus a light/dark toggle. When applying this token system to a
+new project, create the same kind of page so the whole palette can be checked at a glance
+instead of guessing from CSS alone.

@@ -388,13 +388,13 @@ export default function ImageBlurPage() {
                   label: "Delete rectangle",
                   icon: RemoveSquareIcon,
                   onClick: clearSelection,
-                  variant: "outline",
+                  variant: "card",
                 },
                 rects.length > 0 && {
                   label: "Clear all",
                   icon: Cancel01Icon,
                   onClick: clearAllRects,
-                  variant: "outline",
+                  variant: "card",
                 },
                 !autoRunEnabled && {
                   label:

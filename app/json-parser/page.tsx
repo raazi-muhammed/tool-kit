@@ -104,14 +104,14 @@ export default function JsonParserPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "outline",
+            variant: "card",
           },
           { label: "Format", icon: TextIndentIcon, onClick: format },
           {
             label: "Minify",
             icon: ArrowShrink02Icon,
             onClick: minify,
-            variant: "secondary",
+            variant: "card",
           },
         ],
       }}

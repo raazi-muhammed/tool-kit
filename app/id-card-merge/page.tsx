@@ -489,7 +489,7 @@ export default function IdCardMergePage() {
                   label: "Swap front and back",
                   icon: ArrowDataTransferVerticalIcon,
                   onClick: swap,
-                  variant: "secondary",
+                  variant: "card",
                 },
               ],
               download: {

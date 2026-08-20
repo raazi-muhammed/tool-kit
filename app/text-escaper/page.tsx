@@ -103,7 +103,7 @@ export default function TextEscaperPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "outline",
+            variant: "card",
           },
           {
             label: copied ? "Copied" : "Copy output",

@@ -71,7 +71,7 @@ export default function MarkdownViewerPage() {
             label: "Clear",
             icon: Eraser01Icon,
             onClick: clear,
-            variant: "outline",
+            variant: "card",
           },
         ],
         download: { onDownload: download, disabled: !raw.trim() },
