@@ -66,6 +66,26 @@ To make everything rounder/squarer, change only `--radius`.
 No custom type scale — uses Tailwind's default `text-*` utilities
 (`text-xs` … `text-9xl`) as-is.
 
+## Icons
+
+[Hugeicons](https://hugeicons.com/) (free/core set) — not lucide-react or any other icon
+library. Icons are data objects (`IconSvgElement`), not components, and must be rendered
+through the shared `HugeiconsIcon` wrapper:
+
+```bash
+npm install @hugeicons/react @hugeicons/core-free-icons
+```
+
+```tsx
+import { HugeiconsIcon } from "@hugeicons/react"
+import { BracesIcon } from "@hugeicons/core-free-icons"
+
+;<HugeiconsIcon icon={BracesIcon} className="size-4" aria-hidden />
+```
+
+If using shadcn, set `"iconLibrary": "hugeicons"` in `components.json` so generated
+components follow suit.
+
 ## Colors
 
 Values are stored as bare HSL component triplets (`H S% L%`, no `hsl()` wrapper) and

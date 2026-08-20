@@ -64,7 +64,7 @@ function roundedRectPath(
  * composited over `bg` if set, else left transparent outside the shape (and
  * inside it too, when there's no `bg`).
  */
-function renderIconCanvas(
+export function renderIconCanvas(
   source: CanvasImageSource,
   size: number,
   bg: string | null,
