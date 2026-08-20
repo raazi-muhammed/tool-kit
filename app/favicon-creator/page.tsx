@@ -67,7 +67,7 @@ async function loadResource(file: File): Promise<HTMLImageElement> {
   }
 }
 
-export default function ImageToIcoPage() {
+export default function FaviconCreatorPage() {
   const {
     jobs,
     activeId,
@@ -205,7 +205,7 @@ export default function ImageToIcoPage() {
 
   return (
     <ToolPage
-      page="Image to ICO"
+      page="Favicon Creator"
       icon={BrowserIcon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={

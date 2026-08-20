@@ -268,9 +268,9 @@ export const TOOLS: Tool[] = [
     category: "convert",
   },
   {
-    href: "/image-to-ico",
+    href: "/favicon-creator",
     icon: BrowserIcon,
-    name: "Image to ICO",
+    name: "Favicon Creator",
     description:
       "Pack a logo into a multi-resolution .ico favicon, in your browser.",
     category: "convert",
