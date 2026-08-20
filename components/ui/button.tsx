@@ -14,9 +14,9 @@ const buttonVariants = cva(
         outline:
           "border-border bg-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:hover:bg-input/50",
         secondary:
-          "bg-secondary text-secondary-foreground ring-1 ring-black/5 ring-inset hover:brightness-102 active:brightness-97 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground dark:ring-white/5",
+          "bg-secondary text-secondary-foreground hover:brightness-102 active:brightness-97 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         card:
-          "bg-card text-card-foreground ring-1 ring-black/5 ring-inset hover:brightness-102 active:brightness-97 aria-expanded:bg-card aria-expanded:text-card-foreground dark:ring-white/5",
+          "bg-card text-card-foreground hover:brightness-102 active:brightness-97 aria-expanded:bg-card aria-expanded:text-card-foreground",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
@@ -28,7 +28,7 @@ const buttonVariants = cva(
           "h-10 gap-1.5 px-5 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",
         xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2.5 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-3 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        lg: "h-9 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
+        lg: "h-12 gap-1.5 px-4 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         icon: "size-10",
         "icon-xs":
           "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
