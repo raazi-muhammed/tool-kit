@@ -120,9 +120,9 @@ function uniqueZipName(name: string, used: Set<string>): string {
   return candidate
 }
 
-/** Bundle `entries` into a single .zip and trigger one download for it. No-ops if `entries` is empty. */
-export async function downloadZip(entries: ZipEntry[], zipName: string) {
-  if (!entries.length) return
+/** Bundle `entries` into a single .zip `Blob`. Returns `null` if `entries` is empty. */
+export async function zipEntriesToBlob(entries: ZipEntry[]): Promise<Blob | null> {
+  if (!entries.length) return null
   const used = new Set<string>()
   const files: Record<string, Uint8Array> = {}
   for (const entry of entries) {
@@ -131,7 +131,13 @@ export async function downloadZip(entries: ZipEntry[], zipName: string) {
     )
   }
   const zipped = zipSync(files)
-  const blob = new Blob([new Uint8Array(zipped)], { type: "application/zip" })
+  return new Blob([new Uint8Array(zipped)], { type: "application/zip" })
+}
+
+/** Bundle `entries` into a single .zip and trigger one download for it. No-ops if `entries` is empty. */
+export async function downloadZip(entries: ZipEntry[], zipName: string) {
+  const blob = await zipEntriesToBlob(entries)
+  if (!blob) return
   const url = URL.createObjectURL(blob)
   downloadFile(url, zipName)
   URL.revokeObjectURL(url)

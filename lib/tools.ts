@@ -27,6 +27,7 @@ import {
   Resize02Icon,
   ScanIcon,
   ScissorRectangleIcon,
+  SmartPhone01Icon,
   SquareIcon,
   SquareRoundCornerIcon,
   VoiceIcon,
@@ -273,6 +274,14 @@ export const TOOLS: Tool[] = [
     name: "Favicon Creator",
     description:
       "Pack a logo into a multi-resolution .ico favicon, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/pwa-icon-generator",
+    icon: SmartPhone01Icon,
+    name: "PWA Icon Generator",
+    description:
+      "Generate the full favicon, apple-touch-icon, and Android Chrome icon set plus a web app manifest, in your browser.",
     category: "convert",
   },
   {
