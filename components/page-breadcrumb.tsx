@@ -28,7 +28,7 @@ export function PageBreadcrumb({
             <BreadcrumbLink asChild>
               <Link
                 href="/"
-                className="flex items-center gap-1.5 font-[family-name:var(--font-display)]"
+                className="flex items-center gap-1.5 font-display font-bold"
               >
                 Tool Kit
               </Link>
@@ -36,7 +36,7 @@ export function PageBreadcrumb({
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage className="flex items-center gap-1.5">
+            <BreadcrumbPage className="flex items-center gap-1.5 font-display font-bold">
               <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
               {page}
             </BreadcrumbPage>
