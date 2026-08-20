@@ -117,7 +117,7 @@ export default function Page() {
   return (
     <div className="mx-auto flex min-h-svh max-w-7xl flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-3 font-[family-name:var(--font-display)] text-xl font-bold">
+        <h1 className="flex items-center gap-3 font-display text-xl font-bold">
           Tool Kit
         </h1>
         <div className="flex items-center gap-2">

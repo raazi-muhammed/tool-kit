@@ -1,4 +1,4 @@
-import { Geist_Mono, Inter, Unbounded } from "next/font/google"
+import { Fira_Code, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 
 import "./globals.css"
@@ -14,15 +14,9 @@ import { cn } from "@/lib/utils"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
-const fontMono = Geist_Mono({
+const fontMono = Fira_Code({
   subsets: ["latin"],
   variable: "--font-mono",
-})
-
-const fontDisplay = Unbounded({
-  subsets: ["latin"],
-  weight: ["700", "800"],
-  variable: "--font-display",
 })
 
 export default function RootLayout({
@@ -38,8 +32,7 @@ export default function RootLayout({
         "overflow-x-hidden antialiased",
         fontMono.variable,
         "font-sans",
-        inter.variable,
-        fontDisplay.variable
+        inter.variable
       )}
     >
       <body className="overflow-x-hidden">
