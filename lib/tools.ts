@@ -4,6 +4,7 @@ import {
   AudioWave01Icon,
   BlurIcon,
   BracesIcon,
+  BrowserIcon,
   Calculator01Icon,
   CodeIcon,
   Csv01Icon,
@@ -264,6 +265,14 @@ export const TOOLS: Tool[] = [
     icon: Png01Icon,
     name: "SVG to PNG",
     description: "Convert SVG files to PNG at any resolution, in your browser.",
+    category: "convert",
+  },
+  {
+    href: "/favicon-creator",
+    icon: BrowserIcon,
+    name: "Favicon Creator",
+    description:
+      "Pack a logo into a multi-resolution .ico favicon, in your browser.",
     category: "convert",
   },
   {

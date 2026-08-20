@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { Fira_Code, Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 
@@ -18,6 +19,10 @@ const fontMono = Fira_Code({
   subsets: ["latin"],
   variable: "--font-mono",
 })
+
+export const metadata: Metadata = {
+  title: "Tool Kit",
+}
 
 export default function RootLayout({
   children,
