@@ -185,7 +185,7 @@ export function CommandMenuTrigger({ className }: { className?: string }) {
   return (
     <Button
       ref={setTriggerRef}
-      variant="secondary"
+      variant="card"
       onClick={(e) => context.open(transformOriginFromEvent(e))}
       className={cn("justify-between", className)}
     >
