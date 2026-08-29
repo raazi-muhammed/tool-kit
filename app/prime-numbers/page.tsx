@@ -4,15 +4,14 @@ import {
   ArrowLeftRightIcon,
   ArrowRight01Icon,
   Copy01Icon,
-  HashtagIcon,
   SquareRootSquareIcon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 import { useMemo, useState } from "react"
 
 import type { PreviewLayer } from "@/components/preview-card"
 import { PreviewCard } from "@/components/preview-card"
-import { StatSection } from "@/components/stat-tile"
 import { ToolPage } from "@/components/tool-page"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -22,20 +21,18 @@ import {
   nextPrimesFrom,
   primesInRange,
 } from "@/lib/prime"
+import { cn } from "@/lib/utils"
 
 type Mode = "range" | "from"
 
-function statValue(n: number | undefined): string {
-  return n === undefined ? "—" : n.toLocaleString()
-}
-
 export default function PrimeNumbersPage() {
-  const [mode, setMode] = useState<Mode>("range")
+  const [mode, setMode] = useState<Mode>("from")
   const [rangeStart, setRangeStart] = useState("50")
   const [rangeEnd, setRangeEnd] = useState("150")
-  const [fromStart, setFromStart] = useState("30")
+  const [fromStart, setFromStart] = useState("1")
   const [fromCount, setFromCount] = useState("20")
-  const [copied, setCopied] = useState(false)
+  const [copiedAll, setCopiedAll] = useState(false)
+  const [copiedPrime, setCopiedPrime] = useState<number | null>(null)
 
   const { primes, error } = useMemo(() => {
     if (mode === "range") {
@@ -85,12 +82,18 @@ export default function PrimeNumbersPage() {
     return { primes: nextPrimesFrom(start, Math.floor(count)), error: null }
   }, [mode, rangeStart, rangeEnd, fromStart, fromCount])
 
-  const sum = primes.reduce((total, prime) => total + prime, 0)
-
   async function copyPrimes() {
     await navigator.clipboard.writeText(primes.join(", "))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    setCopiedAll(true)
+    setTimeout(() => setCopiedAll(false), 1500)
+  }
+
+  async function copyPrime(prime: number) {
+    await navigator.clipboard.writeText(String(prime))
+    setCopiedPrime(prime)
+    setTimeout(() => {
+      setCopiedPrime((current) => (current === prime ? null : current))
+    }, 1000)
   }
 
   const layer: PreviewLayer = error
@@ -99,14 +102,31 @@ export default function PrimeNumbersPage() {
       ? {
           kind: "list",
           children: (
-            <div className="flex flex-wrap content-start gap-2">
+            <div className="flex flex-wrap content-start gap-2.5">
               {primes.map((prime) => (
                 <Badge
                   key={prime}
-                  variant="outline"
-                  className="px-2.5 py-1 text-sm tabular-nums"
+                  role="button"
+                  tabIndex={-1}
+                  title={`Copy ${prime}`}
+                  onClick={() => copyPrime(prime)}
+                  className="group h-7 cursor-pointer gap-0 rounded-full bg-primary/10 px-3 text-sm text-primary tabular-nums transition-colors hover:bg-primary/15"
                 >
                   {prime}
+                  <span
+                    className={cn(
+                      "inline-flex w-0 shrink-0 items-center overflow-hidden transition-all",
+                      copiedPrime === prime
+                        ? "ml-1.5 w-3"
+                        : "group-hover:ml-1.5 group-hover:w-3"
+                    )}
+                  >
+                    <HugeiconsIcon
+                      icon={copiedPrime === prime ? Tick02Icon : Copy01Icon}
+                      aria-hidden
+                      className="size-3 shrink-0"
+                    />
+                  </span>
                 </Badge>
               ))}
             </div>
@@ -129,8 +149,8 @@ export default function PrimeNumbersPage() {
         onValueChange: (value) => setMode(value as Mode),
         label: "Mode",
         options: [
-          { value: "range", label: "Range", icon: ArrowLeftRightIcon },
           { value: "from", label: "From", icon: ArrowRight01Icon },
+          { value: "range", label: "Range", icon: ArrowLeftRightIcon },
         ],
       }}
       sidebar={{
@@ -168,22 +188,10 @@ export default function PrimeNumbersPage() {
                   min: 1,
                 },
               ],
-        hint: (
-          <StatSection
-            icon={HashtagIcon}
-            label="Results"
-            tiles={[
-              { label: "found", value: primes.length.toLocaleString() },
-              { label: "smallest", value: statValue(primes[0]) },
-              { label: "largest", value: statValue(primes[primes.length - 1]) },
-              { label: "sum", value: primes.length ? sum.toLocaleString() : "—" },
-            ]}
-          />
-        ),
         actions: [
           {
-            label: copied ? "Copied" : "Copy list",
-            icon: copied ? Tick02Icon : Copy01Icon,
+            label: copiedAll ? "Copied" : "Copy list",
+            icon: copiedAll ? Tick02Icon : Copy01Icon,
             onClick: copyPrimes,
             variant: "card",
             disabled: primes.length === 0,
