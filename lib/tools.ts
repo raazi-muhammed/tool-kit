@@ -29,7 +29,9 @@ import {
   ScissorRectangleIcon,
   SmartPhone01Icon,
   SquareIcon,
+  SquareRootSquareIcon,
   SquareRoundCornerIcon,
+  TextAlignLeftIcon,
   VoiceIcon,
 } from "@hugeicons/core-free-icons"
 
@@ -118,11 +120,27 @@ export const TOOLS: Tool[] = [
     category: "data",
   },
   {
+    href: "/word-counter",
+    icon: TextAlignLeftIcon,
+    name: "Word Counter",
+    description:
+      "Count characters, words, sentences, and paragraphs, plus reading and speaking time.",
+    category: "data",
+  },
+  {
     href: "/env-example-creator",
     icon: Key01Icon,
     name: ".env.example Creator",
     description:
       "Paste a .env file and get a .env.example with keys kept and values blanked out.",
+    category: "data",
+  },
+  {
+    href: "/prime-numbers",
+    icon: SquareRootSquareIcon,
+    name: "Prime Numbers",
+    description:
+      "Find every prime in a range, or the next primes after a starting number.",
     category: "data",
   },
   {
