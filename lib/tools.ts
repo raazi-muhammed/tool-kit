@@ -29,6 +29,7 @@ import {
   ScissorRectangleIcon,
   SmartPhone01Icon,
   SquareIcon,
+  SquareRootSquareIcon,
   SquareRoundCornerIcon,
   TextAlignLeftIcon,
   VoiceIcon,
@@ -132,6 +133,14 @@ export const TOOLS: Tool[] = [
     name: ".env.example Creator",
     description:
       "Paste a .env file and get a .env.example with keys kept and values blanked out.",
+    category: "data",
+  },
+  {
+    href: "/prime-numbers",
+    icon: SquareRootSquareIcon,
+    name: "Prime Numbers",
+    description:
+      "Find every prime in a range, or the next primes after a starting number.",
     category: "data",
   },
   {
