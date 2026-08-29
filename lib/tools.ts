@@ -30,6 +30,7 @@ import {
   SmartPhone01Icon,
   SquareIcon,
   SquareRoundCornerIcon,
+  TextAlignLeftIcon,
   VoiceIcon,
 } from "@hugeicons/core-free-icons"
 
@@ -115,6 +116,14 @@ export const TOOLS: Tool[] = [
     name: "Text Escaper",
     description:
       "Escape or decode text for HTML, JavaScript, JSON, or a URL, side by side.",
+    category: "data",
+  },
+  {
+    href: "/word-counter",
+    icon: TextAlignLeftIcon,
+    name: "Word Counter",
+    description:
+      "Count characters, words, sentences, and paragraphs, plus reading and speaking time.",
     category: "data",
   },
   {
