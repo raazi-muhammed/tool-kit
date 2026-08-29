@@ -89,10 +89,13 @@ export function evaluateExpression(
       return variables[name]
     }
 
-    const numMatch = /^\d+(\.\d+)?/.exec(s.slice(pos))
+    // Comma is accepted anywhere in the integer part (not just every three
+    // digits) so a typo'd grouping like "12,00" still parses, rather than
+    // rejecting the whole expression - it's stripped before parsing either way.
+    const numMatch = /^\d[\d,]*(\.\d+)?/.exec(s.slice(pos))
     if (!numMatch) throw new Error("Expected number")
     pos += numMatch[0].length
-    return Number.parseFloat(numMatch[0])
+    return Number.parseFloat(numMatch[0].replace(/,/g, ""))
   }
 
   try {
