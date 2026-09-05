@@ -10,6 +10,9 @@ import {
   InstagramIcon,
   Linkedin01Icon,
   Mail01Icon,
+  Shield01Icon,
+  Tag01Icon,
+  WifiOff01Icon,
 } from "@hugeicons/core-free-icons"
 import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
@@ -42,6 +45,12 @@ import { CATEGORIES, TOOLS, type Category } from "@/lib/tools"
 import { cn, transformOriginFromRect } from "@/lib/utils"
 
 const CONTACT_EMAIL = "raazi6163@gmail.com"
+
+const HERO_BADGES: { label: string; icon: IconSvgElement }[] = [
+  { label: "Works offline", icon: WifiOff01Icon },
+  { label: "100% private", icon: Shield01Icon },
+  { label: "Free", icon: Tag01Icon },
+]
 
 const SOCIAL_LINKS: {
   label: string
@@ -134,6 +143,31 @@ export default function Page() {
           <ModeToggle />
           <CommandMenuTrigger className="hidden w-72 sm:flex" />
           <CommandMenuIconTrigger className="sm:hidden" />
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-3xl bg-linear-to-b from-primary/10 via-primary/5 to-transparent px-6 py-10 text-center sm:py-14">
+        <h2 className="mx-auto max-w-xl text-3xl font-bold text-balance sm:text-4xl">
+          Offline tools for everyday tasks
+        </h2>
+        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground sm:text-base">
+          Free tools that run entirely in your browser — nothing you drop in
+          ever leaves your device.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          {HERO_BADGES.map(({ label, icon }) => (
+            <span
+              key={label}
+              className="flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-xs font-medium text-foreground/80 ring-1 ring-border"
+            >
+              <HugeiconsIcon
+                icon={icon}
+                className="size-3.5 text-primary"
+                aria-hidden
+              />
+              {label}
+            </span>
+          ))}
         </div>
       </div>
 
