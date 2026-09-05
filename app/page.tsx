@@ -4,16 +4,21 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import type { IconSvgElement } from "@hugeicons/react"
 import {
   ArrowRight01Icon,
+  Cancel01Icon,
   Contact01Icon,
   CustomerSupportIcon,
   GithubIcon,
+  InformationCircleIcon,
   InstagramIcon,
   Linkedin01Icon,
   Mail01Icon,
+  Shield01Icon,
+  Tag01Icon,
+  WifiOff01Icon,
 } from "@hugeicons/core-free-icons"
 import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 
 import {
   Card,
@@ -42,6 +47,52 @@ import { CATEGORIES, TOOLS, type Category } from "@/lib/tools"
 import { cn, transformOriginFromRect } from "@/lib/utils"
 
 const CONTACT_EMAIL = "raazi6163@gmail.com"
+
+const HERO_BADGES: { label: string; icon: IconSvgElement }[] = [
+  { label: "Works offline", icon: WifiOff01Icon },
+  { label: "100% private", icon: Shield01Icon },
+  { label: "Free", icon: Tag01Icon },
+]
+
+const HERO_DISMISSED_KEY = "home-hero-dismissed"
+const heroDismissedListeners = new Set<() => void>()
+
+function subscribeHeroDismissed(onStoreChange: () => void) {
+  heroDismissedListeners.add(onStoreChange)
+  return () => heroDismissedListeners.delete(onStoreChange)
+}
+
+function getHeroDismissedSnapshot(): boolean {
+  try {
+    return localStorage.getItem(HERO_DISMISSED_KEY) === "true"
+  } catch {
+    return false
+  }
+}
+
+function getHeroDismissedServerSnapshot(): boolean {
+  return false
+}
+
+function dismissHero() {
+  try {
+    localStorage.setItem(HERO_DISMISSED_KEY, "true")
+  } catch {
+    // Storage full/unavailable (e.g. private browsing) — listeners still
+    // fire, so this tab's in-memory state updates even if it won't persist.
+  }
+  heroDismissedListeners.forEach((listener) => listener())
+}
+
+function showHero() {
+  try {
+    localStorage.removeItem(HERO_DISMISSED_KEY)
+  } catch {
+    // Storage full/unavailable (e.g. private browsing) — listeners still
+    // fire, so this tab's in-memory state updates even if it won't persist.
+  }
+  heroDismissedListeners.forEach((listener) => listener())
+}
 
 const SOCIAL_LINKS: {
   label: string
@@ -79,6 +130,11 @@ export default function Page() {
   const expandCard = useCardExpand()
   const { enabled: animationsEnabled } = useAnimationsEnabled()
   const { enabled: compact } = useCompactViewEnabled()
+  const heroDismissed = useSyncExternalStore(
+    subscribeHeroDismissed,
+    getHeroDismissedSnapshot,
+    getHeroDismissedServerSnapshot
+  )
   const [category, setCategory] = useState<Category | "all">("all")
   const [supportOpen, setSupportOpen] = useState(false)
   const [supportOrigin, setSupportOrigin] = useState("")
@@ -121,6 +177,16 @@ export default function Page() {
           Tool Kit
         </h1>
         <div className="flex items-center gap-2">
+          <IconTooltip label="About">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="About"
+              onClick={showHero}
+            >
+              <HugeiconsIcon icon={InformationCircleIcon} aria-hidden />
+            </Button>
+          </IconTooltip>
           <IconTooltip label="Need something?">
             <Button
               variant="ghost"
@@ -136,6 +202,77 @@ export default function Page() {
           <CommandMenuIconTrigger className="sm:hidden" />
         </div>
       </div>
+
+      <AnimatePresence>
+        {!heroDismissed && (
+          <motion.div
+            key="hero"
+            initial={animationsEnabled ? { opacity: 0, y: -12 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{
+              opacity: 0,
+              height: 0,
+              scale: 0.98,
+              marginBottom: 0,
+              transition: {
+                duration: animationsEnabled ? 0.25 : 0,
+                ease: [0.4, 0, 0.2, 1],
+              },
+            }}
+            transition={{
+              duration: animationsEnabled ? 0.3 : 0,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            className="relative overflow-hidden rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10 sm:py-14"
+            style={{
+              // Plain gradient backgrounds instead of separate blurred
+              // (`filter`) elements — Chromium doesn't reliably clip a
+              // blurred descendant to a rounded `overflow-hidden` corner
+              // (this bled past the top-right/bottom-left corners here),
+              // but a background-image always respects border-radius.
+              backgroundImage: [
+                "radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 12%, transparent), transparent 50%)",
+                "radial-gradient(circle at bottom left, color-mix(in srgb, var(--primary) 8%, transparent), transparent 50%)",
+              ].join(", "),
+            }}
+          >
+            <IconTooltip label="Dismiss">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Dismiss"
+                className="absolute top-3 right-3"
+                onClick={dismissHero}
+              >
+                <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+              </Button>
+            </IconTooltip>
+
+            <h2 className="mx-auto max-w-xl text-3xl font-bold text-balance sm:text-4xl">
+              Offline tools for everyday tasks
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground sm:text-base">
+              Free tools that run entirely in your browser. Nothing you drop in
+              ever leaves your device.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              {HERO_BADGES.map(({ label, icon }) => (
+                <span
+                  key={label}
+                  className="flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground/80 ring-1 ring-border backdrop-blur-sm"
+                >
+                  <HugeiconsIcon
+                    icon={icon}
+                    className="size-3.5 text-primary"
+                    aria-hidden
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div
         className={cn(
