@@ -207,13 +207,16 @@ export default function Page() {
         {!heroDismissed && (
           <motion.div
             key="hero"
-            initial={animationsEnabled ? { opacity: 0, y: -12 } : false}
-            animate={{ opacity: 1, y: 0 }}
+            initial={
+              animationsEnabled
+                ? { opacity: 0, y: -12, height: 0, marginBottom: "-1rem" }
+                : false
+            }
+            animate={{ opacity: 1, y: 0, height: "auto", marginBottom: 0 }}
             exit={{
               opacity: 0,
               height: 0,
-              scale: 0.98,
-              marginBottom: 0,
+              marginBottom: "-1rem",
               transition: {
                 duration: animationsEnabled ? 0.25 : 0,
                 ease: [0.4, 0, 0.2, 1],
@@ -223,52 +226,69 @@ export default function Page() {
               duration: animationsEnabled ? 0.3 : 0,
               ease: [0.4, 0, 0.2, 1],
             }}
-            className="relative overflow-hidden rounded-xl bg-card px-6 py-10 text-center ring-1 ring-foreground/10 sm:py-14"
-            style={{
-              // Plain gradient backgrounds instead of separate blurred
-              // (`filter`) elements — Chromium doesn't reliably clip a
-              // blurred descendant to a rounded `overflow-hidden` corner
-              // (this bled past the top-right/bottom-left corners here),
-              // but a background-image always respects border-radius.
-              backgroundImage: [
-                "radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 12%, transparent), transparent 50%)",
-                "radial-gradient(circle at bottom left, color-mix(in srgb, var(--primary) 8%, transparent), transparent 50%)",
-              ].join(", "),
-            }}
+            className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
           >
-            <IconTooltip label="Dismiss">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Dismiss"
-                className="absolute top-3 right-3"
-                onClick={dismissHero}
-              >
-                <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
-              </Button>
-            </IconTooltip>
+            {/* Padding lives on this inner element, not the height-animated
+                motion.div above — measuring "auto" height on a node that also
+                carries padding made the collapse animation's start height
+                wrong, so it visibly snapped shut partway instead of easing
+                all the way to 0. */}
+            <div className="relative px-6 py-10 text-center sm:py-14">
+              <div
+                aria-hidden
+                className="absolute inset-0"
+                style={{
+                  backgroundImage: [
+                    "radial-gradient(circle, transparent 20%, var(--card) 20%, var(--card) 80%, transparent 80%, transparent)",
+                    "radial-gradient(circle, transparent 20%, var(--card) 20%, var(--card) 80%, transparent 80%, transparent)",
+                    "linear-gradient(var(--accent) 2px, transparent 2px)",
+                    "linear-gradient(90deg, var(--accent) 2px, var(--card) 2px)",
+                  ].join(", "),
+                  backgroundPosition: "0 0, 25px 25px, 0 -1px, -1px 0",
+                  backgroundSize: "50px 50px, 50px 50px, 25px 25px, 25px 25px",
+                  maskImage:
+                    "radial-gradient(ellipse 65% 85% at center, rgba(0,0,0,0.35) 50%, black 85%)",
+                  WebkitMaskImage:
+                    "radial-gradient(ellipse 65% 85% at center, rgba(0,0,0,0.35) 50%, black 85%)",
+                }}
+              />
 
-            <h2 className="mx-auto max-w-xl text-3xl font-bold text-balance sm:text-4xl">
-              Offline tools for everyday tasks
-            </h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground sm:text-base">
-              Free tools that run entirely in your browser. Nothing you drop in
-              ever leaves your device.
-            </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              {HERO_BADGES.map(({ label, icon }) => (
-                <span
-                  key={label}
-                  className="flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground/80 ring-1 ring-border backdrop-blur-sm"
+              <IconTooltip label="Dismiss">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Dismiss"
+                  className="absolute top-3 right-3"
+                  onClick={dismissHero}
                 >
-                  <HugeiconsIcon
-                    icon={icon}
-                    className="size-3.5 text-primary"
-                    aria-hidden
-                  />
-                  {label}
-                </span>
-              ))}
+                  <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+                </Button>
+              </IconTooltip>
+
+              <div className="relative">
+                <h2 className="mx-auto max-w-xl font-display text-3xl font-bold text-balance sm:text-4xl">
+                  Offline tools for everyday tasks
+                </h2>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground sm:text-base">
+                  Free tools that run entirely in your browser. Nothing you
+                  drop in ever leaves your device.
+                </p>
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {HERO_BADGES.map(({ label, icon }) => (
+                    <span
+                      key={label}
+                      className="flex items-center gap-1.5 rounded-full bg-card/80 px-3 py-1.5 text-xs font-medium text-foreground/80 ring-1 ring-border backdrop-blur-sm"
+                    >
+                      <HugeiconsIcon
+                        icon={icon}
+                        className="size-3.5 text-primary"
+                        aria-hidden
+                      />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </motion.div>
         )}
