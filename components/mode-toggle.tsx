@@ -38,13 +38,13 @@ function ThemePreview({ value }: { value: ThemeValue }) {
   if (value === "system") {
     return (
       <div className="flex size-full">
-        <div className="relative flex-1 bg-neutral-700">
-          <div className="absolute inset-x-1 top-4 bottom-1 flex items-center justify-center rounded-sm bg-neutral-950 text-[10px] font-medium text-neutral-50">
+        <div className="flex flex-1 items-center justify-center bg-neutral-900">
+          <div className="flex h-7 items-center justify-center rounded-full border border-white/10 bg-black px-3 text-[10px] font-medium text-white">
             Aa
           </div>
         </div>
-        <div className="relative flex-1 bg-neutral-200">
-          <div className="absolute inset-x-1 top-4 bottom-1 flex items-center justify-center rounded-sm bg-white text-[10px] font-medium text-neutral-900">
+        <div className="flex flex-1 items-center justify-center bg-neutral-200">
+          <div className="flex h-7 items-center justify-center rounded-full border border-black/10 bg-white px-3 text-[10px] font-medium text-neutral-900">
             Aa
           </div>
         </div>
@@ -55,16 +55,18 @@ function ThemePreview({ value }: { value: ThemeValue }) {
   return (
     <div
       className={cn(
-        "relative size-full",
-        value === "light" ? "bg-neutral-200" : "bg-neutral-700"
+        "flex size-full items-center justify-center rounded-lg",
+        value === "light"
+          ? "bg-neutral-200"
+          : "border border-white/10 bg-neutral-950"
       )}
     >
       <div
         className={cn(
-          "absolute inset-x-2 top-5 bottom-2 flex items-center justify-center rounded-sm text-xs font-medium",
+          "flex h-8 items-center justify-center rounded-full border px-4 text-xs font-medium",
           value === "light"
-            ? "bg-white text-neutral-900"
-            : "bg-neutral-950 text-neutral-50"
+            ? "border-black/10 bg-white text-neutral-900"
+            : "border-white/10 bg-neutral-800 text-neutral-50"
         )}
       >
         Aa
@@ -82,7 +84,7 @@ function LayoutPreview({ compact }: { compact: boolean }) {
   return (
     <div
       className={cn(
-        "grid size-full content-start bg-muted",
+        "grid size-full content-start bg-card",
         compact ? "grid-cols-3 gap-1 p-1.5" : "grid-cols-2 gap-1.5 p-2"
       )}
     >
@@ -247,30 +249,39 @@ export function ModeToggle() {
               })}
             </div>
           </div>
-          <div className="flex h-12 items-center justify-between gap-2 rounded-lg bg-muted px-3">
-            <label htmlFor="animations-toggle" className="text-sm font-medium">
-              Animations
-            </label>
-            <Switch
-              id="animations-toggle"
-              checked={animationsEnabled}
-              onCheckedChange={setAnimationsEnabled}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted px-3 py-2">
-            <div className="flex flex-col gap-0.5">
-              <label htmlFor="auto-run-toggle" className="text-sm font-medium">
-                Run automatically
+          <div className="overflow-hidden rounded-lg bg-card">
+            <div className="flex h-12 items-center justify-between gap-2 px-3">
+              <label
+                htmlFor="animations-toggle"
+                className="text-sm font-medium"
+              >
+                Animations
               </label>
-              <span className="text-xs text-muted-foreground">
-                Skip the Scan/Convert click and apply changes as you go
-              </span>
+              <Switch
+                id="animations-toggle"
+                checked={animationsEnabled}
+                onCheckedChange={setAnimationsEnabled}
+              />
             </div>
-            <Switch
-              id="auto-run-toggle"
-              checked={autoRunEnabled}
-              onCheckedChange={setAutoRunEnabled}
-            />
+            <div className="mx-3 h-px bg-border" aria-hidden />
+            <div className="flex items-center justify-between gap-2 px-3 py-2">
+              <div className="flex flex-col gap-0.5">
+                <label
+                  htmlFor="auto-run-toggle"
+                  className="text-sm font-medium"
+                >
+                  Run automatically
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  Skip the Scan/Convert click and apply changes as you go
+                </span>
+              </div>
+              <Switch
+                id="auto-run-toggle"
+                checked={autoRunEnabled}
+                onCheckedChange={setAutoRunEnabled}
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

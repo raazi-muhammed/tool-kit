@@ -18,7 +18,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
-import { useState, useSyncExternalStore } from "react"
+import { Fragment, useState, useSyncExternalStore } from "react"
 
 import {
   Card,
@@ -226,7 +226,7 @@ export default function Page() {
               duration: animationsEnabled ? 0.3 : 0,
               ease: [0.4, 0, 0.2, 1],
             }}
-            className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10"
+            className="overflow-hidden rounded-xl bg-popover"
           >
             {/* Padding lives on this inner element, not the height-animated
                 motion.div above — measuring "auto" height on a node that also
@@ -239,10 +239,10 @@ export default function Page() {
                 className="absolute inset-0"
                 style={{
                   backgroundImage: [
-                    "radial-gradient(circle, transparent 20%, var(--card) 20%, var(--card) 80%, transparent 80%, transparent)",
-                    "radial-gradient(circle, transparent 20%, var(--card) 20%, var(--card) 80%, transparent 80%, transparent)",
+                    "radial-gradient(circle, transparent 20%, var(--popover) 20%, var(--popover) 80%, transparent 80%, transparent)",
+                    "radial-gradient(circle, transparent 20%, var(--popover) 20%, var(--popover) 80%, transparent 80%, transparent)",
                     "linear-gradient(var(--accent) 2px, transparent 2px)",
-                    "linear-gradient(90deg, var(--accent) 2px, var(--card) 2px)",
+                    "linear-gradient(90deg, var(--accent) 2px, var(--popover) 2px)",
                   ].join(", "),
                   backgroundPosition: "0 0, 25px 25px, 0 -1px, -1px 0",
                   backgroundSize: "50px 50px, 50px 50px, 25px 25px, 25px 25px",
@@ -515,25 +515,27 @@ export default function Page() {
               just say hi.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-1">
-            {SOCIAL_LINKS.map(({ label, username, href, icon }) => (
-              <a
-                key={label}
-                href={href}
-                target={href.startsWith("mailto:") ? undefined : "_blank"}
-                rel={href.startsWith("mailto:") ? undefined : "noreferrer"}
-                className="flex items-center gap-3 rounded-lg bg-muted/50 px-4 py-3 text-sm transition-colors hover:bg-muted/70"
-              >
-                <HugeiconsIcon
-                  icon={icon}
-                  aria-hidden
-                  className="size-4 shrink-0 text-muted-foreground"
-                />
-                <span className="font-medium">{label}</span>
-                <span className="ml-auto text-muted-foreground">
-                  {username}
-                </span>
-              </a>
+          <div className="overflow-hidden rounded-xl bg-card">
+            {SOCIAL_LINKS.map(({ label, username, href, icon }, index) => (
+              <Fragment key={label}>
+                {index > 0 && <div className="mx-4 h-px bg-border" aria-hidden />}
+                <a
+                  href={href}
+                  target={href.startsWith("mailto:") ? undefined : "_blank"}
+                  rel={href.startsWith("mailto:") ? undefined : "noreferrer"}
+                  className="flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50"
+                >
+                  <HugeiconsIcon
+                    icon={icon}
+                    aria-hidden
+                    className="size-4 shrink-0 text-muted-foreground"
+                  />
+                  <span className="font-medium">{label}</span>
+                  <span className="ml-auto text-muted-foreground">
+                    {username}
+                  </span>
+                </a>
+              </Fragment>
             ))}
           </div>
         </DialogContent>
