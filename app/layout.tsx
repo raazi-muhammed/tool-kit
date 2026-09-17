@@ -12,6 +12,7 @@ import { CompactViewProvider } from "@/components/compact-view-preference"
 import { SidebarWidthProvider } from "@/components/sidebar-width-preference"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/seo"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -20,8 +21,43 @@ const fontMono = Fira_Code({
   variable: "--font-mono",
 })
 
+const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`
+
 export const metadata: Metadata = {
-  title: "Tool Kit",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "technology",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: SITE_NAME,
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+}
+
+const WEBSITE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  url: SITE_URL,
 }
 
 export default function RootLayout({
@@ -41,6 +77,10 @@ export default function RootLayout({
       )}
     >
       <body className="overflow-x-hidden">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
+        />
         <ThemeProvider>
           <MotionPreferenceProvider>
             <AutoRunProvider>
