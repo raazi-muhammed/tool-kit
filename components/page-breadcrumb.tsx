@@ -22,6 +22,11 @@ export function PageBreadcrumb({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
+      {/* The breadcrumb below is presentational (`BreadcrumbPage` is a
+          `span`) — this is the page's real semantic heading for
+          accessibility and SEO, kept visually hidden since the breadcrumb
+          already shows the same text. */}
+      <h1 className="sr-only">{page}</h1>
       <Breadcrumb className="min-w-0">
         <BreadcrumbList>
           <BreadcrumbItem>
