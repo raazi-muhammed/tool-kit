@@ -201,8 +201,17 @@ export default function DesignTokensPage() {
           </div>
           <div className="flex flex-col gap-2 rounded-lg p-4">
             <p className="text-xs text-muted-foreground">
-              Mono / display — Fira Code
+              Display — Mona Sans, width 125
             </p>
+            <p className="font-display text-2xl font-bold">
+              The quick brown fox jumps over the lazy dog
+            </p>
+            <p className="font-display text-sm text-muted-foreground">
+              ABCDEFGHIJKLM abcdefghijklm 0123456789
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 rounded-lg p-4">
+            <p className="text-xs text-muted-foreground">Mono — Fira Code</p>
             <p className="font-mono text-2xl font-semibold">
               The quick brown fox jumps over the lazy dog
             </p>

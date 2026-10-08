@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Fira_Code, Inter } from "next/font/google"
+import { Fira_Code, Inter, Mona_Sans } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 
 import "./globals.css"
@@ -19,6 +19,12 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 const fontMono = Fira_Code({
   subsets: ["latin"],
   variable: "--font-mono",
+})
+
+const fontDisplay = Mona_Sans({
+  subsets: ["latin"],
+  axes: ["wdth"],
+  variable: "--font-mona",
 })
 
 const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`
@@ -72,6 +78,7 @@ export default function RootLayout({
       className={cn(
         "overflow-x-hidden antialiased",
         fontMono.variable,
+        fontDisplay.variable,
         "font-sans",
         inter.variable
       )}
