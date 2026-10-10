@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Cancel01Icon,
   CloudUploadIcon,
   LinkIcon,
   Png01Icon,
@@ -237,9 +236,7 @@ export default function SvgToPngPage() {
           value: bgColor,
           onChange: setBgColor,
           fallback: "#ffffff",
-          nullLabel: "transparent",
-          clearLabel: "Transparent",
-          clearIcon: Cancel01Icon,
+          allowTransparent: true,
         },
         inputs: [
           {

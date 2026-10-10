@@ -206,9 +206,8 @@ type SidebarColor = {
   value: string | null
   onChange: (value: string | null) => void
   fallback: string
-  nullLabel?: string
-  clearLabel?: string
-  clearIcon?: IconSvgElement
+  /** Offer a "Transparent" option inside the color popover, which sets `value` to `null` (e.g. a background fill that can also be left empty). */
+  allowTransparent?: boolean
   /** Set false to skip the visible label row (e.g. a toggle's nested color, where the toggle's own label already says what it's for). `label` is still used as the ColorPicker's aria-label. */
   showLabel?: boolean
 }
@@ -699,45 +698,22 @@ function SidebarSegmentsControl({ segments }: { segments: SidebarSegments }) {
 // Shared by the standalone `sidebar.color` and the nested
 // `sidebar.toggle.color` (e.g. Image Converter's Background and Background
 // color to remove) so both render identically instead of drifting into two
-// different looks. The clear/nullLabel row only shows once a caller opts in
-// via `clearLabel`/`clearIcon`/`nullLabel` — the toggle's nested color never
-// sets those, so it just gets a plain label above its `ColorPicker`.
+// different looks. A `null` value (only reachable via `allowTransparent`)
+// shows as "Transparent" inside the picker itself, so the label row stays a
+// plain heading.
 function SidebarColorControl({ color }: { color: SidebarColor }) {
   return (
     <div className="flex flex-col gap-3">
-      {color.showLabel !== false && (
-        <div className="flex items-center justify-between">
-          <SidebarLabel>{color.label}</SidebarLabel>
-          {color.value
-            ? (color.clearLabel || color.clearIcon) && (
-                <button
-                  type="button"
-                  onClick={() => color.onChange(null)}
-                  disabled={color.disabled}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {color.clearIcon && (
-                    <HugeiconsIcon
-                      icon={color.clearIcon}
-                      className="size-3.5"
-                      aria-hidden
-                    />
-                  )}
-                  {color.clearLabel ?? "Clear"}
-                </button>
-              )
-            : color.nullLabel && (
-                <span className="text-xs text-muted-foreground">
-                  {color.nullLabel}
-                </span>
-              )}
-        </div>
-      )}
+      {color.showLabel !== false && <SidebarLabel>{color.label}</SidebarLabel>}
       <ColorPicker
         value={color.value ?? color.fallback}
         onChange={(value) => color.onChange(value)}
         label={color.label}
         disabled={color.disabled}
+        transparent={color.allowTransparent && color.value === null}
+        onTransparent={
+          color.allowTransparent ? () => color.onChange(null) : undefined
+        }
       />
     </div>
   )

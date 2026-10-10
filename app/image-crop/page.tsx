@@ -321,9 +321,7 @@ export default function ImageCropPage() {
           value: activeJob?.bgColor ?? null,
           onChange: onColorChange,
           fallback: "#ffffff",
-          nullLabel: "transparent",
-          clearLabel: "Transparent",
-          clearIcon: Cancel01Icon,
+          allowTransparent: true,
         },
         actions: [
           {

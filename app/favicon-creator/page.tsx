@@ -2,7 +2,6 @@
 
 import {
   BrowserIcon,
-  Cancel01Icon,
   CircleIcon,
   CloudUploadIcon,
   Loading03Icon,
@@ -246,9 +245,7 @@ export default function FaviconCreatorPage() {
           value: bgColor,
           onChange: setBgColor,
           fallback: "#ffffff",
-          nullLabel: "transparent",
-          clearLabel: "Transparent",
-          clearIcon: Cancel01Icon,
+          allowTransparent: true,
         },
         hint: `Includes ${sizes.join(", ")}px. Works best with a square logo.`,
         download: {

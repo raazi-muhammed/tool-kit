@@ -122,6 +122,15 @@ const PRESETS = [
   "#a855f7",
 ]
 
+// The usual light/gray checkerboard that stands for "no fill".
+const TRANSPARENT_STYLE: React.CSSProperties = {
+  backgroundImage: "repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%)",
+  backgroundSize: "8px 8px",
+}
+
+const SWATCH_CLASS =
+  "aspect-square rounded-sm ring-1 ring-foreground/10 ring-inset transition-transform outline-none hover:scale-110 focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:ring-2 aria-pressed:ring-foreground"
+
 // White ring plus a faint dark outline, so the thumb stays visible on both
 // light and dark parts of the gradient underneath it.
 const THUMB_CLASS =
@@ -156,22 +165,29 @@ export function ColorPicker({
   onChange,
   label = "Pick color",
   disabled,
+  transparent = false,
+  onTransparent,
 }: {
   value: string
   onChange: (color: string) => void
   label?: string
   disabled?: boolean
+  /** Whether "no fill" is currently selected — the swatch shows a checkerboard and the hex field reads "Transparent". `value` still positions the picker, so choosing a color picks up from there. */
+  transparent?: boolean
+  /** Set to offer a "Transparent" option in the popover, alongside the presets. */
+  onTransparent?: () => void
 }) {
-  const [text, setText] = React.useState(value)
+  const displayed = transparent ? "" : value
+  const [text, setText] = React.useState(displayed)
   const [picking, setPicking] = React.useState(false)
   const [open, setOpen] = React.useState(false)
   // Adjust local text when `value` changes from outside (e.g. a reset) —
   // done during render, per React's guidance, instead of in an effect.
   const [hsv, setHsv] = React.useState(() => hexToHsv(value))
-  const [prevValue, setPrevValue] = React.useState(value)
-  if (value !== prevValue) {
-    setPrevValue(value)
-    setText(value)
+  const [prevDisplayed, setPrevDisplayed] = React.useState(displayed)
+  if (displayed !== prevDisplayed) {
+    setPrevDisplayed(displayed)
+    setText(displayed)
     // Only re-derive when the color really changed from outside — a value
     // we just emitted ourselves already matches `hsv`, and re-deriving it
     // would lose the hue at zero saturation/brightness.
@@ -188,7 +204,7 @@ export function ColorPicker({
   function commitText(raw: string) {
     const normalized = normalizeHex(raw)
     if (normalized) onChange(normalized)
-    else setText(value) // invalid entry — revert to the last good color
+    else setText(displayed) // invalid entry — revert to the last good color
   }
 
   async function pickFromScreen() {
@@ -251,7 +267,9 @@ export function ColorPicker({
           >
             <span
               className="block size-full rounded-sm ring-1 ring-foreground/10 ring-inset"
-              style={{ backgroundColor: value }}
+              style={
+                transparent ? TRANSPARENT_STYLE : { backgroundColor: value }
+              }
             />
           </button>
         </PopoverTrigger>
@@ -322,15 +340,31 @@ export function ColorPicker({
             />
           </div>
 
-          <div className="grid grid-cols-8 gap-1.5">
+          <div
+            className={cn(
+              "grid gap-1.5",
+              onTransparent ? "grid-cols-9" : "grid-cols-8"
+            )}
+          >
+            {onTransparent && (
+              <button
+                type="button"
+                onClick={onTransparent}
+                aria-label="Transparent"
+                title="Transparent"
+                aria-pressed={transparent}
+                className={SWATCH_CLASS}
+                style={TRANSPARENT_STYLE}
+              />
+            )}
             {PRESETS.map((preset) => (
               <button
                 key={preset}
                 type="button"
                 onClick={() => onChange(preset)}
                 aria-label={preset}
-                aria-pressed={normalizeHex(value) === preset}
-                className="aspect-square rounded-sm ring-1 ring-foreground/10 transition-transform outline-none ring-inset hover:scale-110 focus-visible:ring-3 focus-visible:ring-ring/50 aria-pressed:ring-2 aria-pressed:ring-foreground"
+                aria-pressed={!transparent && normalizeHex(value) === preset}
+                className={SWATCH_CLASS}
                 style={{ backgroundColor: preset }}
               />
             ))}
@@ -375,8 +409,9 @@ export function ColorPicker({
         onKeyDown={(e) => {
           if (e.key === "Enter") commitText(e.currentTarget.value)
         }}
-        className="h-8 flex-1 border-0 bg-transparent px-2 font-mono uppercase shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
+        className="h-8 flex-1 border-0 bg-transparent px-2 font-mono uppercase shadow-none outline-none placeholder:font-sans placeholder:normal-case focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
         maxLength={7}
+        placeholder={transparent ? "Transparent" : undefined}
         aria-label="Hex color code"
         disabled={disabled}
       />

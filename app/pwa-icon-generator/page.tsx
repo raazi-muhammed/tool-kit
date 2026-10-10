@@ -2,7 +2,6 @@
 
 import {
   BracesIcon,
-  Cancel01Icon,
   CircleIcon,
   CloudUploadIcon,
   Download04Icon,
@@ -229,9 +228,7 @@ export default function PwaIconGeneratorPage() {
           value: bgColor,
           onChange: setBgColor,
           fallback: "#ffffff",
-          nullLabel: "transparent",
-          clearLabel: "Transparent",
-          clearIcon: Cancel01Icon,
+          allowTransparent: true,
         },
         actions: [
           {

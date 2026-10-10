@@ -201,10 +201,13 @@ The sidebar prop also has config primitives for a few other recurring controls �
 still config objects, never JSX, so `ToolPage` renders them itself, all in the
 sidebar:
 
-- `color` — a settable/clearable color swatch (e.g. a background fill for
-  transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
-clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
-  instead of the clear button. `ColorPicker` itself (`components/color-picker.tsx`)
+- `color` — a color swatch (e.g. a background fill for transparent PNGs):
+  `{ label, value, onChange, fallback, allowTransparent? }`. Set
+  `allowTransparent` for a fill that can also be left empty: it adds a
+  checkerboard "Transparent" swatch inside the color popover, which sets
+  `value` to `null`, and the picker then reads "Transparent" itself. Don't
+  add a separate clear button or "transparent" label next to the heading.
+  `ColorPicker` itself (`components/color-picker.tsx`)
   opens its own popover (saturation/brightness area, hue bar, presets) from the
   swatch rather than the browser's native color dialog. That popover always
   holds both a "From screen" native `EyeDropper` button (where the browser
