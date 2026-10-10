@@ -852,7 +852,8 @@ export function ToolPage({
             <HugeiconsIcon icon={Download04Icon} aria-hidden />
             Download
           </Button>
-          {(sidebar.download.onDownloadAll || sidebar.download.onDownloadZip) && (
+          {(sidebar.download.onDownloadAll ||
+            sidebar.download.onDownloadZip) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1016,15 +1017,20 @@ export function ToolPage({
           // Desktop: the settings sidebar as a static, resizable side panel.
           // `SidebarProvider` (not `Sidebar` itself) carries the responsive
           // hide/shrink, since it's the actual flex item in the outer row —
-          // that's what needs to be a real box (not `display: contents`) so
-          // the row's default `align-items: stretch` gives it a definite
-          // height; `Sidebar`'s own `h-full` resolves against that box, which
-          // is how its `SidebarFooter` ends up pinned to the bottom edge
-          // instead of the whole panel collapsing to its content's height.
+          // that's what needs to be a real box (not `display: contents`) with
+          // a definite height; `Sidebar`'s own `h-full` resolves against that
+          // box, which is how its `SidebarFooter` ends up pinned to the bottom
+          // edge instead of the whole panel collapsing to its content's
+          // height. That height is exactly one viewport (`h-svh`), pinned with
+          // `sticky top-0` + `self-start` (not stretched to the row, or there'd
+          // be nothing for sticky to stick within), so when the main column
+          // outgrows the screen (e.g. Score Keeper's vertical layout) the page
+          // scrolls past the sidebar instead of dragging it along — overflow
+          // in the settings themselves scrolls inside `SidebarContent`.
           // `collapsible="none"` since it's never toggled, just always shown
           // once `hasSidebar` is true (the mobile Drawer below covers the
           // narrow viewport instead of this component's own Sheet).
-          <SidebarProvider className="hidden w-auto shrink-0 md:flex">
+          <SidebarProvider className="sticky top-0 hidden h-svh min-h-0 w-auto shrink-0 self-start md:flex">
             <Sidebar
               side="right"
               collapsible="none"

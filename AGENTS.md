@@ -40,7 +40,11 @@ true) and is freely resizable by dragging its left edge, or by focusing that
 edge and using the arrow keys/Home/End — the chosen width is shared and
 persisted across every tool via `useSidebarWidth`
 (`components/sidebar-width-preference.tsx`), clamped between
-`SIDEBAR_MIN_WIDTH`/`SIDEBAR_MAX_WIDTH`. See `components/tool-page.tsx` and
+`SIDEBAR_MIN_WIDTH`/`SIDEBAR_MAX_WIDTH`. On desktop it's `sticky top-0` and
+exactly one viewport tall, so a long main column scrolls past it rather than
+dragging it along — which relies on `<html>`/`<body>` using `overflow-x-clip`,
+not `overflow-x-hidden` (the latter turns `<body>` into a scroll container that
+never scrolls, silently breaking `sticky`). See `components/tool-page.tsx` and
 `components/page-breadcrumb.tsx`.
 
 For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
