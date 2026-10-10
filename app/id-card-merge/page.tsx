@@ -386,7 +386,7 @@ export default function IdCardMergePage() {
       segments={{
         value: format,
         onValueChange: (value) => setFormat(value as Format),
-        label: "Download as",
+        label: "Download As",
         options: [
           { value: "image", label: "Image", icon: Image02Icon },
           { value: "pdf", label: "PDF", icon: Pdf01Icon },
@@ -465,7 +465,7 @@ export default function IdCardMergePage() {
         ],
         slider: [
           {
-            label: "Gap between images",
+            label: "Gap Between Images",
             value: gap,
             onValueChange: setGap,
             min: 0,
@@ -474,7 +474,7 @@ export default function IdCardMergePage() {
             unit: "px",
           },
           {
-            label: "Outer padding",
+            label: "Outer Padding",
             value: padding,
             onValueChange: setPadding,
             min: 0,

@@ -480,7 +480,7 @@ export default function ScoreKeeperPage() {
       sidebar={{
         inputs: [
           {
-            label: "Player names",
+            label: "Player Names",
             type: "textarea",
             placeholder: "One name per line",
             value: newName,

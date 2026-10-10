@@ -304,7 +304,7 @@ export default function GifCompressPage() {
         inputs: [
           {
             hidden: mode !== "size",
-            label: "Target size (KB)",
+            label: "Target Size (KB)",
             type: "number",
             min: 1,
             value: targetKb,

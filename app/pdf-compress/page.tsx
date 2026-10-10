@@ -282,7 +282,7 @@ export default function PdfCompressPage() {
         disabled: jobs.length === 0,
         slider: {
           hidden: mode !== "quality",
-          label: "Image quality",
+          label: "Image Quality",
           value: quality,
           onValueChange: setQuality,
           min: 1,
@@ -292,7 +292,7 @@ export default function PdfCompressPage() {
         inputs: [
           {
             hidden: mode !== "size",
-            label: "Target size (KB)",
+            label: "Target Size (KB)",
             type: "number",
             min: 1,
             value: targetKb,

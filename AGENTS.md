@@ -275,6 +275,12 @@ Callback props where `undefined` means "this option isn't offered", like
 `download.onDownloadAll` and `onAddFile`, stay conditional. See
 `app/image-converter/page.tsx`.
 
+Write every sidebar section heading (a `label` on `segments`, `groups`,
+`checklists`, `slider`, `inputs`, `color`, or an action group) in Title Case,
+e.g. "Aspect Ratio", "Target Size (KB)". Headings render as written in the
+regular body font, not uppercased. Button and option labels stay in sentence
+case ("Apply blur to all").
+
 Render order in the sidebar is `checklists`, `segments`, `color`, `toggle`, `inputs`,
 `slider`, `hint`, then the pinned-bottom `actions`/`download` block. Don't add
 a new primitive for a one-off control — reuse `actions` (e.g. an icon+label

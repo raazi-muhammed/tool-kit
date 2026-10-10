@@ -163,7 +163,7 @@ export default function ImageRotatePage() {
         disabled: !activeJob,
         actions: [
           {
-            label: "This image",
+            label: "This Image",
             placement: "top",
             actions: [
               {
@@ -180,7 +180,7 @@ export default function ImageRotatePage() {
           },
           {
             hidden: jobs.length < 2,
-            label: "All images",
+            label: "All Images",
             placement: "top",
             actions: [
               {

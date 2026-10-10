@@ -224,11 +224,11 @@ export default function FaviconCreatorPage() {
         },
         checklists: [
           {
-            label: "Favicon sizes",
+            label: "Favicon Sizes",
             items: FAVICON_SIZES.map(sizeItem),
           },
           {
-            label: "App icon sizes",
+            label: "App Icon Sizes",
             items: APP_ICON_SIZES.map(sizeItem),
           },
         ],

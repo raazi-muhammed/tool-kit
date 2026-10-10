@@ -305,7 +305,7 @@ export default function ImageCropPage() {
         segments: {
           value: activeJob?.aspect ?? "free",
           onValueChange: (value) => onAspectChange(value as Aspect),
-          label: "Aspect ratio",
+          label: "Aspect Ratio",
           options: [
             { value: "free", label: "Free", icon: AspectRatioIcon },
             { value: "1:1", label: "1:1", icon: SquareIcon },

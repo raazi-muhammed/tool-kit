@@ -347,7 +347,7 @@ export default function WheelSpinPage() {
       icon={LoaderPinwheelIcon}
       sidebar={{
         slider: {
-          label: "Spin time",
+          label: "Spin Time",
           value: spinSeconds,
           onValueChange: setSpinSeconds,
           min: 1,

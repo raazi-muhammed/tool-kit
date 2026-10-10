@@ -259,7 +259,7 @@ export default function PdfLockPage() {
             disabled: anyBusy || activeJob?.alreadyLocked === true,
           },
           {
-            label: "Confirm password",
+            label: "Confirm Password",
             type: "password",
             value: confirmPassword,
             onChange: setConfirmPassword,

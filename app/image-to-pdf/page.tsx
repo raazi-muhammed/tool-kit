@@ -234,7 +234,7 @@ export default function ImageToPdfPage() {
         disabled: jobs.length === 0,
         groups: [
           {
-            label: "Page orientation",
+            label: "Page Orientation",
             value: orientation,
             onValueChange: (value) => setOrientation(value as Orientation),
             disabled: busy || pageSize === "fit",
@@ -248,7 +248,7 @@ export default function ImageToPdfPage() {
             ],
           },
           {
-            label: "Page size",
+            label: "Page Size",
             value: pageSize,
             onValueChange: (value) => setPageSize(value as PageSize),
             disabled: busy,
