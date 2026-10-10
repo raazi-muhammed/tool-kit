@@ -159,58 +159,54 @@ export default function ImageRotatePage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              actions: [
-                {
-                  label: "This image",
-                  placement: "top",
-                  actions: [
-                    {
-                      label: "Rotate left",
-                      icon: RotateCcwSquareIcon,
-                      onClick: () => rotate(-90),
-                    },
-                    {
-                      label: "Rotate right",
-                      icon: RotateCwSquareIcon,
-                      onClick: () => rotate(90),
-                    },
-                  ],
-                },
-                jobs.length > 1
-                  ? {
-                      label: "All images",
-                      placement: "top",
-                      actions: [
-                        {
-                          label: "Rotate left",
-                          icon: RotateCcwSquareIcon,
-                          onClick: () => rotateAll(-90),
-                          variant: "card",
-                        },
-                        {
-                          label: "Rotate right",
-                          icon: RotateCwSquareIcon,
-                          onClick: () => rotateAll(90),
-                          variant: "card",
-                        },
-                      ],
-                    }
-                  : undefined,
-              ],
-              download: {
-                onDownload: download,
-                disabled: activeJob.rotation === 0,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.rotation !== 0),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.rotation !== 0),
+      sidebar={{
+        disabled: !activeJob,
+        actions: [
+          {
+            label: "This Image",
+            placement: "top",
+            actions: [
+              {
+                label: "Rotate left",
+                icon: RotateCcwSquareIcon,
+                onClick: () => rotate(-90),
               },
-            }
-          : undefined
-      }
+              {
+                label: "Rotate right",
+                icon: RotateCwSquareIcon,
+                onClick: () => rotate(90),
+              },
+            ],
+          },
+          {
+            hidden: jobs.length < 2,
+            label: "All Images",
+            placement: "top",
+            actions: [
+              {
+                label: "Rotate left",
+                icon: RotateCcwSquareIcon,
+                onClick: () => rotateAll(-90),
+                variant: "card",
+              },
+              {
+                label: "Rotate right",
+                icon: RotateCwSquareIcon,
+                onClick: () => rotateAll(90),
+                variant: "card",
+              },
+            ],
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: activeJob?.rotation === 0,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.rotation !== 0),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.rotation !== 0),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

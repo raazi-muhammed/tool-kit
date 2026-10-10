@@ -76,14 +76,14 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={cn(
-        "overflow-x-hidden antialiased",
+        "overflow-x-clip antialiased",
         fontMono.variable,
         fontDisplay.variable,
         "font-sans",
         inter.variable
       )}
     >
-      <body className="overflow-x-hidden">
+      <body className="overflow-x-clip">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}

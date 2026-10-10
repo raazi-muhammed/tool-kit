@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { useResizableWidth } from "@/hooks/use-resizable-width"
 import { cn } from "@/lib/utils"
 
@@ -75,6 +76,7 @@ type AddFileHandle = {
 }
 
 type Segments = {
+  hidden?: boolean
   value: string
   onValueChange: (value: string) => void
   options: { value: string; label: string; icon: IconSvgElement }[]
@@ -96,6 +98,7 @@ type Segments = {
 // value is per-job (e.g. Image Converter's per-file output format) rather
 // than one shared page-level setting.
 type SidebarSegments = {
+  hidden?: boolean
   value: string
   onValueChange: (value: string) => void
   options: { value: string; label: string; icon: IconSvgElement }[]
@@ -114,6 +117,8 @@ type SidebarSegments = {
 }
 
 type SidebarZoom = {
+  hidden?: boolean
+  disabled?: boolean
   percent: number
   onZoomOut: () => void
   onZoomIn: () => void
@@ -123,6 +128,7 @@ type SidebarZoom = {
 }
 
 type SidebarSlider = {
+  hidden?: boolean
   label: string
   value: number
   onValueChange: (value: number) => void
@@ -135,6 +141,7 @@ type SidebarSlider = {
 }
 
 type SidebarAction = {
+  hidden?: boolean
   label: string
   icon: IconSvgElement
   onClick: () => void
@@ -144,6 +151,7 @@ type SidebarAction = {
   // rendered as a Download-style ButtonGroup + dropdown chevron instead of a
   // separate button.
   more?: {
+    hidden?: boolean
     label: string
     icon: IconSvgElement
     onClick: () => void
@@ -165,6 +173,7 @@ type SidebarAction = {
 // "Rotate all left"/"Rotate all right") — each action renders at an even
 // share of the row's width instead of stacking full-width.
 type SidebarActionGroup = {
+  hidden?: boolean
   label?: ReactNode
   actions: (SidebarAction | false | null | undefined)[]
   /**
@@ -178,6 +187,7 @@ type SidebarActionGroup = {
 }
 
 type SidebarDownload = {
+  hidden?: boolean
   onDownload: () => void
   disabled?: boolean
   onDownloadAll?: () => void
@@ -190,13 +200,14 @@ type SidebarDownload = {
 // A color swatch that can also be "unset" (e.g. a transparent background) —
 // rendered as a ColorPicker plus a clear button, or a muted label when unset.
 type SidebarColor = {
+  hidden?: boolean
+  disabled?: boolean
   label: string
   value: string | null
   onChange: (value: string | null) => void
   fallback: string
-  nullLabel?: string
-  clearLabel?: string
-  clearIcon?: IconSvgElement
+  /** Offer a "Transparent" option inside the color popover, which sets `value` to `null` (e.g. a background fill that can also be left empty). */
+  allowTransparent?: boolean
   /** Set false to skip the visible label row (e.g. a toggle's nested color, where the toggle's own label already says what it's for). `label` is still used as the ColorPicker's aria-label. */
   showLabel?: boolean
 }
@@ -204,6 +215,8 @@ type SidebarColor = {
 // A pressable toggle (e.g. "Remove background") that reveals its own color
 // picker and/or strength slider only while pressed.
 type SidebarToggle = {
+  hidden?: boolean
+  disabled?: boolean
   label: string
   pressed: boolean
   onPressedChange: (pressed: boolean) => void
@@ -223,18 +236,50 @@ type SidebarToggle = {
 
 // A single labeled text/number/password field (e.g. a resize width, a PDF
 // password) — rendered label-above-input, matching the app's form fields.
+// `type: "textarea"` renders a multi-line field instead (e.g. Score Keeper's
+// one-name-per-line player list), where plain Enter inserts a newline and
+// `onEnter` fires on ⌘/Ctrl+Enter.
 type SidebarInput = {
+  hidden?: boolean
   label: string
   value: string
   onChange: (value: string) => void
-  type?: "text" | "number" | "password"
+  type?: "text" | "number" | "password" | "textarea"
   disabled?: boolean
   min?: number
+  placeholder?: string
   className?: string
   onEnter?: () => void
 }
 
+// A labeled list of independent on/off options where any number can be
+// checked at once (e.g. Favicon Creator's icon sizes) — a multi-select, so
+// it renders as checkboxes rather than a segmented control.
+type SidebarChecklist = {
+  hidden?: boolean
+  disabled?: boolean
+  label: string
+  items: {
+    label: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+    disabled?: boolean
+  }[]
+}
+
 type Sidebar = {
+  /**
+   * The sidebar always renders once passed, even before a file is loaded, so
+   * the page never looks empty. Set `disabled` (e.g. `jobs.length === 0`) to
+   * grey out every control inside it until there's something to act on.
+   * Individual blocks (`segments`, `color`, `slider`, each action, …) take
+   * `hidden: !condition` instead of `condition ? {...} : undefined` for
+   * controls that only apply in some states — `ToolPage` drops those before
+   * rendering.
+   */
+  disabled?: boolean
+  /** Multi-select checklists, rendered stacked at the top of the sidebar. */
+  checklists?: SidebarChecklist[]
   segments?: SidebarSegments
   /**
    * Additional segmented pickers beyond the single `segments` slot above —
@@ -262,11 +307,186 @@ type Sidebar = {
   download?: SidebarDownload
 }
 
+function shown<T extends { hidden?: boolean }>(block: T | undefined) {
+  return block && !block.hidden ? block : undefined
+}
+
+function shownAll<T extends { hidden?: boolean }>(
+  blocks: (T | false | null | undefined)[] | undefined
+) {
+  return blocks?.filter((block): block is T => !!block && !block.hidden)
+}
+
+// Drops every `hidden` block up front and, while the whole sidebar is
+// `disabled`, forces `disabled` onto every block that's left — so the render
+// code below only ever sees what's actually shown, in its final state, and
+// can keep its plain `sidebar?.x &&` checks.
+function resolveSidebar(sidebar: Sidebar | undefined): Sidebar | undefined {
+  if (!sidebar) return undefined
+  type Block = { hidden?: boolean; disabled?: boolean }
+  const off = <T extends Block>(block: T): T =>
+    sidebar.disabled ? { ...block, disabled: true } : block
+  const resolve = <T extends Block>(block: T | undefined) => {
+    const visible = shown(block)
+    return visible && off(visible)
+  }
+  const resolveAll = <T extends Block>(
+    blocks: (T | false | null | undefined)[] | undefined
+  ) => shownAll(blocks)?.map(off)
+  const resolveAction = (action: SidebarAction): SidebarAction =>
+    off({ ...action, more: shown(action.more) })
+  const toggle = resolve(sidebar.toggle)
+  return {
+    ...sidebar,
+    checklists: resolveAll(sidebar.checklists),
+    segments: resolve(sidebar.segments),
+    groups: resolveAll(sidebar.groups),
+    color: resolve(sidebar.color),
+    toggle: toggle && { ...toggle, slider: shown(toggle.slider) },
+    inputs: resolveAll(sidebar.inputs),
+    zoom: resolve(sidebar.zoom),
+    slider: Array.isArray(sidebar.slider)
+      ? resolveAll(sidebar.slider)
+      : resolve(sidebar.slider),
+    actions: shownAll(sidebar.actions)?.map((entry) =>
+      "actions" in entry
+        ? {
+            ...entry,
+            actions: shownAll(entry.actions)?.map(resolveAction) ?? [],
+          }
+        : resolveAction(entry)
+    ),
+    download: resolve(sidebar.download),
+  }
+}
+
 function SidebarLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+    <span className="font-display text-sm font-medium text-muted-foreground">
       {children}
     </span>
+  )
+}
+
+// One checkbox row inside a `SidebarCheckTrack`. Shared by `checklists` and
+// `toggle` (plus its nested `checkbox`) so every on/off option in the sidebar
+// reads the same.
+function SidebarCheckRow({
+  label,
+  checked,
+  onCheckedChange,
+  disabled,
+  className,
+}: {
+  label: ReactNode
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <label
+      className={cn(
+        "flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground has-disabled:cursor-not-allowed has-disabled:opacity-50 has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground",
+        className
+      )}
+    >
+      {/* The checkbox's default `border-input`/`bg-input/30` all but
+          disappears against the `bg-card` track, so give unchecked boxes a
+          visible outline and fill of their own. */}
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+        className="border-muted-foreground/50 bg-background dark:bg-background"
+      />
+      {label}
+    </label>
+  )
+}
+
+// Rows sit in the same `bg-card` track as the `Tabs` segmented control, and
+// each checked row lifts onto the same `bg-background` surface as the active
+// tab — so a multi-select reads as a sibling of the single-select pickers,
+// while the leading checkbox makes it clear any number can be on at once.
+function SidebarCheckTrack({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-lg bg-card p-1">
+      {children}
+    </div>
+  )
+}
+
+function SidebarChecklistControl({
+  checklist,
+}: {
+  checklist: SidebarChecklist
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <SidebarLabel>{checklist.label}</SidebarLabel>
+      <SidebarCheckTrack>
+        {checklist.items.map((item, index) => (
+          <SidebarCheckRow
+            key={index}
+            label={item.label}
+            checked={item.checked}
+            onCheckedChange={item.onCheckedChange}
+            disabled={checklist.disabled || item.disabled}
+          />
+        ))}
+      </SidebarCheckTrack>
+    </div>
+  )
+}
+
+// A single on/off option that reveals its own nested controls while pressed:
+// a refining sub-checkbox, indented under it in the same track, and then a
+// color and/or slider below the track.
+function SidebarToggleControl({ toggle }: { toggle: SidebarToggle }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <SidebarCheckTrack>
+        <SidebarCheckRow
+          label={toggle.label}
+          checked={toggle.pressed}
+          onCheckedChange={toggle.onPressedChange}
+          disabled={toggle.disabled}
+        />
+        {toggle.pressed && toggle.checkbox && (
+          // Indented so its checkbox lines up under the parent row's label.
+          <SidebarCheckRow
+            label={toggle.checkbox.label}
+            checked={toggle.checkbox.checked}
+            onCheckedChange={toggle.checkbox.onCheckedChange}
+            disabled={toggle.disabled}
+            className="pl-10"
+          />
+        )}
+      </SidebarCheckTrack>
+      {toggle.pressed && toggle.color && (
+        <SidebarColorControl
+          color={{
+            label: toggle.color.label,
+            value: toggle.color.value,
+            fallback: toggle.color.value,
+            showLabel: false,
+            disabled: toggle.disabled,
+            onChange: (value) => {
+              if (value !== null) toggle.color!.onChange(value)
+            },
+          }}
+        />
+      )}
+      {toggle.pressed && toggle.slider && (
+        <SidebarSliderControl
+          slider={{
+            ...toggle.slider,
+            disabled: toggle.disabled || toggle.slider.disabled,
+          }}
+        />
+      )}
+    </div>
   )
 }
 
@@ -280,6 +500,7 @@ function SidebarLabel({ children }: { children: ReactNode }) {
 // Password fields also get a built-in show/hide toggle inside the input.
 function SidebarInputField({ input }: { input: SidebarInput }) {
   const ref = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isFocusedRef = useRef(false)
   const wasFocusedRef = useRef(false)
   const [revealed, setRevealed] = useState(false)
@@ -290,9 +511,44 @@ function SidebarInputField({ input }: { input: SidebarInput }) {
       if (isFocusedRef.current) wasFocusedRef.current = true
     } else if (wasFocusedRef.current) {
       wasFocusedRef.current = false
-      ref.current?.focus()
+      ;(ref.current ?? textareaRef.current)?.focus()
     }
   }, [input.disabled])
+
+  const focusHandlers = {
+    onFocus: () => {
+      isFocusedRef.current = true
+    },
+    onBlur: (e: { target: { disabled: boolean } }) => {
+      isFocusedRef.current = false
+      if (e.target.disabled) wasFocusedRef.current = true
+    },
+  }
+
+  if (input.type === "textarea") {
+    return (
+      <Textarea
+        ref={textareaRef}
+        value={input.value}
+        onChange={(e) => input.onChange(e.target.value)}
+        disabled={input.disabled}
+        placeholder={input.placeholder}
+        autoComplete="off"
+        {...focusHandlers}
+        onKeyDown={
+          input.onEnter
+            ? (e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  input.onEnter!()
+                }
+              }
+            : undefined
+        }
+        className={cn("max-h-48", input.className)}
+      />
+    )
+  }
 
   const field = (
     <Input
@@ -302,14 +558,9 @@ function SidebarInputField({ input }: { input: SidebarInput }) {
       value={input.value}
       onChange={(e) => input.onChange(e.target.value)}
       disabled={input.disabled}
+      placeholder={input.placeholder}
       autoComplete="off"
-      onFocus={() => {
-        isFocusedRef.current = true
-      }}
-      onBlur={(e) => {
-        isFocusedRef.current = false
-        if (e.target.disabled) wasFocusedRef.current = true
-      }}
+      {...focusHandlers}
       onKeyDown={
         input.onEnter
           ? (e) => {
@@ -447,43 +698,22 @@ function SidebarSegmentsControl({ segments }: { segments: SidebarSegments }) {
 // Shared by the standalone `sidebar.color` and the nested
 // `sidebar.toggle.color` (e.g. Image Converter's Background and Background
 // color to remove) so both render identically instead of drifting into two
-// different looks. The clear/nullLabel row only shows once a caller opts in
-// via `clearLabel`/`clearIcon`/`nullLabel` — the toggle's nested color never
-// sets those, so it just gets a plain label above its `ColorPicker`.
+// different looks. A `null` value (only reachable via `allowTransparent`)
+// shows as "Transparent" inside the picker itself, so the label row stays a
+// plain heading.
 function SidebarColorControl({ color }: { color: SidebarColor }) {
   return (
     <div className="flex flex-col gap-3">
-      {color.showLabel !== false && (
-        <div className="flex items-center justify-between">
-          <SidebarLabel>{color.label}</SidebarLabel>
-          {color.value
-            ? (color.clearLabel || color.clearIcon) && (
-                <button
-                  type="button"
-                  onClick={() => color.onChange(null)}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {color.clearIcon && (
-                    <HugeiconsIcon
-                      icon={color.clearIcon}
-                      className="size-3.5"
-                      aria-hidden
-                    />
-                  )}
-                  {color.clearLabel ?? "Clear"}
-                </button>
-              )
-            : color.nullLabel && (
-                <span className="text-xs text-muted-foreground">
-                  {color.nullLabel}
-                </span>
-              )}
-        </div>
-      )}
+      {color.showLabel !== false && <SidebarLabel>{color.label}</SidebarLabel>}
       <ColorPicker
         value={color.value ?? color.fallback}
         onChange={(value) => color.onChange(value)}
         label={color.label}
+        disabled={color.disabled}
+        transparent={color.allowTransparent && color.value === null}
+        onTransparent={
+          color.allowTransparent ? () => color.onChange(null) : undefined
+        }
       />
     </div>
   )
@@ -582,10 +812,10 @@ export function ToolPage({
   onCopy,
   onLoadSample,
   onAddFile,
-  segments,
+  segments: segmentsProp,
   actions,
   fileStrip,
-  sidebar,
+  sidebar: sidebarProp,
   children,
 }: {
   page: string
@@ -606,6 +836,8 @@ export function ToolPage({
   sidebar?: Sidebar
   children: ReactNode
 }) {
+  const segments = shown(segmentsProp)
+  const sidebar = resolveSidebar(sidebarProp)
   const [copied, setCopied] = useState(false)
   const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth()
   const {
@@ -627,9 +859,12 @@ export function ToolPage({
   }
 
   const inlineSegments = segments?.placement === "inline" ? segments : undefined
+  // A top-level `segments` that renders in the sidebar follows the sidebar's
+  // `disabled` state, the same as the sidebar's own blocks.
   const sidebarSegments =
-    (segments && segments.placement !== "inline" ? segments : undefined) ??
-    sidebar?.segments
+    (segments && segments.placement !== "inline"
+      ? { ...segments, disabled: segments.disabled || sidebar?.disabled }
+      : undefined) ?? sidebar?.segments
 
   const hasHeaderRow = !!(actions || onCopy || onLoadSample)
   const hasBottomBar = !!(fileStrip || onAddFile)
@@ -694,6 +929,10 @@ export function ToolPage({
         <SidebarActionGroupRow key={index} group={group} />
       ))}
 
+      {sidebar?.checklists?.map((checklist, index) => (
+        <SidebarChecklistControl key={index} checklist={checklist} />
+      ))}
+
       {sidebar?.zoom && (
         <div className="flex flex-col gap-3">
           <SidebarLabel>Zoom</SidebarLabel>
@@ -703,7 +942,9 @@ export function ToolPage({
                 <Button
                   variant="ghost"
                   onClick={sidebar.zoom.onZoomOut}
-                  disabled={sidebar.zoom.zoomOutDisabled}
+                  disabled={
+                    sidebar.zoom.disabled || sidebar.zoom.zoomOutDisabled
+                  }
                   aria-label="Zoom out"
                 >
                   <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
@@ -716,7 +957,9 @@ export function ToolPage({
                 <Button
                   variant="ghost"
                   onClick={sidebar.zoom.onZoomIn}
-                  disabled={sidebar.zoom.zoomInDisabled}
+                  disabled={
+                    sidebar.zoom.disabled || sidebar.zoom.zoomInDisabled
+                  }
                   aria-label="Zoom in"
                 >
                   <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
@@ -728,6 +971,7 @@ export function ToolPage({
                 <Button
                   variant="ghost"
                   onClick={sidebar.zoom.onFit}
+                  disabled={sidebar.zoom.disabled}
                   aria-label="Fit to screen"
                 >
                   <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
@@ -746,46 +990,7 @@ export function ToolPage({
 
       {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
 
-      {sidebar?.toggle && (
-        <div className="flex flex-col gap-3">
-          <label className="flex cursor-pointer items-center justify-between gap-2">
-            <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
-            <Checkbox
-              checked={sidebar.toggle.pressed}
-              onCheckedChange={(checked) =>
-                sidebar.toggle!.onPressedChange(checked === true)
-              }
-            />
-          </label>
-          {sidebar.toggle.pressed && sidebar.toggle.color && (
-            <SidebarColorControl
-              color={{
-                label: sidebar.toggle.color.label,
-                value: sidebar.toggle.color.value,
-                fallback: sidebar.toggle.color.value,
-                showLabel: false,
-                onChange: (value) => {
-                  if (value !== null) sidebar.toggle!.color!.onChange(value)
-                },
-              }}
-            />
-          )}
-          {sidebar.toggle.pressed && sidebar.toggle.slider && (
-            <SidebarSliderControl slider={sidebar.toggle.slider} />
-          )}
-          {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
-            <label className="flex cursor-pointer items-center justify-between gap-2">
-              <SidebarLabel>{sidebar.toggle.checkbox.label}</SidebarLabel>
-              <Checkbox
-                checked={sidebar.toggle.checkbox.checked}
-                onCheckedChange={(checked) =>
-                  sidebar.toggle!.checkbox!.onCheckedChange(checked === true)
-                }
-              />
-            </label>
-          )}
-        </div>
-      )}
+      {sidebar?.toggle && <SidebarToggleControl toggle={sidebar.toggle} />}
 
       {sidebar?.inputs?.map((input, index) => (
         <div key={index} className="flex flex-col gap-1.5">
@@ -852,7 +1057,8 @@ export function ToolPage({
             <HugeiconsIcon icon={Download04Icon} aria-hidden />
             Download
           </Button>
-          {(sidebar.download.onDownloadAll || sidebar.download.onDownloadZip) && (
+          {(sidebar.download.onDownloadAll ||
+            sidebar.download.onDownloadZip) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -1016,15 +1222,20 @@ export function ToolPage({
           // Desktop: the settings sidebar as a static, resizable side panel.
           // `SidebarProvider` (not `Sidebar` itself) carries the responsive
           // hide/shrink, since it's the actual flex item in the outer row —
-          // that's what needs to be a real box (not `display: contents`) so
-          // the row's default `align-items: stretch` gives it a definite
-          // height; `Sidebar`'s own `h-full` resolves against that box, which
-          // is how its `SidebarFooter` ends up pinned to the bottom edge
-          // instead of the whole panel collapsing to its content's height.
+          // that's what needs to be a real box (not `display: contents`) with
+          // a definite height; `Sidebar`'s own `h-full` resolves against that
+          // box, which is how its `SidebarFooter` ends up pinned to the bottom
+          // edge instead of the whole panel collapsing to its content's
+          // height. That height is exactly one viewport (`h-svh`), pinned with
+          // `sticky top-0` + `self-start` (not stretched to the row, or there'd
+          // be nothing for sticky to stick within), so when the main column
+          // outgrows the screen (e.g. Score Keeper's vertical layout) the page
+          // scrolls past the sidebar instead of dragging it along — overflow
+          // in the settings themselves scrolls inside `SidebarContent`.
           // `collapsible="none"` since it's never toggled, just always shown
           // once `hasSidebar` is true (the mobile Drawer below covers the
           // narrow viewport instead of this component's own Sheet).
-          <SidebarProvider className="hidden w-auto shrink-0 md:flex">
+          <SidebarProvider className="sticky top-0 hidden h-svh min-h-0 w-auto shrink-0 self-start md:flex">
             <Sidebar
               side="right"
               collapsible="none"

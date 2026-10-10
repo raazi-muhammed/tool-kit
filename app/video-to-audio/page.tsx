@@ -245,41 +245,37 @@ export default function VideoToAudioPage() {
           />
         )
       }
-      sidebar={
-        jobs.length > 0
-          ? {
-              segments: activeJob
-                ? {
-                    value: activeJob.format,
-                    onValueChange: (value) =>
-                      changeFormat(activeJob.id, value as Format),
-                    label: "Format",
-                    options: [
-                      { value: "mp3", label: "MP3", icon: MusicNote01Icon },
-                      { value: "wav", label: "WAV", icon: AudioWave01Icon },
-                    ],
-                    disabled: anyBusy,
-                  }
-                : undefined,
-              actions: [
-                !autoRunEnabled && {
-                  label: "Convert",
-                  icon: ArrowDataTransferHorizontalIcon,
-                  onClick: convert,
-                  disabled: anyBusy || !anyIdle,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob?.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: jobs.length === 0,
+        segments: {
+          value: activeJob?.format ?? "mp3",
+          onValueChange: (value) =>
+            activeJob && changeFormat(activeJob.id, value as Format),
+          label: "Format",
+          options: [
+            { value: "mp3", label: "MP3", icon: MusicNote01Icon },
+            { value: "wav", label: "WAV", icon: AudioWave01Icon },
+          ],
+          disabled: anyBusy,
+        },
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Convert",
+            icon: ArrowDataTransferHorizontalIcon,
+            onClick: convert,
+            disabled: anyBusy || !anyIdle,
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

@@ -347,7 +347,7 @@ export default function WheelSpinPage() {
       icon={LoaderPinwheelIcon}
       sidebar={{
         slider: {
-          label: "Spin time",
+          label: "Spin Time",
           value: spinSeconds,
           onValueChange: setSpinSeconds,
           min: 1,
@@ -378,7 +378,8 @@ export default function WheelSpinPage() {
             disabled: spinning || names.length < 2,
             variant: "card",
           },
-          winner !== null && {
+          {
+            hidden: winner === null,
             label: "Remove winner",
             icon: Delete02Icon,
             onClick: removeWinner,

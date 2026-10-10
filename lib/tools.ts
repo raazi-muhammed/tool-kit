@@ -13,6 +13,7 @@ import {
   FileLockedIcon,
   FileStackIcon,
   FileUnlockedIcon,
+  FileZipIcon,
   Gif01Icon,
   IdentityCardIcon,
   Image01Icon,
@@ -245,6 +246,14 @@ export const TOOLS: Tool[] = [
     name: "PDF Lock",
     description:
       "Add a password to a PDF and download a locked copy, in your browser.",
+    category: "pdf",
+  },
+  {
+    href: "/pdf-compress",
+    icon: FileZipIcon,
+    name: "PDF Compress",
+    description:
+      "Shrink PDFs by recompressing their images to a quality level or a target file size, in your browser.",
     category: "pdf",
   },
   {

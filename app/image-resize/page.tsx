@@ -181,7 +181,11 @@ export default function ImageResizePage() {
 
   function blobForJob(job: Job): Promise<ZipEntry | null> {
     if (!job.result) return Promise.resolve(null)
-    return canvasBlobNamed(job.result.canvas, job.name, outputMime(job.file.type))
+    return canvasBlobNamed(
+      job.result.canvas,
+      job.name,
+      outputMime(job.file.type)
+    )
   }
 
   function downloadZip() {
@@ -208,51 +212,47 @@ export default function ImageResizePage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              inputs: [
-                {
-                  label: "Width",
-                  type: "number",
-                  min: 1,
-                  value: width,
-                  onChange: onWidthChange,
-                },
-                {
-                  label: "Height",
-                  type: "number",
-                  min: 1,
-                  value: height,
-                  onChange: onHeightChange,
-                },
-              ],
-              actions: [
-                {
-                  label: lockAspect
-                    ? "Unlock aspect ratio"
-                    : "Lock aspect ratio",
-                  icon: LinkIcon,
-                  onClick: toggleLockAspect,
-                  variant: lockAspect ? "card" : "ghost",
-                },
-                !autoRunEnabled && {
-                  label: "Resize",
-                  icon: Resize02Icon,
-                  onClick: resize,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: !activeJob,
+        inputs: [
+          {
+            label: "Width",
+            type: "number",
+            min: 1,
+            value: width,
+            onChange: onWidthChange,
+          },
+          {
+            label: "Height",
+            type: "number",
+            min: 1,
+            value: height,
+            onChange: onHeightChange,
+          },
+        ],
+        actions: [
+          {
+            label: lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio",
+            icon: LinkIcon,
+            onClick: toggleLockAspect,
+            variant: lockAspect ? "card" : "ghost",
+          },
+          {
+            hidden: autoRunEnabled,
+            label: "Resize",
+            icon: Resize02Icon,
+            onClick: resize,
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

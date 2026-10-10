@@ -30,8 +30,9 @@ older pages still pass them; that's legacy to be removed when those pages are
 next touched, not a pattern to copy.
 
 `ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
-and a bottom bar for the file strip/Add file), and — only once there's
-something to put in it — a right sidebar for settings, stacked top to bottom,
+and a bottom bar for the file strip/Add file), and — whenever the page passes
+`sidebar` (always, even before a file is loaded) — a right sidebar for
+settings, stacked top to bottom,
 with the primary action button(s) and Download pinned to its bottom edge. The
 sidebar is built on the shadcn **Sidebar** primitive
 (`components/ui/sidebar.tsx`, added via `npx shadcn@latest add sidebar`) with
@@ -40,7 +41,11 @@ true) and is freely resizable by dragging its left edge, or by focusing that
 edge and using the arrow keys/Home/End — the chosen width is shared and
 persisted across every tool via `useSidebarWidth`
 (`components/sidebar-width-preference.tsx`), clamped between
-`SIDEBAR_MIN_WIDTH`/`SIDEBAR_MAX_WIDTH`. See `components/tool-page.tsx` and
+`SIDEBAR_MIN_WIDTH`/`SIDEBAR_MAX_WIDTH`. On desktop it's `sticky top-0` and
+exactly one viewport tall, so a long main column scrolls past it rather than
+dragging it along — which relies on `<html>`/`<body>` using `overflow-x-clip`,
+not `overflow-x-hidden` (the latter turns `<body>` into a scroll container that
+never scrolls, silently breaking `sticky`). See `components/tool-page.tsx` and
 `components/page-breadcrumb.tsx`.
 
 For a mutually-exclusive mode toggle (e.g. an output-format switch), pass the
@@ -95,17 +100,16 @@ object, not JSX, so `ToolPage` renders the controls (and their icons) itself:
   fileStrip={jobs.length > 1 && (
     <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
   )}
-  sidebar={
-    activeJob && {
-      zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
-      slider: { label: "Amount", value: blur, onValueChange: onBlurChange, min: 1, max: 50, unit: "px" },
-      actions: [
-        pendingRect && { label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost", emphasis: "secondary" },
-        { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
-      ],
-      download: { onDownload: download, disabled: !activeJob.hasEdits, onDownloadAll: downloadAll },
-    }
-  }
+  sidebar={{
+    disabled: !activeJob,
+    zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
+    slider: { label: "Amount", value: blur, onValueChange: onBlurChange, min: 1, max: 50, unit: "px" },
+    actions: [
+      { hidden: !pendingRect, label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost", emphasis: "secondary" },
+      { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
+    ],
+    download: { onDownload: download, disabled: !activeJob?.hasEdits, onDownloadAll: downloadAll },
+  }}
 >
 ```
 
@@ -197,12 +201,17 @@ The sidebar prop also has config primitives for a few other recurring controls �
 still config objects, never JSX, so `ToolPage` renders them itself, all in the
 sidebar:
 
-- `color` — a settable/clearable color swatch (e.g. a background fill for
-  transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
-clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
-  instead of the clear button. `ColorPicker` itself (`components/color-picker.tsx`)
-  always offers both a "Pick from screen" native `EyeDropper` button (where
-  the browser supports it — Chrome/Edge) and a "Pick from image" fallback
+- `color` — a color swatch (e.g. a background fill for transparent PNGs):
+  `{ label, value, onChange, fallback, allowTransparent? }`. Set
+  `allowTransparent` for a fill that can also be left empty: it adds a
+  checkerboard "Transparent" swatch inside the color popover, which sets
+  `value` to `null`, and the picker then reads "Transparent" itself. Don't
+  add a separate clear button or "transparent" label next to the heading.
+  `ColorPicker` itself (`components/color-picker.tsx`)
+  opens its own popover (saturation/brightness area, hue bar, presets) from the
+  swatch rather than the browser's native color dialog. That popover always
+  holds both a "From screen" native `EyeDropper` button (where the browser
+  supports it — Chrome/Edge) and a "From image" fallback
   that works everywhere (including Safari/Firefox): it consumes the next
   click anywhere on the page and samples whatever canvas/image is under the
   cursor via `sampleColorAtPoint` (`lib/canvas.ts`). Both are unconditional —
@@ -210,22 +219,69 @@ clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
   reintroduce a page-owned "pick mode" (state, an `onClick` on the preview
   canvas, a cursor override) to support this. See `app/image-converter/page.tsx`
   and `app/image-crop/page.tsx`.
-- `toggle` — a pressable button (e.g. "Remove background") that reveals its
-  own nested `color` and/or `slider` only while pressed: `{ label, icon,
-pressed, onPressedChange, color?, slider? }`. See
-  `app/image-converter/page.tsx`.
+- `toggle` — a single on/off option (e.g. "Remove background") rendered as a
+  one-row checklist, in the same `bg-card` track and checked-row style as
+  `checklists`, that reveals its own nested controls only while checked:
+  `{ label, pressed, onPressedChange, checkbox?, color?, slider? }`. A nested
+  `checkbox` (a narrower refinement) renders as an indented second row in the
+  same track; `color`/`slider` render below it. See
+  `app/image-converter/page.tsx` and `app/env-example-creator/page.tsx`.
 - `inputs` — an array of labeled text/number/password fields rendered
   label-above-input (e.g. resize width/height, a PDF password): `{ label,
 value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
   give each a real label — it's stacked alone in the sidebar column, not
   side-by-side with a neighboring field, so a blank label (fine in a horizontal
-  row) reads as broken here. See `app/image-resize/page.tsx` and
-  `app/pdf-unlock/page.tsx`.
+  row) reads as broken here. `type: "textarea"` (plus an optional
+  `placeholder`) renders a multi-line field instead, where Enter inserts a
+  newline and `onEnter` fires on ⌘/Ctrl+Enter. See `app/image-resize/page.tsx`,
+  `app/pdf-unlock/page.tsx`, and `app/score-keeper/page.tsx`.
 - `hint` — muted contextual text shown in the sidebar instead of a separate
   paragraph below the preview (e.g. "No transparent margin to trim."): just a
   `ReactNode`. See `app/image-trim/page.tsx`.
+- `checklists` — labeled lists of checkboxes for a multi-select setting, where
+  any number of options can be on at once (e.g. Favicon Creator's icon
+  sizes): `{ label, items: { label, checked, onCheckedChange, disabled? }[] }`.
+  Use this rather than `segments`/`groups` (single-select only) or a row of
+  `card`/`ghost` toggle buttons in `actions`. See
+  `app/favicon-creator/page.tsx`.
 
-Render order in the sidebar is `segments`, `color`, `toggle`, `inputs`,
+Always pass `sidebar`, even before a file is loaded, so the empty screen
+shows the tool's settings instead of a lone dropzone. Set `disabled:
+jobs.length === 0` (or `!activeJob`) on it to grey out every control inside
+it until there's something to act on; a top-level `segments` that renders in
+the sidebar follows the same state. Since the config is now built with no
+active job, read job fields null-safely (`!activeJob?.result`, `activeJob?.format
+?? "png"`), ideally falling back to what a new job defaults to, so the
+disabled sidebar previews the controls a first file will get.
+
+To show a block only in some states (a mode, a pending selection, a PNG
+input), pass it unconditionally with `hidden: !condition` instead of wrapping
+it in `condition ? {...} : undefined`. The top-level `segments` and every
+sidebar block (`segments`, `groups`, `color`, `toggle`, `toggle.slider`,
+`inputs`, `checklists`, `zoom`, `slider`, `download`, each action or action
+group, and an action's `more`) take this flag, and `ToolPage` drops hidden
+blocks before it renders anything. Don't hide a block just because no file is
+loaded yet; the sidebar's `disabled` covers that:
+
+```tsx
+sidebar={{
+  disabled: jobs.length === 0,
+  color: { hidden: !anyPng, label: "Background", value: bgColor, onChange: setBgColor, fallback: "#ffffff" },
+  slider: { hidden: !supportsQuality, label: "Quality", value: quality, onValueChange: setQuality, min: 0, max: 100, unit: "%" },
+}}
+```
+
+Callback props where `undefined` means "this option isn't offered", like
+`download.onDownloadAll` and `onAddFile`, stay conditional. See
+`app/image-converter/page.tsx`.
+
+Write every sidebar section heading (a `label` on `segments`, `groups`,
+`checklists`, `slider`, `inputs`, `color`, or an action group) in Title Case,
+e.g. "Aspect Ratio", "Target Size (KB)". Headings render as written (not
+uppercased) in the wide display font (`font-display`). Button and option labels stay in sentence
+case ("Apply blur to all").
+
+Render order in the sidebar is `checklists`, `segments`, `color`, `toggle`, `inputs`,
 `slider`, `hint`, then the pinned-bottom `actions`/`download` block. Don't add
 a new primitive for a one-off control — reuse `actions` (e.g. an icon+label
 toggle button computed from page state, like Image Resize's aspect-ratio

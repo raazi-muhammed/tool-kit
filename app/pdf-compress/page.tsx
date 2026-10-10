@@ -4,15 +4,16 @@ import {
   AlertCircleIcon,
   CloudUploadIcon,
   DartIcon,
-  Gif01Icon,
+  FileZipIcon,
   Loading03Icon,
+  Pdf02Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons"
-import gifsicle from "gifsicle-wasm-browser"
 import { useEffect, useRef, useState } from "react"
 
 import { Dropzone, type DropzoneHandle } from "@/components/dropzone"
 import { JobStrip } from "@/components/job-strip"
+import { PdfPreview } from "@/components/pdf-preview"
 import { PreviewCard } from "@/components/preview-card"
 import { ToolPage } from "@/components/tool-page"
 import { useDebouncedEffect } from "@/hooks/use-debounced-effect"
@@ -25,16 +26,11 @@ import {
   setBlobResult,
   type FileResult,
 } from "@/lib/download"
+import { isPdfFile } from "@/lib/pdf"
+import { compressPdf, settingsForQuality } from "@/lib/pdf-compress"
 import { formatBytes } from "@/lib/wav"
 
-const ACCEPTED = "image/gif,.gif"
-
-// Gifsicle's --lossy dial: quality mode maps the 1-100 slider onto 0-200
-// (the documented useful range); target-size mode searches a wider 0-300
-// before falling back to palette reduction.
-const QUALITY_MAX_LOSSY = 200
-const TARGET_MAX_LOSSY = 300
-const FALLBACK_COLORS = [128, 64, 32]
+const ACCEPTED = "application/pdf,.pdf"
 
 type Mode = "quality" | "size"
 type Status = "idle" | "compressing" | "done" | "error"
@@ -43,7 +39,7 @@ type Job = {
   file: File
   name: string
   size: number
-  previewUrl: string
+  originalUrl: string
   status: Status
   error: string | null
   /** Soft caveat on an otherwise-done result (e.g. the target size was unreachable). */
@@ -51,71 +47,64 @@ type Job = {
   result: FileResult | null
 }
 
-function isGifFile(file: File): boolean {
-  return file.type === "image/gif" || /\.gif$/i.test(file.name)
+function compressedName(name: string): string {
+  return name.toLowerCase().endsWith(".pdf")
+    ? `${name.slice(0, -4)}-compressed.pdf`
+    : `${name}-compressed.pdf`
 }
 
-async function runGifsicle(file: File, args: string): Promise<Blob> {
-  const out = await gifsicle.run({
-    input: [{ file, name: "in.gif" }],
-    command: [`${args} in.gif -o /out/out.gif`],
-  })
-  const result = out[0]
-  if (!result || result.size === 0)
-    throw new Error("This file couldn't be processed as a GIF.")
-  return result
+function toBlob(bytes: Uint8Array): Blob {
+  return new Blob([bytes as BlobPart], { type: "application/pdf" })
 }
 
 async function compressOnce(
   file: File,
   opts: { mode: Mode; quality: number; targetBytes: number }
 ): Promise<{ blob: Blob; note: string | null }> {
-  if (opts.mode === "quality") {
-    const lossy = Math.round(((100 - opts.quality) / 100) * QUALITY_MAX_LOSSY)
-    const args = lossy > 0 ? `-O3 --lossy=${lossy}` : "-O3"
-    return { blob: await runGifsicle(file, args), note: null }
+  const bytes = await file.arrayBuffer()
+
+  // Never hand back something bigger than what came in — a text-only or
+  // already-optimized PDF has little to give, so keep the original instead.
+  const noGain = {
+    blob: file as Blob,
+    note: "This PDF is already about as small as it gets.",
   }
 
-  // Target-size mode: lossless optimization first — if that already fits,
-  // there's nothing to trade away.
-  const full = await runGifsicle(file, "-O3")
-  if (full.size <= opts.targetBytes) return { blob: full, note: null }
+  if (opts.mode === "quality") {
+    const out = await compressPdf(bytes, settingsForQuality(opts.quality))
+    return out.length < file.size ? { blob: toBlob(out), note: null } : noGain
+  }
 
-  // Find the lowest --lossy level (best quality) whose output still fits.
-  let lo = 0
-  let hi = TARGET_MAX_LOSSY
-  let best: Blob | null = null
-  for (let i = 0; i < 5; i++) {
+  // Target-size mode: binary-search the highest quality whose output fits.
+  let lo = 1
+  let hi = 100
+  let best: Uint8Array | null = null
+  let smallest: Uint8Array | null = null
+  for (let i = 0; i < 6 && lo <= hi; i++) {
     const mid = Math.round((lo + hi) / 2)
-    const blob = await runGifsicle(file, `-O3 --lossy=${mid}`)
-    if (blob.size <= opts.targetBytes) {
-      best = blob
-      hi = mid
+    const out = await compressPdf(bytes, settingsForQuality(mid))
+    if (!smallest || out.length < smallest.length) smallest = out
+    if (out.length <= opts.targetBytes) {
+      best = out
+      lo = mid + 1
     } else {
-      lo = mid
+      hi = mid - 1
     }
   }
-  if (best) return { blob: best, note: null }
+  if (best) return { blob: toBlob(best), note: null }
 
-  // Even max lossy is too big — trade palette colors for size next.
-  let smallest = await runGifsicle(file, `-O3 --lossy=${TARGET_MAX_LOSSY}`)
-  for (const colors of FALLBACK_COLORS) {
-    const blob = await runGifsicle(
-      file,
-      `-O3 --lossy=${TARGET_MAX_LOSSY} --colors ${colors}`
-    )
-    if (blob.size <= opts.targetBytes) return { blob, note: null }
-    if (blob.size < smallest.size) smallest = blob
-  }
+  const floor = await compressPdf(bytes, settingsForQuality(1))
+  if (!smallest || floor.length < smallest.length) smallest = floor
+  if (smallest.length >= file.size) return noGain
   return {
-    blob: smallest,
+    blob: toBlob(smallest),
     note: `Couldn't reach ${formatBytes(opts.targetBytes)} — ${formatBytes(
-      smallest.size
-    )} is the smallest this GIF compresses to.`,
+      smallest.length
+    )} is the smallest this PDF compresses to.`,
   }
 }
 
-export default function GifCompressPage() {
+export default function PdfCompressPage() {
   const {
     jobs,
     activeId,
@@ -126,7 +115,7 @@ export default function GifCompressPage() {
     removeJob,
   } = useFiles<Job, File>({
     loadResource: async (file) => {
-      if (!isGifFile(file)) throw new Error("Not a GIF.")
+      if (!isPdfFile(file)) throw new Error("Not a PDF.")
       return file
     },
     createJob: (file, id) => ({
@@ -134,19 +123,19 @@ export default function GifCompressPage() {
       file,
       name: file.name,
       size: file.size,
-      previewUrl: URL.createObjectURL(file),
+      originalUrl: URL.createObjectURL(file),
       status: "idle",
       error: null,
       note: null,
       result: null,
     }),
     cleanupJob: (job) => {
-      URL.revokeObjectURL(job.previewUrl)
+      URL.revokeObjectURL(job.originalUrl)
       if (job.result) URL.revokeObjectURL(job.result.url)
     },
   })
   const [mode, setMode] = useState<Mode>("quality")
-  const [quality, setQuality] = useState(75)
+  const [quality, setQuality] = useState(70)
   const [targetKb, setTargetKb] = useState("")
   const [error, setError] = useState<string | null>(null)
   const dropzoneRef = useRef<DropzoneHandle>(null)
@@ -163,7 +152,7 @@ export default function GifCompressPage() {
 
   // Latest settings, re-read by an in-flight compression after each pass so
   // a mid-run settings change re-runs with the new values instead of landing
-  // a stale result (a gifsicle run can take seconds on a large GIF).
+  // a stale result (re-encoding every image in a big PDF can take seconds).
   const settings = {
     key: `${mode}:${quality}:${targetKb}`,
     mode,
@@ -192,7 +181,7 @@ export default function GifCompressPage() {
         status: "done",
         error: null,
         note,
-        result: setBlobResult(j.result, blob, job.name),
+        result: setBlobResult(j.result, blob, compressedName(job.name)),
       }))
     } catch (err) {
       updateJob(job.id, {
@@ -200,13 +189,12 @@ export default function GifCompressPage() {
         error:
           err instanceof Error
             ? err.message
-            : "Something went wrong while compressing the GIF.",
+            : "Something went wrong while compressing the PDF.",
       })
     }
   }
 
-  // Recompress automatically whenever a setting changes — debounced a bit
-  // longer than usual since every run spins up gifsicle. Jobs already
+  // Recompress automatically whenever a setting changes. Jobs already
   // compressing are skipped: they re-run themselves via the settings ref.
   useDebouncedEffect(
     () => {
@@ -227,10 +215,10 @@ export default function GifCompressPage() {
     } = await addFilesToQueue(fileList)
     setError(
       addedCount === 0 && failedCount > 0
-        ? "None of the selected files are GIFs. For other images, use the Image Compress tool."
+        ? "None of the selected files are PDFs."
         : null
     )
-    // Seed the target-size field (once) to roughly half the first GIF.
+    // Seed the target-size field (once) to roughly half the first PDF.
     if (created.length > 0 && targetKb === "")
       setTargetKb(String(Math.max(1, Math.round(created[0].file.size / 2048))))
   }
@@ -258,7 +246,7 @@ export default function GifCompressPage() {
         job.result
           ? { name: job.result.name, blob: await blobFromUrl(job.result.url) }
           : null,
-      "compressed-gifs.zip"
+      "compressed-pdfs.zip"
     )
   }
 
@@ -268,13 +256,13 @@ export default function GifCompressPage() {
 
   return (
     <ToolPage
-      page="GIF Compress"
-      icon={Gif01Icon}
+      page="PDF Compress"
+      icon={FileZipIcon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       fileStrip={
         jobs.length > 0 && (
           <JobStrip
-            jobs={jobs}
+            jobs={jobs.map((job) => ({ ...job, icon: Pdf02Icon }))}
             activeId={activeId}
             onSelect={setActiveId}
             onRemove={removeJob}
@@ -294,7 +282,7 @@ export default function GifCompressPage() {
         disabled: jobs.length === 0,
         slider: {
           hidden: mode !== "quality",
-          label: "Quality",
+          label: "Image Quality",
           value: quality,
           onValueChange: setQuality,
           min: 1,
@@ -326,60 +314,58 @@ export default function GifCompressPage() {
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
-          <div className="flex min-h-0 flex-1 flex-col gap-4">
-            {/* Original (left) and compressed (right) preview, side by side —
-                both are <img> layers, so animated GIFs keep animating. */}
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
-              <PreviewCard
-                fill
-                half
-                checkerboard
-                title={`Original · ${formatBytes(activeJob.size)}`}
-                layer={{
-                  kind: "image",
-                  src: activeJob.previewUrl,
-                  alt: activeJob.name,
-                  className: "h-full w-full object-contain",
-                }}
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+            <PreviewCard
+              fill
+              half
+              title={`Original · ${formatBytes(activeJob.size)}`}
+            >
+              <PdfPreview
+                key={activeJob.originalUrl}
+                url={activeJob.originalUrl}
               />
+            </PreviewCard>
 
-              <PreviewCard
-                fill
-                half
-                checkerboard
-                title={
-                  activeJob.result && savings !== null
-                    ? `Compressed · ${formatBytes(activeJob.result.size)} · ${
-                        savings >= 0
-                          ? `${savings}% smaller`
-                          : `${-savings}% larger`
-                      }`
-                    : "Compressed"
-                }
-                layer={
-                  activeJob.result
+            <PreviewCard
+              fill
+              half
+              title={
+                activeJob.result && savings !== null
+                  ? `Compressed · ${formatBytes(activeJob.result.size)} · ${
+                      savings > 0 ? `${savings}% smaller` : "unchanged"
+                    }`
+                  : "Compressed"
+              }
+              layer={
+                activeJob.result
+                  ? false
+                  : activeJob.status === "compressing"
                     ? {
-                        kind: "image",
-                        src: activeJob.result.url,
-                        alt: activeJob.result.name,
-                        className: "h-full w-full object-contain",
+                        kind: "status",
+                        icon: Loading03Icon,
+                        spin: true,
+                        message: "Compressing…",
                       }
-                    : activeJob.status === "compressing"
-                      ? { kind: "status", icon: Loading03Icon, spin: true }
-                      : activeJob.status === "error"
-                        ? {
-                            kind: "status",
-                            icon: AlertCircleIcon,
-                            tone: "destructive",
-                            message: activeJob.error,
-                          }
-                        : {
-                            kind: "status",
-                            message: "Compression runs automatically",
-                          }
-                }
-              />
-            </div>
+                    : activeJob.status === "error"
+                      ? {
+                          kind: "status",
+                          icon: AlertCircleIcon,
+                          tone: "destructive",
+                          message: activeJob.error,
+                        }
+                      : {
+                          kind: "status",
+                          message: "Compression runs automatically",
+                        }
+              }
+            >
+              {activeJob.result && (
+                <PdfPreview
+                  key={activeJob.result.url}
+                  url={activeJob.result.url}
+                />
+              )}
+            </PreviewCard>
           </div>
         )}
 
@@ -388,8 +374,8 @@ export default function GifCompressPage() {
         <Dropzone
           ref={dropzoneRef}
           icon={CloudUploadIcon}
-          title="Drag and drop GIFs to upload"
-          description="or, click to browse · animations stay animated · in-browser only"
+          title="Drag and drop PDFs to upload"
+          description="or, click to browse · shrink embedded images · in-browser only"
           accept={ACCEPTED}
           multiple
           hidden={jobs.length > 0}

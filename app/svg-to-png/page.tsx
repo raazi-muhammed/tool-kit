@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Cancel01Icon,
   CloudUploadIcon,
   LinkIcon,
   Png01Icon,
@@ -230,60 +229,54 @@ export default function SvgToPngPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              color: {
-                label: "Background",
-                value: bgColor,
-                onChange: setBgColor,
-                fallback: "#ffffff",
-                nullLabel: "transparent",
-                clearLabel: "Transparent",
-                clearIcon: Cancel01Icon,
-              },
-              inputs: [
-                {
-                  label: "Width",
-                  type: "number",
-                  min: 1,
-                  value: width,
-                  onChange: onWidthChange,
-                },
-                {
-                  label: "Height",
-                  type: "number",
-                  min: 1,
-                  value: height,
-                  onChange: onHeightChange,
-                },
-              ],
-              actions: [
-                {
-                  label: lockAspect
-                    ? "Unlock aspect ratio"
-                    : "Lock aspect ratio",
-                  icon: LinkIcon,
-                  onClick: toggleLockAspect,
-                  variant: lockAspect ? "card" : "ghost",
-                },
-                !autoRunEnabled && {
-                  label: "Convert",
-                  icon: Png01Icon,
-                  onClick: convert,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: !activeJob,
+        color: {
+          label: "Background",
+          value: bgColor,
+          onChange: setBgColor,
+          fallback: "#ffffff",
+          allowTransparent: true,
+        },
+        inputs: [
+          {
+            label: "Width",
+            type: "number",
+            min: 1,
+            value: width,
+            onChange: onWidthChange,
+          },
+          {
+            label: "Height",
+            type: "number",
+            min: 1,
+            value: height,
+            onChange: onHeightChange,
+          },
+        ],
+        actions: [
+          {
+            label: lockAspect ? "Unlock aspect ratio" : "Lock aspect ratio",
+            icon: LinkIcon,
+            onClick: toggleLockAspect,
+            variant: lockAspect ? "card" : "ghost",
+          },
+          {
+            hidden: autoRunEnabled,
+            label: "Convert",
+            icon: Png01Icon,
+            onClick: convert,
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

@@ -300,64 +300,58 @@ export default function ImageCropPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              segments: {
-                value: activeJob.aspect,
-                onValueChange: (value) => onAspectChange(value as Aspect),
-                label: "Aspect ratio",
-                options: [
-                  { value: "free", label: "Free", icon: AspectRatioIcon },
-                  { value: "1:1", label: "1:1", icon: SquareIcon },
-                  { value: "4:3", label: "4:3", icon: Tv01Icon },
-                  { value: "3:4", label: "3:4", icon: Image02Icon },
-                  { value: "16:9", label: "16:9", icon: RectangularIcon },
-                  { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
-                ],
-              },
-              color: isPng
-                ? {
-                    label: "Background",
-                    value: activeJob.bgColor,
-                    onChange: onColorChange,
-                    fallback: "#ffffff",
-                    nullLabel: "transparent",
-                    clearLabel: "Transparent",
-                    clearIcon: Cancel01Icon,
-                  }
-                : undefined,
-              actions: [
-                pendingRect && {
-                  label: "Cancel selection",
-                  icon: Cancel01Icon,
-                  onClick: clearSelection,
-                  variant: "card",
-                },
-                !autoRunEnabled && {
-                  label: "Crop",
-                  icon: CropIcon,
-                  onClick: () => applyCrop(),
-                  disabled: !pendingRect,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Crop all",
-                          icon: CropIcon,
-                          onClick: applyCropToAll,
-                          disabled: !pendingRect,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: !activeJob,
+        segments: {
+          value: activeJob?.aspect ?? "free",
+          onValueChange: (value) => onAspectChange(value as Aspect),
+          label: "Aspect Ratio",
+          options: [
+            { value: "free", label: "Free", icon: AspectRatioIcon },
+            { value: "1:1", label: "1:1", icon: SquareIcon },
+            { value: "4:3", label: "4:3", icon: Tv01Icon },
+            { value: "3:4", label: "3:4", icon: Image02Icon },
+            { value: "16:9", label: "16:9", icon: RectangularIcon },
+            { value: "9:16", label: "9:16", icon: SmartPhone01Icon },
+          ],
+        },
+        color: {
+          hidden: !isPng,
+          label: "Background",
+          value: activeJob?.bgColor ?? null,
+          onChange: onColorChange,
+          fallback: "#ffffff",
+          allowTransparent: true,
+        },
+        actions: [
+          {
+            hidden: !pendingRect,
+            label: "Cancel selection",
+            icon: Cancel01Icon,
+            onClick: clearSelection,
+            variant: "card",
+          },
+          {
+            hidden: autoRunEnabled,
+            label: "Crop",
+            icon: CropIcon,
+            onClick: () => applyCrop(),
+            disabled: !pendingRect,
+            more: {
+              hidden: jobs.length <= 1,
+              label: "Crop all",
+              icon: CropIcon,
+              onClick: applyCropToAll,
+              disabled: !pendingRect,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

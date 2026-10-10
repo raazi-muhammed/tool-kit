@@ -391,97 +391,89 @@ export default function ImageScanPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              zoom: {
-                percent: zoomPct,
-                onZoomOut: () => zoomFromButton(0.8),
-                onZoomIn: () => zoomFromButton(1.25),
-                onFit: fitView,
-                zoomOutDisabled: zoomPct <= MIN_ZOOM * 100,
-                zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
+      sidebar={{
+        disabled: !activeJob,
+        zoom: {
+          percent: zoomPct,
+          onZoomOut: () => zoomFromButton(0.8),
+          onZoomIn: () => zoomFromButton(1.25),
+          onFit: fitView,
+          zoomOutDisabled: zoomPct <= MIN_ZOOM * 100,
+          zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
+        },
+        slider: [
+          {
+            hidden: filter !== "bw",
+            label: "Threshold",
+            value: bwThreshold,
+            onValueChange: setBwThreshold,
+            min: 0,
+            max: 255,
+            disabled: anyProcessing,
+          },
+          {
+            hidden: filter !== "enhance",
+            label: "Contrast",
+            value: contrast,
+            onValueChange: setContrast,
+            min: 50,
+            max: 200,
+            unit: "%",
+            disabled: anyProcessing,
+          },
+        ],
+        actions: [
+          {
+            label: "Rotate",
+            placement: "top",
+            actions: [
+              {
+                label: "Rotate left",
+                icon: RotateCcwSquareIcon,
+                onClick: () => rotate(-90),
+                variant: "card",
+                disabled: anyProcessing,
               },
-              slider:
-                filter === "bw"
-                  ? {
-                      label: "Threshold",
-                      value: bwThreshold,
-                      onValueChange: setBwThreshold,
-                      min: 0,
-                      max: 255,
-                      disabled: anyProcessing,
-                    }
-                  : filter === "enhance"
-                    ? {
-                        label: "Contrast",
-                        value: contrast,
-                        onValueChange: setContrast,
-                        min: 50,
-                        max: 200,
-                        unit: "%",
-                        disabled: anyProcessing,
-                      }
-                    : undefined,
-              actions: [
-                {
-                  label: "Rotate",
-                  placement: "top",
-                  actions: [
-                    {
-                      label: "Rotate left",
-                      icon: RotateCcwSquareIcon,
-                      onClick: () => rotate(-90),
-                      variant: "card",
-                      disabled: anyProcessing,
-                    },
-                    {
-                      label: "Rotate right",
-                      icon: RotateCwSquareIcon,
-                      onClick: () => rotate(90),
-                      variant: "card",
-                      disabled: anyProcessing,
-                    },
-                  ],
-                },
-                {
-                  label: "Auto detect",
-                  icon: AiScanIcon,
-                  onClick: autoDetectCorners,
-                  variant: "card",
-                  disabled: anyProcessing,
-                },
-                !autoRunEnabled && {
-                  label: anyProcessing ? "Scanning…" : "Scan",
-                  icon: ScanIcon,
-                  onClick: applyScan,
-                  disabled: !quad || anyProcessing,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Scan all",
-                          icon: ScanIcon,
-                          onClick: applyScanToAll,
-                          disabled: !quad || anyProcessing,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !hasActiveScan,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) =>
-                  scannedIds.has(job.id)
-                ),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) =>
-                  scannedIds.has(job.id)
-                ),
+              {
+                label: "Rotate right",
+                icon: RotateCwSquareIcon,
+                onClick: () => rotate(90),
+                variant: "card",
+                disabled: anyProcessing,
               },
-            }
-          : undefined
-      }
+            ],
+          },
+          {
+            label: "Auto detect",
+            icon: AiScanIcon,
+            onClick: autoDetectCorners,
+            variant: "card",
+            disabled: anyProcessing,
+          },
+          {
+            hidden: autoRunEnabled,
+            label: anyProcessing ? "Scanning…" : "Scan",
+            icon: ScanIcon,
+            onClick: applyScan,
+            disabled: !quad || anyProcessing,
+            more: {
+              hidden: jobs.length < 2,
+              label: "Scan all",
+              icon: ScanIcon,
+              onClick: applyScanToAll,
+              disabled: !quad || anyProcessing,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !hasActiveScan,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => scannedIds.has(job.id)),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => scannedIds.has(job.id)),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

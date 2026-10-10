@@ -223,40 +223,36 @@ export default function ImageTrimPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              hint:
-                !pendingRect && !activeJob.trimmed
-                  ? "No transparent margin to trim."
-                  : undefined,
-              actions: [
-                !autoRunEnabled && {
-                  label: "Trim",
-                  icon: ScissorRectangleIcon,
-                  onClick: applyTrim,
-                  disabled: !pendingRect,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Trim all",
-                          icon: ScissorRectangleIcon,
-                          onClick: applyTrimToAll,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob.trimmed,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.trimmed),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.trimmed),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: !activeJob,
+        hint:
+          activeJob && !pendingRect && !activeJob.trimmed
+            ? "No transparent margin to trim."
+            : undefined,
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Trim",
+            icon: ScissorRectangleIcon,
+            onClick: applyTrim,
+            disabled: !pendingRect,
+            more: {
+              hidden: jobs.length < 2,
+              label: "Trim all",
+              icon: ScissorRectangleIcon,
+              onClick: applyTrimToAll,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.trimmed,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.trimmed),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.trimmed),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

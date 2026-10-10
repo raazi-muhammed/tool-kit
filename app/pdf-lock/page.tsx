@@ -248,57 +248,53 @@ export default function PdfLockPage() {
           />
         )
       }
-      sidebar={
-        jobs.length > 0
-          ? {
-              inputs: [
-                {
-                  label: "Password",
-                  type: "password",
-                  value: password,
-                  onChange: setPassword,
-                  disabled: anyBusy || activeJob?.alreadyLocked === true,
-                },
-                {
-                  label: "Confirm password",
-                  type: "password",
-                  value: confirmPassword,
-                  onChange: setConfirmPassword,
-                  disabled: anyBusy || activeJob?.alreadyLocked === true,
-                  onEnter: lock,
-                },
-              ],
-              actions: [
-                !autoRunEnabled && {
-                  label: "Lock",
-                  icon: FileLockedIcon,
-                  onClick: lock,
-                  disabled:
-                    anyBusy ||
-                    !activeJob?.validFile ||
-                    activeJob?.alreadyLocked === true,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Lock all",
-                          icon: FileLockedIcon,
-                          onClick: lockAll,
-                          disabled: anyBusy,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob?.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: jobs.length === 0,
+        inputs: [
+          {
+            label: "Password",
+            type: "password",
+            value: password,
+            onChange: setPassword,
+            disabled: anyBusy || activeJob?.alreadyLocked === true,
+          },
+          {
+            label: "Confirm Password",
+            type: "password",
+            value: confirmPassword,
+            onChange: setConfirmPassword,
+            disabled: anyBusy || activeJob?.alreadyLocked === true,
+            onEnter: lock,
+          },
+        ],
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Lock",
+            icon: FileLockedIcon,
+            onClick: lock,
+            disabled:
+              anyBusy ||
+              !activeJob?.validFile ||
+              activeJob?.alreadyLocked === true,
+            more: {
+              hidden: jobs.length < 2,
+              label: "Lock all",
+              icon: FileLockedIcon,
+              onClick: lockAll,
+              disabled: anyBusy,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

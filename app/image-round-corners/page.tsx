@@ -172,34 +172,31 @@ export default function ImageRoundCornersPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              color: {
-                label: "Background",
-                value: bgColor,
-                onChange: setBgColor,
-                fallback: "#ffffff",
-              },
-              slider: {
-                label: "Radius",
-                value: radiusPercent,
-                onValueChange: setRadiusPercent,
-                min: 0,
-                max: 100,
-                unit: "%",
-              },
-              download: {
-                onDownload: download,
-                disabled: !activeJob.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        disabled: !activeJob,
+        color: {
+          label: "Background",
+          value: bgColor,
+          onChange: setBgColor,
+          fallback: "#ffffff",
+        },
+        slider: {
+          label: "Radius",
+          value: radiusPercent,
+          onValueChange: setRadiusPercent,
+          min: 0,
+          max: 100,
+          unit: "%",
+        },
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
