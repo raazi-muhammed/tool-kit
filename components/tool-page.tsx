@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { useResizableWidth } from "@/hooks/use-resizable-width"
 import { cn } from "@/lib/utils"
 
@@ -223,13 +224,17 @@ type SidebarToggle = {
 
 // A single labeled text/number/password field (e.g. a resize width, a PDF
 // password) — rendered label-above-input, matching the app's form fields.
+// `type: "textarea"` renders a multi-line field instead (e.g. Score Keeper's
+// one-name-per-line player list), where plain Enter inserts a newline and
+// `onEnter` fires on ⌘/Ctrl+Enter.
 type SidebarInput = {
   label: string
   value: string
   onChange: (value: string) => void
-  type?: "text" | "number" | "password"
+  type?: "text" | "number" | "password" | "textarea"
   disabled?: boolean
   min?: number
+  placeholder?: string
   className?: string
   onEnter?: () => void
 }
@@ -280,6 +285,7 @@ function SidebarLabel({ children }: { children: ReactNode }) {
 // Password fields also get a built-in show/hide toggle inside the input.
 function SidebarInputField({ input }: { input: SidebarInput }) {
   const ref = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isFocusedRef = useRef(false)
   const wasFocusedRef = useRef(false)
   const [revealed, setRevealed] = useState(false)
@@ -290,9 +296,44 @@ function SidebarInputField({ input }: { input: SidebarInput }) {
       if (isFocusedRef.current) wasFocusedRef.current = true
     } else if (wasFocusedRef.current) {
       wasFocusedRef.current = false
-      ref.current?.focus()
+      ;(ref.current ?? textareaRef.current)?.focus()
     }
   }, [input.disabled])
+
+  const focusHandlers = {
+    onFocus: () => {
+      isFocusedRef.current = true
+    },
+    onBlur: (e: { target: { disabled: boolean } }) => {
+      isFocusedRef.current = false
+      if (e.target.disabled) wasFocusedRef.current = true
+    },
+  }
+
+  if (input.type === "textarea") {
+    return (
+      <Textarea
+        ref={textareaRef}
+        value={input.value}
+        onChange={(e) => input.onChange(e.target.value)}
+        disabled={input.disabled}
+        placeholder={input.placeholder}
+        autoComplete="off"
+        {...focusHandlers}
+        onKeyDown={
+          input.onEnter
+            ? (e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  input.onEnter!()
+                }
+              }
+            : undefined
+        }
+        className={cn("max-h-48", input.className)}
+      />
+    )
+  }
 
   const field = (
     <Input
@@ -302,14 +343,9 @@ function SidebarInputField({ input }: { input: SidebarInput }) {
       value={input.value}
       onChange={(e) => input.onChange(e.target.value)}
       disabled={input.disabled}
+      placeholder={input.placeholder}
       autoComplete="off"
-      onFocus={() => {
-        isFocusedRef.current = true
-      }}
-      onBlur={(e) => {
-        isFocusedRef.current = false
-        if (e.target.disabled) wasFocusedRef.current = true
-      }}
+      {...focusHandlers}
       onKeyDown={
         input.onEnter
           ? (e) => {

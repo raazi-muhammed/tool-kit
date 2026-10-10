@@ -223,8 +223,10 @@ pressed, onPressedChange, color?, slider? }`. See
 value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
   give each a real label — it's stacked alone in the sidebar column, not
   side-by-side with a neighboring field, so a blank label (fine in a horizontal
-  row) reads as broken here. See `app/image-resize/page.tsx` and
-  `app/pdf-unlock/page.tsx`.
+  row) reads as broken here. `type: "textarea"` (plus an optional
+  `placeholder`) renders a multi-line field instead, where Enter inserts a
+  newline and `onEnter` fires on ⌘/Ctrl+Enter. See `app/image-resize/page.tsx`,
+  `app/pdf-unlock/page.tsx`, and `app/score-keeper/page.tsx`.
 - `hint` — muted contextual text shown in the sidebar instead of a separate
   paragraph below the preview (e.g. "No transparent margin to trim."): just a
   `ReactNode`. See `app/image-trim/page.tsx`.
