@@ -1,6 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type SetStateAction } from "react"
+
+function writeStorage(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Storage full/unavailable (e.g. private browsing) — ignore.
+  }
+}
 
 /**
  * State that mirrors a value into localStorage under `key`, so it survives
@@ -9,6 +17,14 @@ import { useEffect, useState } from "react"
  * loads in a `useEffect` right after mount. `parse` validates the stored
  * JSON and must return `null` for anything malformed, in which case
  * `initialValue` is kept.
+ *
+ * Writes happen in the setter, not in an effect keyed on the value: an
+ * effect would also fire on mount with `initialValue`, overwriting the saved
+ * value before it loads — and under Strict Mode's double-run of effects, the
+ * second load then reads back that default and the saved data is lost.
+ *
+ * The third element, `clear()`, removes the key from localStorage and resets
+ * to `initialValue`; the key stays absent until the value next changes.
  */
 export function usePersistedState<T>(
   key: string,
@@ -31,13 +47,24 @@ export function usePersistedState<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      // Storage full/unavailable (e.g. private browsing) — ignore.
-    }
-  }, [key, value])
+  function setPersisted(action: SetStateAction<T>) {
+    setValue((prev) => {
+      const next =
+        typeof action === "function" ? (action as (prev: T) => T)(prev) : action
+      // Idempotent, so safe even if React re-invokes this updater.
+      writeStorage(key, next)
+      return next
+    })
+  }
 
-  return [value, setValue] as const
+  function clear() {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // Storage unavailable — nothing to remove.
+    }
+    setValue(initialValue)
+  }
+
+  return [value, setPersisted, clear] as const
 }
