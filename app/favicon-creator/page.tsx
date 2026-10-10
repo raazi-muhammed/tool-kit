@@ -215,53 +215,51 @@ export default function FaviconCreatorPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              segments: {
-                label: "Shape",
-                value: shape,
-                onValueChange: (value) => setShape(value as IconShape),
-                options: SHAPE_OPTIONS,
-              },
-              checklists: [
-                {
-                  label: "Favicon sizes",
-                  items: FAVICON_SIZES.map(sizeItem),
-                },
-                {
-                  label: "App icon sizes",
-                  items: APP_ICON_SIZES.map(sizeItem),
-                },
-              ],
-              actions: [
-                !autoRunEnabled && {
-                  label: "Generate ICO",
-                  icon: BrowserIcon,
-                  onClick: () => void generate(),
-                },
-              ],
-              color: {
-                label: "Background",
-                value: bgColor,
-                onChange: setBgColor,
-                fallback: "#ffffff",
-                nullLabel: "transparent",
-                clearLabel: "Transparent",
-                clearIcon: Cancel01Icon,
-              },
-              hint: `Includes ${sizes.join(", ")}px. Works best with a square logo.`,
-              download: {
-                onDownload: download,
-                disabled: !activeJob.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        hidden: !activeJob,
+        segments: {
+          label: "Shape",
+          value: shape,
+          onValueChange: (value) => setShape(value as IconShape),
+          options: SHAPE_OPTIONS,
+        },
+        checklists: [
+          {
+            label: "Favicon sizes",
+            items: FAVICON_SIZES.map(sizeItem),
+          },
+          {
+            label: "App icon sizes",
+            items: APP_ICON_SIZES.map(sizeItem),
+          },
+        ],
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Generate ICO",
+            icon: BrowserIcon,
+            onClick: () => void generate(),
+          },
+        ],
+        color: {
+          label: "Background",
+          value: bgColor,
+          onChange: setBgColor,
+          fallback: "#ffffff",
+          nullLabel: "transparent",
+          clearLabel: "Transparent",
+          clearIcon: Cancel01Icon,
+        },
+        hint: `Includes ${sizes.join(", ")}px. Works best with a square logo.`,
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

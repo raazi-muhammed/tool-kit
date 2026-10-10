@@ -248,83 +248,77 @@ export default function PdfToImagesPage() {
           />
         )
       }
-      sidebar={
-        jobs.length > 0
-          ? {
-              segments: {
-                value: format,
-                onValueChange: (value) => setFormat(value as Format),
-                label: "Format",
-                options: [
-                  { value: "png", label: "PNG", icon: Image02Icon },
-                  { value: "jpeg", label: "JPEG", icon: Image02Icon },
-                ],
-                disabled: anyBusy,
+      sidebar={{
+        hidden: jobs.length === 0,
+        segments: {
+          value: format,
+          onValueChange: (value) => setFormat(value as Format),
+          label: "Format",
+          options: [
+            { value: "png", label: "PNG", icon: Image02Icon },
+            { value: "jpeg", label: "JPEG", icon: Image02Icon },
+          ],
+          disabled: anyBusy,
+        },
+        groups: [
+          {
+            label: "Resolution",
+            value: resolution,
+            onValueChange: (value) => setResolution(value as Resolution),
+            disabled: anyBusy,
+            variant: "select",
+            options: [
+              {
+                value: "screen",
+                label: "Screen (72 DPI)",
+                icon: ComputerIcon,
               },
-              groups: [
-                {
-                  label: "Resolution",
-                  value: resolution,
-                  onValueChange: (value) => setResolution(value as Resolution),
-                  disabled: anyBusy,
-                  variant: "select",
-                  options: [
-                    {
-                      value: "screen",
-                      label: "Screen (72 DPI)",
-                      icon: ComputerIcon,
-                    },
-                    {
-                      value: "standard",
-                      label: "Standard (150 DPI)",
-                      icon: Image02Icon,
-                    },
-                    {
-                      value: "high",
-                      label: "High (300 DPI)",
-                      icon: PrinterIcon,
-                    },
-                  ],
-                },
-              ],
-              slider:
-                format === "jpeg"
-                  ? {
-                      label: "Quality",
-                      value: quality,
-                      onValueChange: setQuality,
-                      min: 1,
-                      max: 100,
-                      unit: "%",
-                    }
-                  : undefined,
-              actions: [
-                !autoRunEnabled && {
-                  label: "Convert",
-                  icon: ImageDownloadIcon,
-                  onClick: convert,
-                  disabled: anyBusy || !activeJob?.validFile,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Convert all",
-                          icon: ImageDownloadIcon,
-                          onClick: convertAll,
-                          disabled: anyBusy,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob?.pages.length,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.pages.length),
-                onDownloadZip: totalPages > 1 ? downloadZip : undefined,
+              {
+                value: "standard",
+                label: "Standard (150 DPI)",
+                icon: Image02Icon,
               },
-            }
-          : undefined
-      }
+              {
+                value: "high",
+                label: "High (300 DPI)",
+                icon: PrinterIcon,
+              },
+            ],
+          },
+        ],
+        slider: {
+          hidden: format !== "jpeg",
+          label: "Quality",
+          value: quality,
+          onValueChange: setQuality,
+          min: 1,
+          max: 100,
+          unit: "%",
+        },
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Convert",
+            icon: ImageDownloadIcon,
+            onClick: convert,
+            disabled: anyBusy || !activeJob?.validFile,
+            more: {
+              hidden: jobs.length < 2,
+              label: "Convert all",
+              icon: ImageDownloadIcon,
+              onClick: convertAll,
+              disabled: anyBusy,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.pages.length,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.pages.length),
+          onDownloadZip: totalPages > 1 ? downloadZip : undefined,
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

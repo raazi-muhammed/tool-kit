@@ -237,6 +237,26 @@ value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
   `card`/`ghost` toggle buttons in `actions`. See
   `app/favicon-creator/page.tsx`.
 
+To show a block only under some condition, pass it unconditionally with
+`hidden: !condition` instead of wrapping it in `condition ? {...} : undefined`.
+`sidebar` itself, the top-level `segments`, and every sidebar block
+(`segments`, `groups`, `color`, `toggle`, `toggle.slider`, `inputs`,
+`checklists`, `zoom`, `slider`, `download`, each action or action group, and an
+action's `more`) take
+this flag, and `ToolPage` drops hidden blocks before it renders anything:
+
+```tsx
+sidebar={{
+  hidden: jobs.length === 0,
+  color: { hidden: !anyPng, label: "Background", value: bgColor, onChange: setBgColor, fallback: "#ffffff" },
+  slider: { hidden: !supportsQuality, label: "Quality", value: quality, onValueChange: setQuality, min: 0, max: 100, unit: "%" },
+}}
+```
+
+Callback props where `undefined` means "this option isn't offered", like
+`download.onDownloadAll` and `onAddFile`, stay conditional. See
+`app/image-converter/page.tsx`.
+
 Render order in the sidebar is `checklists`, `segments`, `color`, `toggle`, `inputs`,
 `slider`, `hint`, then the pinned-bottom `actions`/`download` block. Don't add
 a new primitive for a one-off control — reuse `actions` (e.g. an icon+label

@@ -378,7 +378,8 @@ export default function WheelSpinPage() {
             disabled: spinning || names.length < 2,
             variant: "card",
           },
-          winner !== null && {
+          {
+            hidden: winner === null,
             label: "Remove winner",
             icon: Delete02Icon,
             onClick: removeWinner,

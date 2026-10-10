@@ -134,7 +134,12 @@ export default function PwaIconGeneratorPage() {
     )
   }
 
-  async function generateJob(job: Job, bg: string | null, targetShape: IconShape, name: string) {
+  async function generateJob(
+    job: Job,
+    bg: string | null,
+    targetShape: IconShape,
+    name: string
+  ) {
     const img = getResource(job.id)
     if (!img) return
     updateJob(job.id, { status: "generating", error: null })
@@ -169,7 +174,9 @@ export default function PwaIconGeneratorPage() {
   }
 
   function generate() {
-    return Promise.all(jobs.map((job) => generateJob(job, bgColor, shape, appName)))
+    return Promise.all(
+      jobs.map((job) => generateJob(job, bgColor, shape, appName))
+    )
   }
 
   // With "Run automatically" on, regenerate every queued icon set whenever
@@ -208,44 +215,40 @@ export default function PwaIconGeneratorPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              segments: {
-                label: "Shape",
-                value: shape,
-                onValueChange: (value) => setShape(value as IconShape),
-                options: SHAPE_OPTIONS,
-              },
-              inputs: [
-                { label: "App name", value: appName, onChange: setAppName },
-              ],
-              color: {
-                label: "Background",
-                value: bgColor,
-                onChange: setBgColor,
-                fallback: "#ffffff",
-                nullLabel: "transparent",
-                clearLabel: "Transparent",
-                clearIcon: Cancel01Icon,
-              },
-              actions: [
-                !autoRunEnabled && {
-                  label: "Generate icon set",
-                  icon: SmartPhone01Icon,
-                  onClick: () => void generate(),
-                },
-              ],
-              hint: "Includes favicon.ico, favicon PNGs, an apple-touch-icon, Android Chrome icons, and a web app manifest.",
-              download: {
-                onDownload: download,
-                disabled: !activeJob.zip,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.zip),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        hidden: !activeJob,
+        segments: {
+          label: "Shape",
+          value: shape,
+          onValueChange: (value) => setShape(value as IconShape),
+          options: SHAPE_OPTIONS,
+        },
+        inputs: [{ label: "App name", value: appName, onChange: setAppName }],
+        color: {
+          label: "Background",
+          value: bgColor,
+          onChange: setBgColor,
+          fallback: "#ffffff",
+          nullLabel: "transparent",
+          clearLabel: "Transparent",
+          clearIcon: Cancel01Icon,
+        },
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Generate icon set",
+            icon: SmartPhone01Icon,
+            onClick: () => void generate(),
+          },
+        ],
+        hint: "Includes favicon.ico, favicon PNGs, an apple-touch-icon, Android Chrome icons, and a web app manifest.",
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.zip,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.zip),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (
@@ -290,7 +293,10 @@ export default function PwaIconGeneratorPage() {
                                 }
                               >
                                 {f.name === "site.webmanifest" ? (
-                                  <HugeiconsIcon icon={BracesIcon} aria-hidden />
+                                  <HugeiconsIcon
+                                    icon={BracesIcon}
+                                    aria-hidden
+                                  />
                                 ) : (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={f.url} alt="" />

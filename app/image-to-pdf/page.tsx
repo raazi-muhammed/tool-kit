@@ -230,76 +230,73 @@ export default function ImageToPdfPage() {
       page="Image to PDF"
       icon={Pdf01Icon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
-      sidebar={
-        jobs.length > 0
-          ? {
-              groups: [
-                {
-                  label: "Page orientation",
-                  value: orientation,
-                  onValueChange: (value) =>
-                    setOrientation(value as Orientation),
-                  disabled: busy || pageSize === "fit",
-                  options: [
-                    {
-                      value: "portrait",
-                      label: "Portrait",
-                      icon: SmartPhone01Icon,
-                    },
-                    { value: "landscape", label: "Landscape", icon: Tv01Icon },
-                  ],
-                },
-                {
-                  label: "Page size",
-                  value: pageSize,
-                  onValueChange: (value) => setPageSize(value as PageSize),
-                  disabled: busy,
-                  variant: "select",
-                  options: [
-                    {
-                      value: "fit",
-                      label: "Fit to image",
-                      icon: FitToScreenIcon,
-                    },
-                    { value: "a4", label: "A4", icon: Note01Icon },
-                    {
-                      value: "letter",
-                      label: "US Letter",
-                      icon: LegalDocument01Icon,
-                    },
-                  ],
-                },
-                {
-                  label: "Margin",
-                  value: margin,
-                  onValueChange: (value) => setMargin(value as Margin),
-                  disabled: busy,
-                  options: [
-                    {
-                      value: "none",
-                      label: "No margin",
-                      icon: BorderNone01Icon,
-                    },
-                    { value: "small", label: "Small", icon: BorderAll01Icon },
-                    { value: "big", label: "Big", icon: BorderAll02Icon },
-                  ],
-                },
-              ],
-              actions: [
-                !autoRunEnabled && {
-                  label: "Convert",
-                  icon: Pdf01Icon,
-                  onClick: convert,
-                  disabled: busy || orderedJobs.length < 1,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !result,
+      sidebar={{
+        hidden: jobs.length === 0,
+        groups: [
+          {
+            label: "Page orientation",
+            value: orientation,
+            onValueChange: (value) => setOrientation(value as Orientation),
+            disabled: busy || pageSize === "fit",
+            options: [
+              {
+                value: "portrait",
+                label: "Portrait",
+                icon: SmartPhone01Icon,
               },
-            }
-          : undefined
-      }
+              { value: "landscape", label: "Landscape", icon: Tv01Icon },
+            ],
+          },
+          {
+            label: "Page size",
+            value: pageSize,
+            onValueChange: (value) => setPageSize(value as PageSize),
+            disabled: busy,
+            variant: "select",
+            options: [
+              {
+                value: "fit",
+                label: "Fit to image",
+                icon: FitToScreenIcon,
+              },
+              { value: "a4", label: "A4", icon: Note01Icon },
+              {
+                value: "letter",
+                label: "US Letter",
+                icon: LegalDocument01Icon,
+              },
+            ],
+          },
+          {
+            label: "Margin",
+            value: margin,
+            onValueChange: (value) => setMargin(value as Margin),
+            disabled: busy,
+            options: [
+              {
+                value: "none",
+                label: "No margin",
+                icon: BorderNone01Icon,
+              },
+              { value: "small", label: "Small", icon: BorderAll01Icon },
+              { value: "big", label: "Big", icon: BorderAll02Icon },
+            ],
+          },
+        ],
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Convert",
+            icon: Pdf01Icon,
+            onClick: convert,
+            disabled: busy || orderedJobs.length < 1,
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !result,
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {jobs.length > 0 && (

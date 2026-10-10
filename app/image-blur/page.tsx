@@ -355,77 +355,72 @@ export default function ImageBlurPage() {
           />
         )
       }
-      sidebar={
-        activeJob
-          ? {
-              segments: {
-                value: activeJob.mode,
-                onValueChange: (value) => onModeChange(value as BlurMode),
-                label: "Blur Type",
-                options: [
-                  { value: "pixelate", label: "Blocky", icon: GridViewIcon },
-                  { value: "gaussian", label: "Gaussian", icon: BlurIcon },
-                ],
-              },
-              zoom: {
-                percent: zoomPct,
-                onZoomOut: () => zoomFromButton(0.8),
-                onZoomIn: () => zoomFromButton(1.25),
-                onFit: fitView,
-                zoomOutDisabled: zoomPct <= MIN_ZOOM * 100,
-                zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
-              },
-              slider: {
-                label: "Amount",
-                value: blur,
-                onValueChange: onBlurChange,
-                min: 1,
-                max: 50,
-                unit: "px",
-              },
-              actions: [
-                pendingRect && {
-                  label: "Delete rectangle",
-                  icon: RemoveSquareIcon,
-                  onClick: clearSelection,
-                  variant: "card",
-                },
-                rects.length > 0 && {
-                  label: "Clear all",
-                  icon: Cancel01Icon,
-                  onClick: clearAllRects,
-                  variant: "card",
-                },
-                !autoRunEnabled && {
-                  label:
-                    totalRects > 1
-                      ? `Apply blur (${totalRects})`
-                      : "Apply blur",
-                  icon: BlurIcon,
-                  onClick: () => applyBlur(),
-                  disabled: totalRects === 0,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Apply blur to all",
-                          icon: BlurIcon,
-                          onClick: applyBlurToAll,
-                          disabled: totalRects === 0,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !jobHasBlur(activeJob),
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some(jobHasBlur),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some(jobHasBlur),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        hidden: !activeJob,
+        segments: {
+          value: activeJob?.mode ?? mode,
+          onValueChange: (value) => onModeChange(value as BlurMode),
+          label: "Blur Type",
+          options: [
+            { value: "pixelate", label: "Blocky", icon: GridViewIcon },
+            { value: "gaussian", label: "Gaussian", icon: BlurIcon },
+          ],
+        },
+        zoom: {
+          percent: zoomPct,
+          onZoomOut: () => zoomFromButton(0.8),
+          onZoomIn: () => zoomFromButton(1.25),
+          onFit: fitView,
+          zoomOutDisabled: zoomPct <= MIN_ZOOM * 100,
+          zoomInDisabled: zoomPct >= MAX_ZOOM * 100,
+        },
+        slider: {
+          label: "Amount",
+          value: blur,
+          onValueChange: onBlurChange,
+          min: 1,
+          max: 50,
+          unit: "px",
+        },
+        actions: [
+          {
+            hidden: !pendingRect,
+            label: "Delete rectangle",
+            icon: RemoveSquareIcon,
+            onClick: clearSelection,
+            variant: "card",
+          },
+          {
+            hidden: rects.length === 0,
+            label: "Clear all",
+            icon: Cancel01Icon,
+            onClick: clearAllRects,
+            variant: "card",
+          },
+          {
+            hidden: autoRunEnabled,
+            label: totalRects > 1 ? `Apply blur (${totalRects})` : "Apply blur",
+            icon: BlurIcon,
+            onClick: () => applyBlur(),
+            disabled: totalRects === 0,
+            more: {
+              hidden: jobs.length <= 1,
+              label: "Apply blur to all",
+              icon: BlurIcon,
+              onClick: applyBlurToAll,
+              disabled: totalRects === 0,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob || !jobHasBlur(activeJob),
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some(jobHasBlur),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some(jobHasBlur),
+        },
+      }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         {activeJob ? (

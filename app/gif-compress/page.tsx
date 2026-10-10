@@ -281,59 +281,49 @@ export default function GifCompressPage() {
           />
         )
       }
-      segments={
-        jobs.length > 0
-          ? {
-              value: mode,
-              onValueChange: (value) => setMode(value as Mode),
-              label: "Mode",
-              options: [
-                { value: "quality", label: "Quality", icon: SparklesIcon },
-                { value: "size", label: "Target size", icon: DartIcon },
-              ],
-            }
-          : undefined
-      }
-      sidebar={
-        jobs.length > 0
-          ? {
-              slider:
-                mode === "quality"
-                  ? {
-                      label: "Quality",
-                      value: quality,
-                      onValueChange: setQuality,
-                      min: 1,
-                      max: 100,
-                      unit: "%",
-                    }
-                  : undefined,
-              inputs:
-                mode === "size"
-                  ? [
-                      {
-                        label: "Target size (KB)",
-                        type: "number",
-                        min: 1,
-                        value: targetKb,
-                        onChange: setTargetKb,
-                      },
-                    ]
-                  : undefined,
-              hint: sizeInvalid
-                ? "Enter a target size of at least 1 KB."
-                : (activeJob?.note ?? undefined),
-              download: {
-                onDownload: downloadActive,
-                disabled: !activeJob?.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      segments={{
+        hidden: jobs.length === 0,
+        value: mode,
+        onValueChange: (value) => setMode(value as Mode),
+        label: "Mode",
+        options: [
+          { value: "quality", label: "Quality", icon: SparklesIcon },
+          { value: "size", label: "Target size", icon: DartIcon },
+        ],
+      }}
+      sidebar={{
+        hidden: jobs.length === 0,
+        slider: {
+          hidden: mode !== "quality",
+          label: "Quality",
+          value: quality,
+          onValueChange: setQuality,
+          min: 1,
+          max: 100,
+          unit: "%",
+        },
+        inputs: [
+          {
+            hidden: mode !== "size",
+            label: "Target size (KB)",
+            type: "number",
+            min: 1,
+            value: targetKb,
+            onChange: setTargetKb,
+          },
+        ],
+        hint: sizeInvalid
+          ? "Enter a target size of at least 1 KB."
+          : (activeJob?.note ?? undefined),
+        download: {
+          onDownload: downloadActive,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

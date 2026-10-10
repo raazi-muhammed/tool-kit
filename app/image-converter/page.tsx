@@ -148,9 +148,9 @@ export default function ImageConverterPage() {
 
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
-  const supportsAlpha = activeJob
-    ? FORMATS[activeJob.format].supportsAlpha
-    : false
+  const activeFormat = activeJob ? FORMATS[activeJob.format] : null
+  const supportsAlpha = activeFormat?.supportsAlpha ?? false
+  const supportsQuality = activeFormat?.supportsQuality ?? false
 
   async function convertJob(
     job: Job,
@@ -283,75 +283,65 @@ export default function ImageConverterPage() {
           />
         )
       }
-      sidebar={
-        jobs.length > 0
-          ? {
-              segments: activeJob
-                ? {
-                    value: activeJob.format,
-                    onValueChange: (value) =>
-                      updateJob(activeJob.id, { format: value as Format }),
-                    label: "Format",
-                    options: (Object.keys(FORMATS) as Format[]).map(
-                      (value) => ({
-                        value,
-                        label: FORMATS[value].label,
-                        icon: Image01Icon,
-                      })
-                    ),
-                    disabled: anyBusy,
-                  }
-                : undefined,
-              color: anyPng
-                ? {
-                    label: "Background",
-                    value: bgColor,
-                    onChange: setBgColor,
-                    fallback: "#ffffff",
-                  }
-                : undefined,
-              toggle: supportsAlpha
-                ? {
-                    label: "Remove background",
-                    pressed: removeBg,
-                    onPressedChange: setRemoveBg,
-                    color: {
-                      label: "Background color to remove",
-                      value: keyColor,
-                      onChange: setKeyColor,
-                    },
-                    slider: {
-                      label: "Tolerance",
-                      value: tolerance,
-                      onValueChange: setTolerance,
-                      min: 0,
-                      max: 100,
-                      unit: "%",
-                    },
-                  }
-                : undefined,
-              slider:
-                activeJob && FORMATS[activeJob.format].supportsQuality
-                  ? {
-                      label: "Quality",
-                      value: quality,
-                      onValueChange: setQuality,
-                      min: 0,
-                      max: 100,
-                      unit: "%",
-                    }
-                  : undefined,
-              download: {
-                onDownload: downloadActive,
-                disabled: !activeJob?.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        hidden: jobs.length === 0,
+        segments: {
+          hidden: !activeJob,
+          value: activeJob?.format ?? "png",
+          onValueChange: (value) =>
+            activeJob && updateJob(activeJob.id, { format: value as Format }),
+          label: "Format",
+          options: (Object.keys(FORMATS) as Format[]).map((value) => ({
+            value,
+            label: FORMATS[value].label,
+            icon: Image01Icon,
+          })),
+          disabled: anyBusy,
+        },
+        color: {
+          hidden: !anyPng,
+          label: "Background",
+          value: bgColor,
+          onChange: setBgColor,
+          fallback: "#ffffff",
+        },
+        toggle: {
+          hidden: !supportsAlpha,
+          label: "Remove background",
+          pressed: removeBg,
+          onPressedChange: setRemoveBg,
+          color: {
+            label: "Background color to remove",
+            value: keyColor,
+            onChange: setKeyColor,
+          },
+          slider: {
+            label: "Tolerance",
+            value: tolerance,
+            onValueChange: setTolerance,
+            min: 0,
+            max: 100,
+            unit: "%",
+          },
+        },
+        slider: {
+          hidden: !supportsQuality,
+          label: "Quality",
+          value: quality,
+          onValueChange: setQuality,
+          min: 0,
+          max: 100,
+          unit: "%",
+        },
+        download: {
+          onDownload: downloadActive,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

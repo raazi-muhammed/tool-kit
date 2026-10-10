@@ -163,26 +163,23 @@ export default function PdfMergePage() {
       page="PDF Merge"
       icon={FileStackIcon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
-      sidebar={
-        jobs.length > 0
-          ? {
-              actions: [
-                !autoRunEnabled && {
-                  label: "Merge",
-                  icon: FileStackIcon,
-                  onClick: merge,
-                  disabled: busy || validCount < 2,
-                },
-              ],
-              hint:
-                validCount < 2 ? "Add at least 2 PDFs to merge." : undefined,
-              download: {
-                onDownload: download,
-                disabled: !result,
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        hidden: jobs.length === 0,
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Merge",
+            icon: FileStackIcon,
+            onClick: merge,
+            disabled: busy || validCount < 2,
+          },
+        ],
+        hint: validCount < 2 ? "Add at least 2 PDFs to merge." : undefined,
+        download: {
+          onDownload: download,
+          disabled: !result,
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {jobs.length > 0 && (

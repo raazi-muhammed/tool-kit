@@ -76,6 +76,7 @@ type AddFileHandle = {
 }
 
 type Segments = {
+  hidden?: boolean
   value: string
   onValueChange: (value: string) => void
   options: { value: string; label: string; icon: IconSvgElement }[]
@@ -97,6 +98,7 @@ type Segments = {
 // value is per-job (e.g. Image Converter's per-file output format) rather
 // than one shared page-level setting.
 type SidebarSegments = {
+  hidden?: boolean
   value: string
   onValueChange: (value: string) => void
   options: { value: string; label: string; icon: IconSvgElement }[]
@@ -115,6 +117,7 @@ type SidebarSegments = {
 }
 
 type SidebarZoom = {
+  hidden?: boolean
   percent: number
   onZoomOut: () => void
   onZoomIn: () => void
@@ -124,6 +127,7 @@ type SidebarZoom = {
 }
 
 type SidebarSlider = {
+  hidden?: boolean
   label: string
   value: number
   onValueChange: (value: number) => void
@@ -136,6 +140,7 @@ type SidebarSlider = {
 }
 
 type SidebarAction = {
+  hidden?: boolean
   label: string
   icon: IconSvgElement
   onClick: () => void
@@ -145,6 +150,7 @@ type SidebarAction = {
   // rendered as a Download-style ButtonGroup + dropdown chevron instead of a
   // separate button.
   more?: {
+    hidden?: boolean
     label: string
     icon: IconSvgElement
     onClick: () => void
@@ -166,6 +172,7 @@ type SidebarAction = {
 // "Rotate all left"/"Rotate all right") — each action renders at an even
 // share of the row's width instead of stacking full-width.
 type SidebarActionGroup = {
+  hidden?: boolean
   label?: ReactNode
   actions: (SidebarAction | false | null | undefined)[]
   /**
@@ -179,6 +186,7 @@ type SidebarActionGroup = {
 }
 
 type SidebarDownload = {
+  hidden?: boolean
   onDownload: () => void
   disabled?: boolean
   onDownloadAll?: () => void
@@ -191,6 +199,7 @@ type SidebarDownload = {
 // A color swatch that can also be "unset" (e.g. a transparent background) —
 // rendered as a ColorPicker plus a clear button, or a muted label when unset.
 type SidebarColor = {
+  hidden?: boolean
   label: string
   value: string | null
   onChange: (value: string | null) => void
@@ -205,6 +214,7 @@ type SidebarColor = {
 // A pressable toggle (e.g. "Remove background") that reveals its own color
 // picker and/or strength slider only while pressed.
 type SidebarToggle = {
+  hidden?: boolean
   label: string
   pressed: boolean
   onPressedChange: (pressed: boolean) => void
@@ -228,6 +238,7 @@ type SidebarToggle = {
 // one-name-per-line player list), where plain Enter inserts a newline and
 // `onEnter` fires on ⌘/Ctrl+Enter.
 type SidebarInput = {
+  hidden?: boolean
   label: string
   value: string
   onChange: (value: string) => void
@@ -243,6 +254,7 @@ type SidebarInput = {
 // checked at once (e.g. Favicon Creator's icon sizes) — a multi-select, so
 // it renders as checkboxes rather than a segmented control.
 type SidebarChecklist = {
+  hidden?: boolean
   label: string
   items: {
     label: string
@@ -253,6 +265,14 @@ type SidebarChecklist = {
 }
 
 type Sidebar = {
+  /**
+   * Set true to leave the whole sidebar out. Every block type inside it
+   * (`segments`, `color`, `toggle`, `slider`, `download`, each action, …)
+   * takes the same flag, so a page can pass a block's config unconditionally
+   * with `hidden: !condition` instead of `condition ? {...} : undefined` —
+   * `ToolPage` drops hidden blocks before rendering.
+   */
+  hidden?: boolean
   /** Multi-select checklists, rendered stacked at the top of the sidebar. */
   checklists?: SidebarChecklist[]
   segments?: SidebarSegments
@@ -280,6 +300,50 @@ type Sidebar = {
    */
   actions?: (SidebarAction | SidebarActionGroup | false | null | undefined)[]
   download?: SidebarDownload
+}
+
+function shown<T extends { hidden?: boolean }>(block: T | undefined) {
+  return block && !block.hidden ? block : undefined
+}
+
+function shownAll<T extends { hidden?: boolean }>(
+  blocks: (T | false | null | undefined)[] | undefined
+) {
+  return blocks?.filter((block): block is T => !!block && !block.hidden)
+}
+
+function visibleAction(action: SidebarAction): SidebarAction {
+  return { ...action, more: shown(action.more) }
+}
+
+// Drops every `hidden` block up front, so the render code below only ever
+// sees what's actually shown and can keep its plain `sidebar?.x &&` checks.
+function visibleSidebar(sidebar: Sidebar | undefined): Sidebar | undefined {
+  const visible = shown(sidebar)
+  if (!visible) return undefined
+  const toggle = shown(visible.toggle)
+  return {
+    ...visible,
+    checklists: shownAll(visible.checklists),
+    segments: shown(visible.segments),
+    groups: shownAll(visible.groups),
+    color: shown(visible.color),
+    toggle: toggle && { ...toggle, slider: shown(toggle.slider) },
+    inputs: shownAll(visible.inputs),
+    zoom: shown(visible.zoom),
+    slider: Array.isArray(visible.slider)
+      ? shownAll(visible.slider)
+      : shown(visible.slider),
+    actions: shownAll(visible.actions)?.map((entry) =>
+      "actions" in entry
+        ? {
+            ...entry,
+            actions: shownAll(entry.actions)?.map(visibleAction) ?? [],
+          }
+        : visibleAction(entry)
+    ),
+    download: shown(visible.download),
+  }
 }
 
 function SidebarLabel({ children }: { children: ReactNode }) {
@@ -670,10 +734,10 @@ export function ToolPage({
   onCopy,
   onLoadSample,
   onAddFile,
-  segments,
+  segments: segmentsProp,
   actions,
   fileStrip,
-  sidebar,
+  sidebar: sidebarProp,
   children,
 }: {
   page: string
@@ -694,6 +758,8 @@ export function ToolPage({
   sidebar?: Sidebar
   children: ReactNode
 }) {
+  const segments = shown(segmentsProp)
+  const sidebar = visibleSidebar(sidebarProp)
   const [copied, setCopied] = useState(false)
   const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth()
   const {

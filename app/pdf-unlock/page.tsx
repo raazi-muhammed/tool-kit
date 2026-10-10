@@ -222,50 +222,44 @@ export default function PdfUnlockPage() {
           />
         )
       }
-      sidebar={
-        jobs.length > 0
-          ? {
-              inputs: [
-                {
-                  label: "Password",
-                  type: "password",
-                  value: password,
-                  onChange: setPassword,
-                  disabled: anyBusy || activeJob?.locked === false,
-                  onEnter: unlock,
-                },
-              ],
-              actions: [
-                !autoRunEnabled && {
-                  label: "Unlock",
-                  icon: FileUnlockedIcon,
-                  onClick: unlock,
-                  disabled:
-                    anyBusy ||
-                    !activeJob?.validFile ||
-                    activeJob?.locked === false,
-                  more:
-                    jobs.length > 1
-                      ? {
-                          label: "Unlock all",
-                          icon: FileUnlockedIcon,
-                          onClick: unlockAll,
-                          disabled: anyBusy,
-                        }
-                      : undefined,
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: !activeJob?.result,
-                onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
-                downloadAllDisabled: !jobs.some((job) => job.result),
-                onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
-                downloadZipDisabled: !jobs.some((job) => job.result),
-              },
-            }
-          : undefined
-      }
+      sidebar={{
+        hidden: jobs.length === 0,
+        inputs: [
+          {
+            label: "Password",
+            type: "password",
+            value: password,
+            onChange: setPassword,
+            disabled: anyBusy || activeJob?.locked === false,
+            onEnter: unlock,
+          },
+        ],
+        actions: [
+          {
+            hidden: autoRunEnabled,
+            label: "Unlock",
+            icon: FileUnlockedIcon,
+            onClick: unlock,
+            disabled:
+              anyBusy || !activeJob?.validFile || activeJob?.locked === false,
+            more: {
+              hidden: jobs.length < 2,
+              label: "Unlock all",
+              icon: FileUnlockedIcon,
+              onClick: unlockAll,
+              disabled: anyBusy,
+            },
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: !activeJob?.result,
+          onDownloadAll: jobs.length > 1 ? downloadAll : undefined,
+          downloadAllDisabled: !jobs.some((job) => job.result),
+          onDownloadZip: jobs.length > 1 ? downloadZip : undefined,
+          downloadZipDisabled: !jobs.some((job) => job.result),
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {activeJob && (

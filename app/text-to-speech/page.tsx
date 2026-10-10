@@ -143,7 +143,9 @@ export default function TextToSpeechPage() {
           voiceCount: loaded.length,
           firstVoices: loaded
             .slice(0, 5)
-            .map((v) => `${v.name} (${v.lang})${v.localService ? " local" : ""}`),
+            .map(
+              (v) => `${v.name} (${v.lang})${v.localService ? " local" : ""}`
+            ),
           ...synthState(),
         })
         setEngine({ state: "ready", voices: loaded })
@@ -381,24 +383,22 @@ export default function TextToSpeechPage() {
       icon={VoiceIcon}
       onAddFile={dropzoneRef}
       sidebar={{
-        segments:
-          voices.length > 0
-            ? {
-                label: "Voice",
-                variant: "select",
-                value: selectedVoice?.voiceURI ?? "",
-                onValueChange: (value) => {
-                  setVoiceURI(value)
-                  setSpeechError(null)
-                },
-                disabled: status !== "idle",
-                options: voices.map((voice) => ({
-                  value: voice.voiceURI,
-                  label: `${voice.name} (${voice.lang})`,
-                  icon: VoiceIcon,
-                })),
-              }
-            : undefined,
+        segments: {
+          hidden: voices.length === 0,
+          label: "Voice",
+          variant: "select",
+          value: selectedVoice?.voiceURI ?? "",
+          onValueChange: (value) => {
+            setVoiceURI(value)
+            setSpeechError(null)
+          },
+          disabled: status !== "idle",
+          options: voices.map((voice) => ({
+            value: voice.voiceURI,
+            label: `${voice.name} (${voice.lang})`,
+            icon: VoiceIcon,
+          })),
+        },
         slider: [
           {
             label: "Rate",
@@ -436,15 +436,15 @@ export default function TextToSpeechPage() {
           ) : engine.state === "failed" ? (
             <span className="text-destructive">
               Speech isn&apos;t available in this browser ({engine.message}).
-              Try another browser — the tool uses the browser&apos;s own
-              speech engine.
+              Try another browser — the tool uses the browser&apos;s own speech
+              engine.
             </span>
           ) : speechError === ENGINE_STUCK ? (
             <span className="text-destructive">
-              The browser&apos;s speech engine isn&apos;t responding. It can
-              get stuck machine-wide (a page reload won&apos;t clear it) —
-              quit the browser fully and reopen it, then try again. Picking a
-              different voice sometimes helps too.
+              The browser&apos;s speech engine isn&apos;t responding. It can get
+              stuck machine-wide (a page reload won&apos;t clear it) — quit the
+              browser fully and reopen it, then try again. Picking a different
+              voice sometimes helps too.
             </span>
           ) : speechError ? (
             <span className="text-destructive">
@@ -469,7 +469,8 @@ export default function TextToSpeechPage() {
             </span>
           ),
         actions: [
-          status !== "idle" && {
+          {
+            hidden: status === "idle",
             label: status === "paused" ? "Resume" : "Pause",
             icon: status === "paused" ? PlayIcon : PauseIcon,
             onClick: togglePause,

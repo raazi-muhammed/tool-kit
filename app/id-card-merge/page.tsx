@@ -392,113 +392,110 @@ export default function IdCardMergePage() {
           { value: "pdf", label: "PDF", icon: Pdf01Icon },
         ],
       }}
-      sidebar={
-        ready
-          ? {
-              groups: [
-                {
-                  label: "Layout",
-                  value: layout,
-                  onValueChange: (value) => setLayout(value as Layout),
-                  options: [
-                    {
-                      value: "vertical",
-                      label: "Vertical",
-                      icon: LayoutTwoRowIcon,
-                    },
-                    {
-                      value: "horizontal",
-                      label: "Horizontal",
-                      icon: LayoutTwoColumnIcon,
-                    },
-                  ],
-                },
-                // Cross-axis alignment — horizontal (left/center/right) when
-                // stacked vertically, vertical (top/center/bottom) when
-                // stacked horizontally, since that's the axis gap/padding
-                // don't already control. Only visible once front and back
-                // aren't the same size.
-                layout === "vertical"
-                  ? {
-                      label: "Align",
-                      value: align,
-                      onValueChange: (value) => setAlign(value as Align),
-                      options: [
-                        {
-                          value: "start",
-                          label: "Left",
-                          icon: AlignHorizontalJustifyStartIcon,
-                        },
-                        {
-                          value: "center",
-                          label: "Center",
-                          icon: AlignHorizontalJustifyCenterIcon,
-                        },
-                        {
-                          value: "end",
-                          label: "Right",
-                          icon: AlignHorizontalJustifyEndIcon,
-                        },
-                      ],
-                    }
-                  : {
-                      label: "Align",
-                      value: align,
-                      onValueChange: (value) => setAlign(value as Align),
-                      options: [
-                        {
-                          value: "start",
-                          label: "Top",
-                          icon: AlignVerticalJustifyStartIcon,
-                        },
-                        {
-                          value: "center",
-                          label: "Center",
-                          icon: AlignVerticalJustifyCenterIcon,
-                        },
-                        {
-                          value: "end",
-                          label: "Bottom",
-                          icon: AlignVerticalJustifyEndIcon,
-                        },
-                      ],
-                    },
-              ],
-              slider: [
-                {
-                  label: "Gap between images",
-                  value: gap,
-                  onValueChange: setGap,
-                  min: 0,
-                  max: 120,
-                  step: 4,
-                  unit: "px",
-                },
-                {
-                  label: "Outer padding",
-                  value: padding,
-                  onValueChange: setPadding,
-                  min: 0,
-                  max: 120,
-                  step: 4,
-                  unit: "px",
-                },
-              ],
-              actions: [
-                {
-                  label: "Swap front and back",
-                  icon: ArrowDataTransferVerticalIcon,
-                  onClick: swap,
-                  variant: "card",
-                },
-              ],
-              download: {
-                onDownload: download,
-                disabled: busy,
+      sidebar={{
+        hidden: !ready,
+        groups: [
+          {
+            label: "Layout",
+            value: layout,
+            onValueChange: (value) => setLayout(value as Layout),
+            options: [
+              {
+                value: "vertical",
+                label: "Vertical",
+                icon: LayoutTwoRowIcon,
               },
-            }
-          : undefined
-      }
+              {
+                value: "horizontal",
+                label: "Horizontal",
+                icon: LayoutTwoColumnIcon,
+              },
+            ],
+          },
+          // Cross-axis alignment — horizontal (left/center/right) when
+          // stacked vertically, vertical (top/center/bottom) when
+          // stacked horizontally, since that's the axis gap/padding
+          // don't already control. Only visible once front and back
+          // aren't the same size.
+          layout === "vertical"
+            ? {
+                label: "Align",
+                value: align,
+                onValueChange: (value) => setAlign(value as Align),
+                options: [
+                  {
+                    value: "start",
+                    label: "Left",
+                    icon: AlignHorizontalJustifyStartIcon,
+                  },
+                  {
+                    value: "center",
+                    label: "Center",
+                    icon: AlignHorizontalJustifyCenterIcon,
+                  },
+                  {
+                    value: "end",
+                    label: "Right",
+                    icon: AlignHorizontalJustifyEndIcon,
+                  },
+                ],
+              }
+            : {
+                label: "Align",
+                value: align,
+                onValueChange: (value) => setAlign(value as Align),
+                options: [
+                  {
+                    value: "start",
+                    label: "Top",
+                    icon: AlignVerticalJustifyStartIcon,
+                  },
+                  {
+                    value: "center",
+                    label: "Center",
+                    icon: AlignVerticalJustifyCenterIcon,
+                  },
+                  {
+                    value: "end",
+                    label: "Bottom",
+                    icon: AlignVerticalJustifyEndIcon,
+                  },
+                ],
+              },
+        ],
+        slider: [
+          {
+            label: "Gap between images",
+            value: gap,
+            onValueChange: setGap,
+            min: 0,
+            max: 120,
+            step: 4,
+            unit: "px",
+          },
+          {
+            label: "Outer padding",
+            value: padding,
+            onValueChange: setPadding,
+            min: 0,
+            max: 120,
+            step: 4,
+            unit: "px",
+          },
+        ],
+        actions: [
+          {
+            label: "Swap front and back",
+            icon: ArrowDataTransferVerticalIcon,
+            onClick: swap,
+            variant: "card",
+          },
+        ],
+        download: {
+          onDownload: download,
+          disabled: busy,
+        },
+      }}
     >
       <div className="flex flex-1 flex-col gap-4">
         {(front || back) && (
