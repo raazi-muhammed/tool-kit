@@ -205,8 +205,10 @@ sidebar:
   transparent PNGs): `{ label, value, onChange, fallback, nullLabel?,
 clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
   instead of the clear button. `ColorPicker` itself (`components/color-picker.tsx`)
-  always offers both a "Pick from screen" native `EyeDropper` button (where
-  the browser supports it — Chrome/Edge) and a "Pick from image" fallback
+  opens its own popover (saturation/brightness area, hue bar, presets) from the
+  swatch rather than the browser's native color dialog. That popover always
+  holds both a "From screen" native `EyeDropper` button (where the browser
+  supports it — Chrome/Edge) and a "From image" fallback
   that works everywhere (including Safari/Firefox): it consumes the next
   click anywhere on the page and samples whatever canvas/image is under the
   cursor via `sampleColorAtPoint` (`lib/canvas.ts`). Both are unconditional —
