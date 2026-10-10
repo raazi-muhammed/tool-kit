@@ -362,7 +362,7 @@ function resolveSidebar(sidebar: Sidebar | undefined): Sidebar | undefined {
 
 function SidebarLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="text-sm font-medium text-muted-foreground">
+    <span className="font-display text-sm font-medium text-muted-foreground">
       {children}
     </span>
   )

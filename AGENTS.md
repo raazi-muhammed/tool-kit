@@ -277,8 +277,8 @@ Callback props where `undefined` means "this option isn't offered", like
 
 Write every sidebar section heading (a `label` on `segments`, `groups`,
 `checklists`, `slider`, `inputs`, `color`, or an action group) in Title Case,
-e.g. "Aspect Ratio", "Target Size (KB)". Headings render as written in the
-regular body font, not uppercased. Button and option labels stay in sentence
+e.g. "Aspect Ratio", "Target Size (KB)". Headings render as written (not
+uppercased) in the wide display font (`font-display`). Button and option labels stay in sentence
 case ("Apply blur to all").
 
 Render order in the sidebar is `checklists`, `segments`, `color`, `toggle`, `inputs`,
