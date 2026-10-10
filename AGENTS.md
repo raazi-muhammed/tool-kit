@@ -214,10 +214,13 @@ clearLabel?, clearIcon? }`. `value: null` shows `nullLabel` as muted text
   reintroduce a page-owned "pick mode" (state, an `onClick` on the preview
   canvas, a cursor override) to support this. See `app/image-converter/page.tsx`
   and `app/image-crop/page.tsx`.
-- `toggle` — a pressable button (e.g. "Remove background") that reveals its
-  own nested `color` and/or `slider` only while pressed: `{ label, icon,
-pressed, onPressedChange, color?, slider? }`. See
-  `app/image-converter/page.tsx`.
+- `toggle` — a single on/off option (e.g. "Remove background") rendered as a
+  one-row checklist, in the same `bg-card` track and checked-row style as
+  `checklists`, that reveals its own nested controls only while checked:
+  `{ label, pressed, onPressedChange, checkbox?, color?, slider? }`. A nested
+  `checkbox` (a narrower refinement) renders as an indented second row in the
+  same track; `color`/`slider` render below it. See
+  `app/image-converter/page.tsx` and `app/env-example-creator/page.tsx`.
 - `inputs` — an array of labeled text/number/password fields rendered
   label-above-input (e.g. resize width/height, a PDF password): `{ label,
 value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always

@@ -369,10 +369,55 @@ function SidebarLabel({ children }: { children: ReactNode }) {
   )
 }
 
+// One checkbox row inside a `SidebarCheckTrack`. Shared by `checklists` and
+// `toggle` (plus its nested `checkbox`) so every on/off option in the sidebar
+// reads the same.
+function SidebarCheckRow({
+  label,
+  checked,
+  onCheckedChange,
+  disabled,
+  className,
+}: {
+  label: ReactNode
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <label
+      className={cn(
+        "flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground has-disabled:cursor-not-allowed has-disabled:opacity-50 has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground",
+        className
+      )}
+    >
+      {/* The checkbox's default `border-input`/`bg-input/30` all but
+          disappears against the `bg-card` track, so give unchecked boxes a
+          visible outline and fill of their own. */}
+      <Checkbox
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={(value) => onCheckedChange(value === true)}
+        className="border-muted-foreground/50 bg-background dark:bg-background"
+      />
+      {label}
+    </label>
+  )
+}
+
 // Rows sit in the same `bg-card` track as the `Tabs` segmented control, and
 // each checked row lifts onto the same `bg-background` surface as the active
 // tab — so a multi-select reads as a sibling of the single-select pickers,
 // while the leading checkbox makes it clear any number can be on at once.
+function SidebarCheckTrack({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-lg bg-card p-1">
+      {children}
+    </div>
+  )
+}
+
 function SidebarChecklistControl({
   checklist,
 }: {
@@ -381,27 +426,67 @@ function SidebarChecklistControl({
   return (
     <div className="flex flex-col gap-3">
       <SidebarLabel>{checklist.label}</SidebarLabel>
-      <div className="flex flex-col gap-0.5 rounded-lg bg-card p-1">
+      <SidebarCheckTrack>
         {checklist.items.map((item, index) => (
-          <label
+          <SidebarCheckRow
             key={index}
-            className="flex h-9 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground has-disabled:cursor-not-allowed has-disabled:opacity-50 has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground"
-          >
-            {/* The checkbox's default `border-input`/`bg-input/30` all but
-                disappears against the `bg-card` track, so give unchecked
-                boxes a visible outline and fill of their own. */}
-            <Checkbox
-              checked={item.checked}
-              disabled={checklist.disabled || item.disabled}
-              onCheckedChange={(checked) =>
-                item.onCheckedChange(checked === true)
-              }
-              className="border-muted-foreground/50 bg-background dark:bg-background"
-            />
-            {item.label}
-          </label>
+            label={item.label}
+            checked={item.checked}
+            onCheckedChange={item.onCheckedChange}
+            disabled={checklist.disabled || item.disabled}
+          />
         ))}
-      </div>
+      </SidebarCheckTrack>
+    </div>
+  )
+}
+
+// A single on/off option that reveals its own nested controls while pressed:
+// a refining sub-checkbox, indented under it in the same track, and then a
+// color and/or slider below the track.
+function SidebarToggleControl({ toggle }: { toggle: SidebarToggle }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <SidebarCheckTrack>
+        <SidebarCheckRow
+          label={toggle.label}
+          checked={toggle.pressed}
+          onCheckedChange={toggle.onPressedChange}
+          disabled={toggle.disabled}
+        />
+        {toggle.pressed && toggle.checkbox && (
+          // Indented so its checkbox lines up under the parent row's label.
+          <SidebarCheckRow
+            label={toggle.checkbox.label}
+            checked={toggle.checkbox.checked}
+            onCheckedChange={toggle.checkbox.onCheckedChange}
+            disabled={toggle.disabled}
+            className="pl-10"
+          />
+        )}
+      </SidebarCheckTrack>
+      {toggle.pressed && toggle.color && (
+        <SidebarColorControl
+          color={{
+            label: toggle.color.label,
+            value: toggle.color.value,
+            fallback: toggle.color.value,
+            showLabel: false,
+            disabled: toggle.disabled,
+            onChange: (value) => {
+              if (value !== null) toggle.color!.onChange(value)
+            },
+          }}
+        />
+      )}
+      {toggle.pressed && toggle.slider && (
+        <SidebarSliderControl
+          slider={{
+            ...toggle.slider,
+            disabled: toggle.disabled || toggle.slider.disabled,
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -929,55 +1014,7 @@ export function ToolPage({
 
       {sidebar?.color && <SidebarColorControl color={sidebar.color} />}
 
-      {sidebar?.toggle && (
-        <div className="flex flex-col gap-3">
-          <label className="flex cursor-pointer items-center justify-between gap-2 has-disabled:cursor-not-allowed has-disabled:opacity-50">
-            <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
-            <Checkbox
-              checked={sidebar.toggle.pressed}
-              disabled={sidebar.toggle.disabled}
-              onCheckedChange={(checked) =>
-                sidebar.toggle!.onPressedChange(checked === true)
-              }
-            />
-          </label>
-          {sidebar.toggle.pressed && sidebar.toggle.color && (
-            <SidebarColorControl
-              color={{
-                label: sidebar.toggle.color.label,
-                value: sidebar.toggle.color.value,
-                fallback: sidebar.toggle.color.value,
-                showLabel: false,
-                disabled: sidebar.toggle.disabled,
-                onChange: (value) => {
-                  if (value !== null) sidebar.toggle!.color!.onChange(value)
-                },
-              }}
-            />
-          )}
-          {sidebar.toggle.pressed && sidebar.toggle.slider && (
-            <SidebarSliderControl
-              slider={{
-                ...sidebar.toggle.slider,
-                disabled:
-                  sidebar.toggle.disabled || sidebar.toggle.slider.disabled,
-              }}
-            />
-          )}
-          {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
-            <label className="flex cursor-pointer items-center justify-between gap-2 has-disabled:cursor-not-allowed has-disabled:opacity-50">
-              <SidebarLabel>{sidebar.toggle.checkbox.label}</SidebarLabel>
-              <Checkbox
-                checked={sidebar.toggle.checkbox.checked}
-                disabled={sidebar.toggle.disabled}
-                onCheckedChange={(checked) =>
-                  sidebar.toggle!.checkbox!.onCheckedChange(checked === true)
-                }
-              />
-            </label>
-          )}
-        </div>
-      )}
+      {sidebar?.toggle && <SidebarToggleControl toggle={sidebar.toggle} />}
 
       {sidebar?.inputs?.map((input, index) => (
         <div key={index} className="flex flex-col gap-1.5">
