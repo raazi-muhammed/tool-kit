@@ -246,9 +246,8 @@ export default function VideoToAudioPage() {
         )
       }
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         segments: {
-          hidden: !activeJob,
           value: activeJob?.format ?? "mp3",
           onValueChange: (value) =>
             activeJob && changeFormat(activeJob.id, value as Format),

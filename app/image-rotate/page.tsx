@@ -160,7 +160,7 @@ export default function ImageRotatePage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         actions: [
           {
             label: "This image",

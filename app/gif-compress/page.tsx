@@ -282,7 +282,6 @@ export default function GifCompressPage() {
         )
       }
       segments={{
-        hidden: jobs.length === 0,
         value: mode,
         onValueChange: (value) => setMode(value as Mode),
         label: "Mode",
@@ -292,7 +291,7 @@ export default function GifCompressPage() {
         ],
       }}
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         slider: {
           hidden: mode !== "quality",
           label: "Quality",

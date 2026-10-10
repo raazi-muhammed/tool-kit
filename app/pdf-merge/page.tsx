@@ -164,7 +164,7 @@ export default function PdfMergePage() {
       icon={FileStackIcon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         actions: [
           {
             hidden: autoRunEnabled,

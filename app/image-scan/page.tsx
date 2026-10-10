@@ -392,7 +392,7 @@ export default function ImageScanPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         zoom: {
           percent: zoomPct,
           onZoomOut: () => zoomFromButton(0.8),

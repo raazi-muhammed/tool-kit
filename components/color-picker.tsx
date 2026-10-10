@@ -54,10 +54,12 @@ export function ColorPicker({
   value,
   onChange,
   label = "Pick color",
+  disabled,
 }: {
   value: string
   onChange: (color: string) => void
   label?: string
+  disabled?: boolean
 }) {
   const [text, setText] = React.useState(value)
   const [picking, setPicking] = React.useState(false)
@@ -133,7 +135,8 @@ export function ColorPicker({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={label}
-          className="size-9 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-1 [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:rounded-sm [&::-webkit-color-swatch-wrapper]:border-none [&::-webkit-color-swatch-wrapper]:p-0"
+          disabled={disabled}
+          className="size-9 shrink-0 cursor-pointer rounded-sm border-0 bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50 [&::-moz-color-swatch]:rounded-sm [&::-moz-color-swatch]:border-none [&::-webkit-color-swatch]:rounded-sm [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:rounded-sm [&::-webkit-color-swatch-wrapper]:border-none [&::-webkit-color-swatch-wrapper]:p-0"
         />
         <Input
           value={text}
@@ -145,6 +148,7 @@ export function ColorPicker({
           className="h-8 flex-1 border-0 bg-transparent px-2 font-mono uppercase shadow-none outline-none focus-visible:border-0 focus-visible:ring-0 dark:bg-transparent"
           maxLength={7}
           aria-label="Hex color code"
+          disabled={disabled}
         />
       </div>
       <IconTooltip label="Pick from image">
@@ -153,6 +157,7 @@ export function ColorPicker({
           size="icon"
           onClick={() => setPicking(true)}
           aria-label="Pick from image"
+          disabled={disabled}
         >
           <HugeiconsIcon icon={ColorPickerIcon} aria-hidden />
         </Button>
@@ -164,6 +169,7 @@ export function ColorPicker({
             size="icon"
             onClick={pickFromScreen}
             aria-label="Pick from screen"
+            disabled={disabled}
           >
             <HugeiconsIcon icon={DropperIcon} aria-hidden />
           </Button>

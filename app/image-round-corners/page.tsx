@@ -173,7 +173,7 @@ export default function ImageRoundCornersPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         color: {
           label: "Background",
           value: bgColor,

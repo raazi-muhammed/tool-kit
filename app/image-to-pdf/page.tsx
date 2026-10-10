@@ -231,7 +231,7 @@ export default function ImageToPdfPage() {
       icon={Pdf01Icon}
       onAddFile={jobs.length > 0 ? dropzoneRef : undefined}
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         groups: [
           {
             label: "Page orientation",

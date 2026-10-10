@@ -393,7 +393,7 @@ export default function IdCardMergePage() {
         ],
       }}
       sidebar={{
-        hidden: !ready,
+        disabled: !ready,
         groups: [
           {
             label: "Layout",

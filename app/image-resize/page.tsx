@@ -213,7 +213,7 @@ export default function ImageResizePage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         inputs: [
           {
             label: "Width",

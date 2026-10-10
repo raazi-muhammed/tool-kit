@@ -249,7 +249,7 @@ export default function PdfToImagesPage() {
         )
       }
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         segments: {
           value: format,
           onValueChange: (value) => setFormat(value as Format),

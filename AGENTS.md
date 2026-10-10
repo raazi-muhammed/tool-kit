@@ -30,8 +30,9 @@ older pages still pass them; that's legacy to be removed when those pages are
 next touched, not a pattern to copy.
 
 `ToolPage` renders a two-region layout: a main column (breadcrumb, `children`,
-and a bottom bar for the file strip/Add file), and — only once there's
-something to put in it — a right sidebar for settings, stacked top to bottom,
+and a bottom bar for the file strip/Add file), and — whenever the page passes
+`sidebar` (always, even before a file is loaded) — a right sidebar for
+settings, stacked top to bottom,
 with the primary action button(s) and Download pinned to its bottom edge. The
 sidebar is built on the shadcn **Sidebar** primitive
 (`components/ui/sidebar.tsx`, added via `npx shadcn@latest add sidebar`) with
@@ -99,17 +100,16 @@ object, not JSX, so `ToolPage` renders the controls (and their icons) itself:
   fileStrip={jobs.length > 1 && (
     <JobStrip jobs={jobs} activeId={activeId} onSelect={setActiveId} onRemove={removeJob} />
   )}
-  sidebar={
-    activeJob && {
-      zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
-      slider: { label: "Amount", value: blur, onValueChange: onBlurChange, min: 1, max: 50, unit: "px" },
-      actions: [
-        pendingRect && { label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost", emphasis: "secondary" },
-        { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
-      ],
-      download: { onDownload: download, disabled: !activeJob.hasEdits, onDownloadAll: downloadAll },
-    }
-  }
+  sidebar={{
+    disabled: !activeJob,
+    zoom: { percent: zoomPct, onZoomOut, onZoomIn, onFit },
+    slider: { label: "Amount", value: blur, onValueChange: onBlurChange, min: 1, max: 50, unit: "px" },
+    actions: [
+      { hidden: !pendingRect, label: "Cancel selection", icon: Cancel01Icon, onClick: clearSelection, variant: "ghost", emphasis: "secondary" },
+      { label: "Apply blur", icon: BlurIcon, onClick: applyBlur, disabled: !pendingRect },
+    ],
+    download: { onDownload: download, disabled: !activeJob?.hasEdits, onDownloadAll: downloadAll },
+  }}
 >
 ```
 
@@ -237,17 +237,27 @@ value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
   `card`/`ghost` toggle buttons in `actions`. See
   `app/favicon-creator/page.tsx`.
 
-To show a block only under some condition, pass it unconditionally with
-`hidden: !condition` instead of wrapping it in `condition ? {...} : undefined`.
-`sidebar` itself, the top-level `segments`, and every sidebar block
-(`segments`, `groups`, `color`, `toggle`, `toggle.slider`, `inputs`,
-`checklists`, `zoom`, `slider`, `download`, each action or action group, and an
-action's `more`) take
-this flag, and `ToolPage` drops hidden blocks before it renders anything:
+Always pass `sidebar`, even before a file is loaded, so the empty screen
+shows the tool's settings instead of a lone dropzone. Set `disabled:
+jobs.length === 0` (or `!activeJob`) on it to grey out every control inside
+it until there's something to act on; a top-level `segments` that renders in
+the sidebar follows the same state. Since the config is now built with no
+active job, read job fields null-safely (`!activeJob?.result`, `activeJob?.format
+?? "png"`), ideally falling back to what a new job defaults to, so the
+disabled sidebar previews the controls a first file will get.
+
+To show a block only in some states (a mode, a pending selection, a PNG
+input), pass it unconditionally with `hidden: !condition` instead of wrapping
+it in `condition ? {...} : undefined`. The top-level `segments` and every
+sidebar block (`segments`, `groups`, `color`, `toggle`, `toggle.slider`,
+`inputs`, `checklists`, `zoom`, `slider`, `download`, each action or action
+group, and an action's `more`) take this flag, and `ToolPage` drops hidden
+blocks before it renders anything. Don't hide a block just because no file is
+loaded yet; the sidebar's `disabled` covers that:
 
 ```tsx
 sidebar={{
-  hidden: jobs.length === 0,
+  disabled: jobs.length === 0,
   color: { hidden: !anyPng, label: "Background", value: bgColor, onChange: setBgColor, fallback: "#ffffff" },
   slider: { hidden: !supportsQuality, label: "Quality", value: quality, onValueChange: setQuality, min: 0, max: 100, unit: "%" },
 }}

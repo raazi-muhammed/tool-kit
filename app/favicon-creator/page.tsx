@@ -216,7 +216,7 @@ export default function FaviconCreatorPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         segments: {
           label: "Shape",
           value: shape,

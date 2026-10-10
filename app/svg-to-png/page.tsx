@@ -231,7 +231,7 @@ export default function SvgToPngPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         color: {
           label: "Background",
           value: bgColor,

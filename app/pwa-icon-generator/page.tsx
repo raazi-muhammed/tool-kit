@@ -216,7 +216,7 @@ export default function PwaIconGeneratorPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         segments: {
           label: "Shape",
           value: shape,

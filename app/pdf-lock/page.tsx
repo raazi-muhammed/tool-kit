@@ -249,7 +249,7 @@ export default function PdfLockPage() {
         )
       }
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         inputs: [
           {
             label: "Password",

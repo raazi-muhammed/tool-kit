@@ -224,9 +224,9 @@ export default function ImageTrimPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         hint:
-          !pendingRect && !activeJob?.trimmed
+          activeJob && !pendingRect && !activeJob.trimmed
             ? "No transparent margin to trim."
             : undefined,
         actions: [

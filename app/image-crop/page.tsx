@@ -301,7 +301,7 @@ export default function ImageCropPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         segments: {
           value: activeJob?.aspect ?? "free",
           onValueChange: (value) => onAspectChange(value as Aspect),

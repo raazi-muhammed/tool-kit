@@ -356,7 +356,7 @@ export default function ImageBlurPage() {
         )
       }
       sidebar={{
-        hidden: !activeJob,
+        disabled: !activeJob,
         segments: {
           value: activeJob?.mode ?? mode,
           onValueChange: (value) => onModeChange(value as BlurMode),

@@ -118,6 +118,7 @@ type SidebarSegments = {
 
 type SidebarZoom = {
   hidden?: boolean
+  disabled?: boolean
   percent: number
   onZoomOut: () => void
   onZoomIn: () => void
@@ -200,6 +201,7 @@ type SidebarDownload = {
 // rendered as a ColorPicker plus a clear button, or a muted label when unset.
 type SidebarColor = {
   hidden?: boolean
+  disabled?: boolean
   label: string
   value: string | null
   onChange: (value: string | null) => void
@@ -215,6 +217,7 @@ type SidebarColor = {
 // picker and/or strength slider only while pressed.
 type SidebarToggle = {
   hidden?: boolean
+  disabled?: boolean
   label: string
   pressed: boolean
   onPressedChange: (pressed: boolean) => void
@@ -255,6 +258,7 @@ type SidebarInput = {
 // it renders as checkboxes rather than a segmented control.
 type SidebarChecklist = {
   hidden?: boolean
+  disabled?: boolean
   label: string
   items: {
     label: string
@@ -266,13 +270,15 @@ type SidebarChecklist = {
 
 type Sidebar = {
   /**
-   * Set true to leave the whole sidebar out. Every block type inside it
-   * (`segments`, `color`, `toggle`, `slider`, `download`, each action, …)
-   * takes the same flag, so a page can pass a block's config unconditionally
-   * with `hidden: !condition` instead of `condition ? {...} : undefined` —
-   * `ToolPage` drops hidden blocks before rendering.
+   * The sidebar always renders once passed, even before a file is loaded, so
+   * the page never looks empty. Set `disabled` (e.g. `jobs.length === 0`) to
+   * grey out every control inside it until there's something to act on.
+   * Individual blocks (`segments`, `color`, `slider`, each action, …) take
+   * `hidden: !condition` instead of `condition ? {...} : undefined` for
+   * controls that only apply in some states — `ToolPage` drops those before
+   * rendering.
    */
-  hidden?: boolean
+  disabled?: boolean
   /** Multi-select checklists, rendered stacked at the top of the sidebar. */
   checklists?: SidebarChecklist[]
   segments?: SidebarSegments
@@ -312,37 +318,46 @@ function shownAll<T extends { hidden?: boolean }>(
   return blocks?.filter((block): block is T => !!block && !block.hidden)
 }
 
-function visibleAction(action: SidebarAction): SidebarAction {
-  return { ...action, more: shown(action.more) }
-}
-
-// Drops every `hidden` block up front, so the render code below only ever
-// sees what's actually shown and can keep its plain `sidebar?.x &&` checks.
-function visibleSidebar(sidebar: Sidebar | undefined): Sidebar | undefined {
-  const visible = shown(sidebar)
-  if (!visible) return undefined
-  const toggle = shown(visible.toggle)
+// Drops every `hidden` block up front and, while the whole sidebar is
+// `disabled`, forces `disabled` onto every block that's left — so the render
+// code below only ever sees what's actually shown, in its final state, and
+// can keep its plain `sidebar?.x &&` checks.
+function resolveSidebar(sidebar: Sidebar | undefined): Sidebar | undefined {
+  if (!sidebar) return undefined
+  type Block = { hidden?: boolean; disabled?: boolean }
+  const off = <T extends Block>(block: T): T =>
+    sidebar.disabled ? { ...block, disabled: true } : block
+  const resolve = <T extends Block>(block: T | undefined) => {
+    const visible = shown(block)
+    return visible && off(visible)
+  }
+  const resolveAll = <T extends Block>(
+    blocks: (T | false | null | undefined)[] | undefined
+  ) => shownAll(blocks)?.map(off)
+  const resolveAction = (action: SidebarAction): SidebarAction =>
+    off({ ...action, more: shown(action.more) })
+  const toggle = resolve(sidebar.toggle)
   return {
-    ...visible,
-    checklists: shownAll(visible.checklists),
-    segments: shown(visible.segments),
-    groups: shownAll(visible.groups),
-    color: shown(visible.color),
+    ...sidebar,
+    checklists: resolveAll(sidebar.checklists),
+    segments: resolve(sidebar.segments),
+    groups: resolveAll(sidebar.groups),
+    color: resolve(sidebar.color),
     toggle: toggle && { ...toggle, slider: shown(toggle.slider) },
-    inputs: shownAll(visible.inputs),
-    zoom: shown(visible.zoom),
-    slider: Array.isArray(visible.slider)
-      ? shownAll(visible.slider)
-      : shown(visible.slider),
-    actions: shownAll(visible.actions)?.map((entry) =>
+    inputs: resolveAll(sidebar.inputs),
+    zoom: resolve(sidebar.zoom),
+    slider: Array.isArray(sidebar.slider)
+      ? resolveAll(sidebar.slider)
+      : resolve(sidebar.slider),
+    actions: shownAll(sidebar.actions)?.map((entry) =>
       "actions" in entry
         ? {
             ...entry,
-            actions: shownAll(entry.actions)?.map(visibleAction) ?? [],
+            actions: shownAll(entry.actions)?.map(resolveAction) ?? [],
           }
-        : visibleAction(entry)
+        : resolveAction(entry)
     ),
-    download: shown(visible.download),
+    download: resolve(sidebar.download),
   }
 }
 
@@ -377,7 +392,7 @@ function SidebarChecklistControl({
                 boxes a visible outline and fill of their own. */}
             <Checkbox
               checked={item.checked}
-              disabled={item.disabled}
+              disabled={checklist.disabled || item.disabled}
               onCheckedChange={(checked) =>
                 item.onCheckedChange(checked === true)
               }
@@ -613,7 +628,8 @@ function SidebarColorControl({ color }: { color: SidebarColor }) {
                 <button
                   type="button"
                   onClick={() => color.onChange(null)}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  disabled={color.disabled}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                 >
                   {color.clearIcon && (
                     <HugeiconsIcon
@@ -636,6 +652,7 @@ function SidebarColorControl({ color }: { color: SidebarColor }) {
         value={color.value ?? color.fallback}
         onChange={(value) => color.onChange(value)}
         label={color.label}
+        disabled={color.disabled}
       />
     </div>
   )
@@ -759,7 +776,7 @@ export function ToolPage({
   children: ReactNode
 }) {
   const segments = shown(segmentsProp)
-  const sidebar = visibleSidebar(sidebarProp)
+  const sidebar = resolveSidebar(sidebarProp)
   const [copied, setCopied] = useState(false)
   const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth()
   const {
@@ -781,9 +798,12 @@ export function ToolPage({
   }
 
   const inlineSegments = segments?.placement === "inline" ? segments : undefined
+  // A top-level `segments` that renders in the sidebar follows the sidebar's
+  // `disabled` state, the same as the sidebar's own blocks.
   const sidebarSegments =
-    (segments && segments.placement !== "inline" ? segments : undefined) ??
-    sidebar?.segments
+    (segments && segments.placement !== "inline"
+      ? { ...segments, disabled: segments.disabled || sidebar?.disabled }
+      : undefined) ?? sidebar?.segments
 
   const hasHeaderRow = !!(actions || onCopy || onLoadSample)
   const hasBottomBar = !!(fileStrip || onAddFile)
@@ -861,7 +881,9 @@ export function ToolPage({
                 <Button
                   variant="ghost"
                   onClick={sidebar.zoom.onZoomOut}
-                  disabled={sidebar.zoom.zoomOutDisabled}
+                  disabled={
+                    sidebar.zoom.disabled || sidebar.zoom.zoomOutDisabled
+                  }
                   aria-label="Zoom out"
                 >
                   <HugeiconsIcon icon={ZoomOutAreaIcon} aria-hidden />
@@ -874,7 +896,9 @@ export function ToolPage({
                 <Button
                   variant="ghost"
                   onClick={sidebar.zoom.onZoomIn}
-                  disabled={sidebar.zoom.zoomInDisabled}
+                  disabled={
+                    sidebar.zoom.disabled || sidebar.zoom.zoomInDisabled
+                  }
                   aria-label="Zoom in"
                 >
                   <HugeiconsIcon icon={ZoomInAreaIcon} aria-hidden />
@@ -886,6 +910,7 @@ export function ToolPage({
                 <Button
                   variant="ghost"
                   onClick={sidebar.zoom.onFit}
+                  disabled={sidebar.zoom.disabled}
                   aria-label="Fit to screen"
                 >
                   <HugeiconsIcon icon={FitToScreenIcon} aria-hidden />
@@ -906,10 +931,11 @@ export function ToolPage({
 
       {sidebar?.toggle && (
         <div className="flex flex-col gap-3">
-          <label className="flex cursor-pointer items-center justify-between gap-2">
+          <label className="flex cursor-pointer items-center justify-between gap-2 has-disabled:cursor-not-allowed has-disabled:opacity-50">
             <SidebarLabel>{sidebar.toggle.label}</SidebarLabel>
             <Checkbox
               checked={sidebar.toggle.pressed}
+              disabled={sidebar.toggle.disabled}
               onCheckedChange={(checked) =>
                 sidebar.toggle!.onPressedChange(checked === true)
               }
@@ -922,6 +948,7 @@ export function ToolPage({
                 value: sidebar.toggle.color.value,
                 fallback: sidebar.toggle.color.value,
                 showLabel: false,
+                disabled: sidebar.toggle.disabled,
                 onChange: (value) => {
                   if (value !== null) sidebar.toggle!.color!.onChange(value)
                 },
@@ -929,13 +956,20 @@ export function ToolPage({
             />
           )}
           {sidebar.toggle.pressed && sidebar.toggle.slider && (
-            <SidebarSliderControl slider={sidebar.toggle.slider} />
+            <SidebarSliderControl
+              slider={{
+                ...sidebar.toggle.slider,
+                disabled:
+                  sidebar.toggle.disabled || sidebar.toggle.slider.disabled,
+              }}
+            />
           )}
           {sidebar.toggle.pressed && sidebar.toggle.checkbox && (
-            <label className="flex cursor-pointer items-center justify-between gap-2">
+            <label className="flex cursor-pointer items-center justify-between gap-2 has-disabled:cursor-not-allowed has-disabled:opacity-50">
               <SidebarLabel>{sidebar.toggle.checkbox.label}</SidebarLabel>
               <Checkbox
                 checked={sidebar.toggle.checkbox.checked}
+                disabled={sidebar.toggle.disabled}
                 onCheckedChange={(checked) =>
                   sidebar.toggle!.checkbox!.onCheckedChange(checked === true)
                 }

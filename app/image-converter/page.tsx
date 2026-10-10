@@ -148,9 +148,10 @@ export default function ImageConverterPage() {
 
   const anyBusy = jobs.some((job) => job.status === "converting")
   const anyPng = jobs.some((job) => job.file.type === "image/png")
-  const activeFormat = activeJob ? FORMATS[activeJob.format] : null
-  const supportsAlpha = activeFormat?.supportsAlpha ?? false
-  const supportsQuality = activeFormat?.supportsQuality ?? false
+  // Falls back to a new job's default format, so the always-visible (but
+  // disabled) sidebar previews the controls a first file will get.
+  const activeFormat = FORMATS[activeJob?.format ?? "png"]
+  const { supportsAlpha, supportsQuality } = activeFormat
 
   async function convertJob(
     job: Job,
@@ -284,9 +285,8 @@ export default function ImageConverterPage() {
         )
       }
       sidebar={{
-        hidden: jobs.length === 0,
+        disabled: jobs.length === 0,
         segments: {
-          hidden: !activeJob,
           value: activeJob?.format ?? "png",
           onValueChange: (value) =>
             activeJob && updateJob(activeJob.id, { format: value as Format }),
