@@ -7,7 +7,6 @@ import {
   CloudUploadIcon,
   Loading03Icon,
   Square01Icon,
-  SquareIcon,
   SquareRoundCornerIcon,
 } from "@hugeicons/core-free-icons"
 import type { IconSvgElement } from "@hugeicons/react"
@@ -193,13 +192,11 @@ export default function FaviconCreatorPage() {
     )
   }
 
-  function sizeAction(size: number) {
-    const selected = sizes.includes(size)
+  function sizeItem(size: number) {
     return {
       label: `${size}px`,
-      icon: SquareIcon,
-      onClick: () => toggleSize(size),
-      variant: selected ? ("card" as const) : ("ghost" as const),
+      checked: sizes.includes(size),
+      onCheckedChange: () => toggleSize(size),
     }
   }
 
@@ -227,17 +224,17 @@ export default function FaviconCreatorPage() {
                 onValueChange: (value) => setShape(value as IconShape),
                 options: SHAPE_OPTIONS,
               },
-              actions: [
+              checklists: [
                 {
                   label: "Favicon sizes",
-                  placement: "top",
-                  actions: FAVICON_SIZES.map(sizeAction),
+                  items: FAVICON_SIZES.map(sizeItem),
                 },
                 {
                   label: "App icon sizes",
-                  placement: "top",
-                  actions: APP_ICON_SIZES.map(sizeAction),
+                  items: APP_ICON_SIZES.map(sizeItem),
                 },
+              ],
+              actions: [
                 !autoRunEnabled && {
                   label: "Generate ICO",
                   icon: BrowserIcon,

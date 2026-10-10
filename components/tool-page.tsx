@@ -239,7 +239,22 @@ type SidebarInput = {
   onEnter?: () => void
 }
 
+// A labeled list of independent on/off options where any number can be
+// checked at once (e.g. Favicon Creator's icon sizes) — a multi-select, so
+// it renders as checkboxes rather than a segmented control.
+type SidebarChecklist = {
+  label: string
+  items: {
+    label: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+    disabled?: boolean
+  }[]
+}
+
 type Sidebar = {
+  /** Multi-select checklists, rendered stacked at the top of the sidebar. */
+  checklists?: SidebarChecklist[]
   segments?: SidebarSegments
   /**
    * Additional segmented pickers beyond the single `segments` slot above —
@@ -272,6 +287,43 @@ function SidebarLabel({ children }: { children: ReactNode }) {
     <span className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
       {children}
     </span>
+  )
+}
+
+// Rows sit in the same `bg-card` track as the `Tabs` segmented control, and
+// each checked row lifts onto the same `bg-background` surface as the active
+// tab — so a multi-select reads as a sibling of the single-select pickers,
+// while the leading checkbox makes it clear any number can be on at once.
+function SidebarChecklistControl({
+  checklist,
+}: {
+  checklist: SidebarChecklist
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <SidebarLabel>{checklist.label}</SidebarLabel>
+      <div className="flex flex-col gap-0.5 rounded-lg bg-card p-1">
+        {checklist.items.map((item, index) => (
+          <label
+            key={index}
+            className="flex h-9 cursor-pointer items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground has-disabled:cursor-not-allowed has-disabled:opacity-50 has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground"
+          >
+            {/* The checkbox's default `border-input`/`bg-input/30` all but
+                disappears against the `bg-card` track, so give unchecked
+                boxes a visible outline and fill of their own. */}
+            <Checkbox
+              checked={item.checked}
+              disabled={item.disabled}
+              onCheckedChange={(checked) =>
+                item.onCheckedChange(checked === true)
+              }
+              className="border-muted-foreground/50 bg-background dark:bg-background"
+            />
+            {item.label}
+          </label>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -728,6 +780,10 @@ export function ToolPage({
     <>
       {topActionGroups.map((group, index) => (
         <SidebarActionGroupRow key={index} group={group} />
+      ))}
+
+      {sidebar?.checklists?.map((checklist, index) => (
+        <SidebarChecklistControl key={index} checklist={checklist} />
       ))}
 
       {sidebar?.zoom && (

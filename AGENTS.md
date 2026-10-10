@@ -230,8 +230,14 @@ value, onChange, type?, min?, disabled?, className?, onEnter? }[]`. Always
 - `hint` — muted contextual text shown in the sidebar instead of a separate
   paragraph below the preview (e.g. "No transparent margin to trim."): just a
   `ReactNode`. See `app/image-trim/page.tsx`.
+- `checklists` — labeled lists of checkboxes for a multi-select setting, where
+  any number of options can be on at once (e.g. Favicon Creator's icon
+  sizes): `{ label, items: { label, checked, onCheckedChange, disabled? }[] }`.
+  Use this rather than `segments`/`groups` (single-select only) or a row of
+  `card`/`ghost` toggle buttons in `actions`. See
+  `app/favicon-creator/page.tsx`.
 
-Render order in the sidebar is `segments`, `color`, `toggle`, `inputs`,
+Render order in the sidebar is `checklists`, `segments`, `color`, `toggle`, `inputs`,
 `slider`, `hint`, then the pinned-bottom `actions`/`download` block. Don't add
 a new primitive for a one-off control — reuse `actions` (e.g. an icon+label
 toggle button computed from page state, like Image Resize's aspect-ratio
